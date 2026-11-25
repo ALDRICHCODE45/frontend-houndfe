@@ -18,6 +18,7 @@ import {
   formatSellerReportCents,
   formatSellerReportCount,
   formatSellerReportInstant,
+  formatSellerReportPeriod,
   sellerReportFailureMessage,
 } from '../sellerReportPresentation'
 
@@ -149,5 +150,30 @@ describe('sellerReportFailureMessage', () => {
 
   it('names the authoritative zone in Spanish', () => {
     expect(SELLER_REPORT_TIME_ZONE_LABEL).toBe('Hora del centro de México (America/Mexico_City)')
+  })
+})
+
+describe('formatSellerReportPeriod — last included day (sales history redesign T2)', () => {
+  it('shows the last included day while `to` stays the exclusive boundary', () => {
+    expect(formatSellerReportPeriod('2026-11-01', '2026-12-01')).toBe('1 – 30 nov 2026')
+  })
+
+  it('collapses a single included day to one date', () => {
+    expect(formatSellerReportPeriod('2026-11-24', '2026-11-25')).toBe('24 nov 2026')
+  })
+
+  it('names both months inside one year and both years across a year change', () => {
+    expect(formatSellerReportPeriod('2026-10-01', '2026-12-01')).toBe('1 oct – 30 nov 2026')
+    expect(formatSellerReportPeriod('2025-12-29', '2026-01-06')).toBe('29 dic 2025 – 5 ene 2026')
+  })
+
+  it('subtracts the day by calendar arithmetic across a leap February', () => {
+    expect(formatSellerReportPeriod('2024-02-01', '2024-03-01')).toBe('1 – 29 feb 2024')
+  })
+
+  it('returns null for an empty, reversed or unparseable window instead of inventing one', () => {
+    expect(formatSellerReportPeriod('2026-11-10', '2026-11-10')).toBeNull()
+    expect(formatSellerReportPeriod('2026-11-10', '2026-11-05')).toBeNull()
+    expect(formatSellerReportPeriod('2026-02-30', '2026-03-05')).toBeNull()
   })
 })

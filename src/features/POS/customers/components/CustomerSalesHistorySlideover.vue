@@ -1,12 +1,20 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { watchDebounced } from '@vueuse/core'
+import { breakpointsTailwind, useBreakpoints, watchDebounced } from '@vueuse/core'
+import { useQueryClient } from '@tanstack/vue-query'
 import type { Customer } from '../interfaces/customer.types'
-import type { ConfirmedSaleRow } from '@/features/POS/sales/interfaces/sale.types'
-import { useCustomerSalesHistory } from '@/features/POS/sales/composables/useCustomerSalesHistory'
+import {
+  useCustomerSalesHistory,
+  type CustomerHistoryStatusFilter,
+} from '@/features/POS/sales/composables/useCustomerSalesHistory'
+import { saleQueryKeys } from '@/core/shared/constants/query-keys'
+import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import { formatCentsMXN } from '@/features/POS/sales/utils/currency.utils'
+import type { SaleHistoryChargeRequest } from '@/features/POS/sales/components/history/SaleHistoryRowDetail.vue'
+import DebtPaymentModal from '@/features/POS/sales/components/DebtPaymentModal.vue'
 import { usePetsList } from '../pets/usePets'
 import { readPetError } from '../pets/petErrors'
+import { formatCustomerPhone } from '../utils/customerPhone.utils'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import AppResponsiveDrawer from '@/core/shared/components/AppResponsiveDrawer.vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
@@ -14,17 +22,36 @@ import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import SalesHistoryList from './SalesHistoryList.vue'
 import SalesHistoryMetrics from './SalesHistoryMetrics.vue'
 import SalesHistoryPetFilter from './SalesHistoryPetFilter.vue'
+import SalesHistoryStatusFilter from './SalesHistoryStatusFilter.vue'
 
 declare const useToast: () => { add: (options: { title: string; description?: string; color?: 'error' }) => void }
 
 const props = defineProps<{ open: boolean; customer: Customer | null }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
+const PAGE_SIZE = 10
+// Sales history redesign T1: the panel shares the seller report width (45vw ≈ 650px at 1440).
+const DESKTOP_UI = {
+  content: 'w-full !max-w-none sm:!max-w-[max(45vw,640px)]',
+  body: 'p-0',
+  header: 'border-b border-default px-4 py-4',
+  footer: 'border-t border-default px-4 pb-4 pt-3',
+}
+const STATUS_EMPTY_COPY: Record<Exclude<CustomerHistoryStatusFilter, 'all'>, string> = {
+  'with-debt': 'No hay ventas con saldo',
+  'not-delivered': 'No hay ventas sin entregar',
+}
+const STATUS_LABELS: Record<Exclude<CustomerHistoryStatusFilter, 'all'>, string> = {
+  'with-debt': 'Con saldo',
+  'not-delivered': 'Sin entregar',
+}
+
 const page = shallowRef(1)
 const searchQuery = shallowRef('')
 const debouncedSearch = shallowRef<string | undefined>(undefined)
 const petId = shallowRef<string | null>(null)
 const petNotice = shallowRef<string | null>(null)
+const status = shallowRef<CustomerHistoryStatusFilter>('all')
 
 watch(() => props.customer?.id, () => {
   page.value = 1
@@ -32,11 +59,17 @@ watch(() => props.customer?.id, () => {
   debouncedSearch.value = undefined
   petId.value = null
   petNotice.value = null
+  status.value = 'all'
+  chargeRequest.value = null
 }, { flush: 'sync' })
 
 watch(petId, (selected) => {
   page.value = 1
   if (selected) petNotice.value = null
+}, { flush: 'sync' })
+
+watch(status, () => {
+  page.value = 1
 }, { flush: 'sync' })
 
 // Customer pets §7: ACTIVE and ARCHIVED pets can filter the history (archived ones keep their sales).
@@ -60,11 +93,16 @@ const history = useCustomerSalesHistory({
   open: () => props.open,
   q: () => debouncedSearch.value,
   petId: () => petId.value,
+  status: () => status.value,
 })
-const { response, isLoading, isFetching, isPageTransition, isError, error, refetch } = history
+const { response, customerSummary, customerCounts, isLoading, isFetching, isPageTransition, isError, error, refetch } = history
 
-const router = useRouter()
 const toast = useToast()
+const queryClient = useQueryClient()
+const authStore = useAuthStore()
+// At phone width the table becomes cards (design 04): no sideways scroll.
+const isPhone = useBreakpoints(breakpointsTailwind).smaller('md')
+const listLayout = computed(() => (isPhone.value ? 'cards' : 'table'))
 const lastForbiddenError = shallowRef<unknown>(null)
 const description = computed(() => props.customer
   ? `Historial de ventas confirmadas de ${props.customer.fullName}`
@@ -73,7 +111,62 @@ const initialLoading = computed(() =>
   !response.value && !isError.value && (isLoading.value || isFetching.value),
 )
 
+const phone = computed(() => {
+  const value = props.customer?.phone?.trim()
+  if (!value || !props.customer) return null
+  const code = props.customer.phoneCountryCode?.replace(/[^\d]/g, '') ?? ''
+  return {
+    label: formatCustomerPhone(props.customer.phoneCountryCode, value),
+    href: `tel:${code ? `+${code}` : ''}${value.replace(/[^\d+]/g, '')}`,
+  }
+})
+
+const customerSince = computed(() => {
+  const createdAt = props.customer?.createdAt
+  if (!createdAt) return null
+  const date = new Date(createdAt)
+  if (Number.isNaN(date.getTime())) return null
+  const parts = new Intl.DateTimeFormat('es-MX', { month: 'short', year: 'numeric' }).formatToParts(date)
+  const month = parts.find((part) => part.type === 'month')?.value.replace(/\.$/, '') ?? ''
+  const year = parts.find((part) => part.type === 'year')?.value ?? ''
+  return `${month} ${year}`.trim()
+})
+
 const hasSearchQuery = computed(() => Boolean(searchQuery.value.trim()))
+const hasListFilter = computed(() => Boolean(petId.value) || status.value !== 'all')
+const hasAnyFilter = computed(() => hasListFilter.value || hasSearchQuery.value || Boolean(debouncedSearch.value))
+/** A customer with no sale at all: real zeros, no search or filters that cannot help (design 04 · 3). */
+const customerHasNoSales = computed(() =>
+  !!response.value &&
+  response.value.data.length === 0 &&
+  !hasAnyFilter.value &&
+  (customerSummary.value?.salesCount ?? 0) === 0,
+)
+const hasDebt = computed(() => (customerSummary.value?.outstandingDebtCents ?? 0) > 0)
+const pendingPaymentsLabel = computed(() => {
+  const count = customerCounts.value?.pendingPayments ?? 0
+  return count > 0 ? `${count} ${count === 1 ? 'venta' : 'ventas'} por cobrar` : null
+})
+
+const rangeLabel = computed(() => {
+  const pagination = response.value?.pagination
+  if (!pagination || pagination.total === 0) return null
+  const first = (pagination.page - 1) * pagination.limit + 1
+  const last = Math.min(pagination.page * pagination.limit, pagination.total)
+  const noun = pagination.total === 1 ? 'venta' : 'ventas'
+  return `${first}–${last} de ${pagination.total} ${noun}`
+})
+
+/** Totals of every sale the active filters match (not only the page), straight from the backend. */
+const filterSummaryLabel = computed(() => {
+  const summary = response.value?.filterSummary
+  if (!summary || !hasAnyFilter.value) return null
+  const scope = [selectedPet.value?.name, status.value !== 'all' ? STATUS_LABELS[status.value] : null]
+    .filter(Boolean)
+    .join(' · ')
+  const prefix = scope ? `${scope}: ` : 'Filtro: '
+  return `${prefix}${formatCentsMXN(summary.totalCents)} vendido · ${formatCentsMXN(summary.debtCents)} de saldo`
+})
 
 function httpStatus(value: unknown): number | undefined {
   const candidate = value as {
@@ -112,8 +205,27 @@ const normalizedError = computed(() =>
     : null,
 )
 
-function selectSale(sale: ConfirmedSaleRow) {
-  void router.push({ name: 'pos-sale-detail', params: { id: sale.id } })
+// «Cobrar» (expanded row) opens the same DebtPaymentModal as the sale detail page. That modal
+// invalidates the sale detail and the Ventas list; the customer history key is refreshed here.
+const chargeRequest = shallowRef<SaleHistoryChargeRequest | null>(null)
+const chargeOpen = computed({
+  get: () => chargeRequest.value !== null,
+  set: (value: boolean) => {
+    if (!value) chargeRequest.value = null
+  },
+})
+
+function onCharge(request: SaleHistoryChargeRequest) {
+  chargeRequest.value = request
+}
+
+function onChargeSuccess() {
+  chargeRequest.value = null
+  const customerId = props.customer?.id
+  if (!customerId) return
+  void queryClient.invalidateQueries({
+    queryKey: saleQueryKeys.customerHistoryPrefix(authStore.currentTenantId, customerId),
+  })
 }
 </script>
 
@@ -123,25 +235,37 @@ function selectSale(sale: ConfirmedSaleRow) {
     title="Historial de ventas"
     :description="description"
     close-aria-label="Cerrar historial de ventas"
-    :desktop-ui="{
-      content: 'w-full !max-w-none sm:!max-w-[520px]',
-      body: 'p-0',
-      header: 'border-b border-default px-4 py-4',
-      footer: 'border-t border-default px-4 pb-4 pt-3',
-    }"
+    :desktop-ui="DESKTOP_UI"
     @update:open="emit('update:open', $event)"
   >
     <template #title>
-      <div class="flex min-w-0 items-center gap-3">
+      <div data-testid="history-header" class="flex min-w-0 items-start gap-3">
         <EntityAvatar
           v-if="customer"
           :name="customer.fullName"
           size="lg"
+          class="hidden sm:inline-flex"
           aria-hidden="true"
         />
-        <div class="min-w-0">
-          <p class="font-semibold text-highlighted">Historial de ventas</p>
-          <p class="truncate text-xs text-muted">{{ customer?.fullName }}</p>
+        <div class="grid min-w-0 gap-0.5">
+          <p class="flex flex-wrap items-center gap-x-2 text-[13px] font-normal text-[var(--hf-muted)]">
+            <span>Historial de ventas</span>
+            <span v-if="customerSince">· cliente desde {{ customerSince }}</span>
+          </p>
+          <p
+            data-testid="history-customer-name"
+            class="break-words text-[17px] font-semibold leading-tight text-[var(--hf-heading)] sm:text-[22px]"
+          >
+            {{ customer?.fullName }}
+          </p>
+          <a
+            v-if="phone"
+            :href="phone.href"
+            class="inline-flex w-fit items-center gap-1 text-[13px] font-normal text-[var(--hf-action)] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--hf-focus)]"
+          >
+            <UIcon name="i-lucide-phone" class="size-3.5" aria-hidden="true" />
+            <span class="hf-figure">{{ phone.label }}</span>
+          </a>
         </div>
       </div>
     </template>
@@ -154,46 +278,43 @@ function selectSale(sale: ConfirmedSaleRow) {
       <div
         data-testid="history-content"
         :aria-busy="initialLoading || undefined"
-        class="min-w-0 max-w-full overflow-x-hidden"
+        class="grid min-w-0 max-w-full gap-3 overflow-x-hidden p-4"
       >
-        <div v-if="initialLoading" aria-hidden="true">
-          <div class="grid grid-cols-2 gap-2 p-4">
+        <div v-if="initialLoading" aria-hidden="true" class="grid gap-3">
+          <span class="sr-only" role="status">Cargando el historial de ventas…</span>
+          <div class="grid grid-cols-2 overflow-hidden rounded-xl border border-[var(--hf-border)] sm:grid-cols-3">
             <div
               v-for="index in 3"
               :key="index"
               data-testid="metric-skeleton"
-              class="flex items-center gap-3 rounded-xl border border-default bg-elevated/50 p-3"
-              :class="{ 'col-span-2': index === 3 }"
+              class="grid gap-1.5 px-4 py-3"
+              :class="{ 'col-span-2 sm:col-span-1': index === 3 }"
             >
-              <USkeleton class="size-9 shrink-0 !rounded-lg" />
-              <div class="flex-1 space-y-1.5">
-                <USkeleton class="h-3 w-20 !rounded" />
-                <USkeleton class="h-5 w-12 !rounded" />
-              </div>
+              <USkeleton class="h-3 w-20 !rounded" />
+              <USkeleton class="h-5 w-24 !rounded" />
             </div>
           </div>
-          <div class="border-t border-default px-4 py-3">
-            <UInput
-              type="search"
-              icon="i-lucide-search"
-              size="lg"
-              placeholder="Buscar por folio..."
-              aria-label="Buscar ventas por folio"
-              disabled
-              class="w-full"
-            />
-          </div>
-          <div class="divide-y divide-default">
-            <div v-for="index in 5" :key="index" data-testid="row-skeleton" class="flex items-center gap-3 px-4 py-3">
-              <USkeleton class="size-10 shrink-0 !rounded-lg" />
-              <div class="flex min-w-0 flex-1 items-center gap-2">
-                <USkeleton class="h-3.5 w-24 !rounded" />
-                <USkeleton class="h-3 w-16 !rounded" />
+          <UInput
+            type="search"
+            icon="i-lucide-search"
+            size="lg"
+            placeholder="Buscar por folio..."
+            aria-label="Buscar ventas por folio"
+            disabled
+            class="w-full"
+          />
+          <div class="grid gap-2">
+            <div
+              v-for="index in 5"
+              :key="index"
+              data-testid="row-skeleton"
+              class="grid gap-1.5 rounded-xl border border-[var(--hf-border)] px-4 py-3"
+            >
+              <div class="flex items-center justify-between gap-3">
+                <USkeleton class="h-4 w-24 !rounded" />
+                <USkeleton class="h-4 w-16 !rounded" />
               </div>
-              <div class="flex shrink-0 items-center gap-1.5">
-                <USkeleton class="h-4 w-14 !rounded" />
-                <USkeleton class="h-4 w-12 !rounded" />
-              </div>
+              <USkeleton class="h-3 w-40 !rounded" />
             </div>
           </div>
         </div>
@@ -202,39 +323,62 @@ function selectSale(sale: ConfirmedSaleRow) {
           v-else-if="normalizedError"
           kind="error"
           :title="normalizedError.message"
+          description="Puede ser un problema temporal de conexión. No se modificó ninguna venta."
           action-label="Reintentar"
           action-test-id="history-error-retry"
           @action="refetch()"
         />
 
         <template v-else-if="response">
-          <SalesHistoryMetrics :summary="response.summary" />
-          <div class="border-t border-default px-4 py-3">
-            <UInput
-              v-model="searchQuery"
-              type="search"
-              icon="i-lucide-search"
-              size="lg"
-              placeholder="Buscar por folio..."
-              aria-label="Buscar ventas por folio"
-              class="w-full"
-            />
-            <SalesHistoryPetFilter
-              v-if="pets.length > 0"
-              v-model="petId"
-              :pets="pets"
-              class="mt-3"
-            />
-            <UAlert
-              v-if="petNotice"
-              data-testid="history-pet-notice"
-              color="warning"
-              variant="subtle"
-              icon="i-lucide-info"
-              :description="petNotice"
-              class="mt-3"
-            />
+          <div
+            v-if="listLayout === 'cards' && hasDebt"
+            data-testid="history-debt-banner"
+            class="flex min-w-0 items-start gap-3 rounded-xl border border-[color-mix(in_srgb,var(--hf-warning)_35%,var(--hf-warning-soft))] bg-[var(--hf-warning-soft)] px-4 py-3 text-[13px]"
+          >
+            <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-4 shrink-0 text-[var(--hf-warning)]" aria-hidden="true" />
+            <div class="grid min-w-0 flex-1 gap-0.5">
+              <b class="hf-figure font-semibold text-[var(--hf-warning)]">Debe {{ formatCentsMXN(customerSummary?.outstandingDebtCents ?? 0) }}</b>
+              <span v-if="pendingPaymentsLabel" class="text-[var(--hf-ink)]">{{ pendingPaymentsLabel }}</span>
+            </div>
+            <UButton
+              size="sm"
+              color="neutral"
+              variant="outline"
+              class="min-h-11 shrink-0"
+              :aria-label="'Ver las ventas con saldo'"
+              @click="status = 'with-debt'"
+            >
+              Ver
+            </UButton>
           </div>
+
+          <SalesHistoryMetrics v-if="customerSummary" :summary="customerSummary" :counts="customerCounts" />
+
+          <template v-if="!customerHasNoSales">
+            <div class="flex min-w-0 flex-col gap-3 md:flex-row md:flex-wrap md:items-center">
+              <UInput
+                v-model="searchQuery"
+                type="search"
+                icon="i-lucide-search"
+                size="lg"
+                placeholder="Buscar por folio..."
+                aria-label="Buscar ventas por folio"
+                class="w-full md:w-auto md:min-w-48 md:flex-1"
+              />
+              <SalesHistoryStatusFilter v-model="status" :counts="customerCounts" />
+            </div>
+            <SalesHistoryPetFilter v-if="pets.length > 0" v-model="petId" :pets="pets" />
+          </template>
+          <UAlert
+            v-if="petNotice"
+            data-testid="history-pet-notice"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-info"
+            :description="petNotice"
+            role="status"
+          />
+
           <EmptyState
             v-if="response.data.length === 0 && hasSearchQuery"
             kind="no-match"
@@ -246,24 +390,59 @@ function selectSale(sale: ConfirmedSaleRow) {
           <EmptyState
             v-else-if="response.data.length === 0 && selectedPet"
             :title="`${selectedPet.name} aún no tiene ventas`"
-            description="No hay ventas confirmadas para esta mascota."
+            :description="status === 'all' ? 'No hay ventas confirmadas para esta mascota.' : 'No hay ventas de esta mascota con este filtro.'"
+            action-label="Ver todas las ventas"
+            @action="petId = null; status = 'all'"
+          />
+          <EmptyState
+            v-else-if="response.data.length === 0 && status !== 'all'"
+            kind="no-match"
+            :title="STATUS_EMPTY_COPY[status]"
+            description="Este cliente no tiene ventas con este filtro."
             action-label="Ver todas"
-            @action="petId = null"
+            @action="status = 'all'"
           />
           <EmptyState
             v-else-if="response.data.length === 0"
             title="Aún no hay ventas"
             description="Este cliente aún no tiene ventas confirmadas."
           />
-          <div
-            v-else
-            :aria-busy="isPageTransition || undefined"
-            :class="isPageTransition ? 'opacity-50' : undefined"
-          >
-            <SalesHistoryList :sales="response.data" @select="selectSale" />
-          </div>
+          <template v-else>
+            <p
+              v-if="isPageTransition"
+              data-testid="history-updating"
+              role="status"
+              aria-live="polite"
+              class="flex items-center gap-2 rounded-lg bg-[var(--hf-active-soft)] px-3 py-2 text-[13px] text-[var(--hf-active)]"
+            >
+              <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+              Actualizando el historial…
+            </p>
+            <div
+              :aria-busy="isPageTransition || undefined"
+              :class="isPageTransition ? 'opacity-50' : undefined"
+            >
+              <SalesHistoryList
+                :sales="response.data"
+                :layout="listLayout"
+                allow-charge
+                :caption="customer ? `Ventas de ${customer.fullName}, más recientes primero` : undefined"
+                @charge="onCharge"
+              />
+            </div>
+          </template>
         </template>
       </div>
+
+      <DebtPaymentModal
+        v-if="chargeRequest"
+        :key="chargeRequest.saleId"
+        v-model:open="chargeOpen"
+        :sale-id="chargeRequest.saleId"
+        :debt-cents="chargeRequest.debtCents"
+        portal-class="hf-theme hf-ui hf-form-overlay"
+        @success="onChargeSuccess"
+      />
     </template>
 
     <template #footer>
@@ -273,14 +452,21 @@ function selectSale(sale: ConfirmedSaleRow) {
         data-testid="history-pagination"
         :data-disabled="String(isFetching)"
       >
-        <span class="min-w-0 shrink-0 text-sm font-semibold text-muted">
-          <template v-if="response.pagination.total === 1">1 venta</template>
-          <template v-else>{{ response.pagination.total }} ventas</template>
-        </span>
+        <div class="grid min-w-0 gap-0.5">
+          <span class="text-sm text-[var(--hf-muted)]">
+            <b class="hf-figure font-semibold text-[var(--hf-ink)]">{{ rangeLabel }}</b>
+            <span class="hidden sm:inline"> · más recientes primero</span>
+          </span>
+          <span
+            v-if="filterSummaryLabel"
+            data-testid="history-filter-summary"
+            class="hf-figure text-xs text-[var(--hf-muted)]"
+          >{{ filterSummaryLabel }}</span>
+        </div>
         <div v-if="response.pagination.totalPages > 1" data-testid="history-pagination-controls">
           <UPagination
             v-model:page="page"
-            :items-per-page="10"
+            :items-per-page="PAGE_SIZE"
             :total="response.pagination.total"
             :disabled="isFetching"
             show-edges

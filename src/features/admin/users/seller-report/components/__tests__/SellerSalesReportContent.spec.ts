@@ -1,16 +1,41 @@
 // SellerSalesReportContent.spec.ts — presentation contract of the loaded report.
 //
 // Mutation-sensitive: aggregating canceled amounts into the confirmed metrics,
-// recomputing a metric from the rows, hiding a row, dropping the Mexico City
-// zone label, keeping a stale row while a failure is reported, or dropping the
-// retry action fails at least one of these tests.
+// recomputing a metric from the rows, hiding a row, re-sorting the backend rows,
+// keeping a stale row while a failure is reported, dropping the retry action, or
+// opening more than one GET /sales/:id per opened row fails at least one test.
+//
+// Sales history redesign T2: the report now uses the same aligned table and
+// expandable row as the customer history (SaleHistoryRowDetail); the seller,
+// period, generation instant and row count moved to the drawer header/footer.
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { mount, type VueWrapper } from '@vue/test-utils'
-import { nextTick } from 'vue'
-import { columnLabel } from '@/core/shared/components/DataTable/columnLayout.utils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import SellerSalesReportContent from '@/features/admin/users/seller-report/components/SellerSalesReportContent.vue'
 import type { SellerSalesReport } from '../../interfaces/seller-report.types'
+
+const { getByIdMock, routerPush, phoneWidth } = vi.hoisted(() => ({
+  getByIdMock: vi.fn(),
+  routerPush: vi.fn(async () => undefined),
+  phoneWidth: { value: false },
+}))
+vi.mock('@vueuse/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@vueuse/core')>()
+  const { computed } = await import('vue')
+  return {
+    ...actual,
+    useBreakpoints: () => ({ smaller: () => computed(() => phoneWidth.value) }),
+  }
+})
+vi.mock('@/features/POS/sales/api/sale.api', () => ({ saleApi: { getById: getByIdMock } }))
+vi.mock('@/features/auth/stores/useAuthStore', () => ({
+  useAuthStore: () => ({ currentTenantId: 'tenant-1', userCan: () => true }),
+}))
+vi.mock('vue-router', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useRouter: () => ({ push: routerPush }),
+}))
 
 const SELLER_ID = '8f14e45f-ceea-4a2b-9c3d-1a2b3c4d5e6f'
 const TENANT_ID = '11111111-2222-4333-8444-555555555555'
@@ -86,42 +111,60 @@ function mountContent(props: Record<string, unknown> = {}) {
       sellerIsActive: true,
       ...props,
     },
+    global: {
+      plugins: [
+        [VueQueryPlugin, { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) }],
+      ],
+    },
   })
 }
 
-// Both lists are AppDataTables (premium tables T9): their body rows, without the empty row.
+// Body rows of a section's aligned table (the opened-detail rows carry no data-row-id).
 function tableRows(wrapper: VueWrapper, name: 'confirmed' | 'canceled') {
   const table = wrapper.find(`[data-testid="seller-report-${name}-table"]`)
   if (!table.exists()) return []
-  return table
-    .findAll('tbody tr')
-    .filter((row) => row.find('td[data-slot="td"]').exists())
+  return table.findAll('tbody tr[data-row-id]')
 }
 const confirmedRows = (wrapper: VueWrapper) => tableRows(wrapper, 'confirmed')
 const canceledRows = (wrapper: VueWrapper) => tableRows(wrapper, 'canceled')
-const tableOf = (wrapper: VueWrapper, name: 'confirmed' | 'canceled') =>
-  wrapper.findAllComponents({ name: 'AppDataTable' })[name === 'confirmed' ? 0 : 1]!
 
 function metric(wrapper: ReturnType<typeof mountContent>, name: string) {
   return wrapper.find(`[data-testid="seller-report-metric-${name}"]`).text()
 }
 
-describe('SellerSalesReportContent — loaded report', () => {
-  it('renders the authoritative seller, window, generation instant and zone', () => {
-    const wrapper = mountContent()
+function confirmedRow(index: number, overrides: Record<string, unknown> = {}) {
+  const suffix = String(index).padStart(4, '0')
+  return {
+    id: `d0000000-0000-4000-8000-00000000${suffix}`,
+    folio: `S-${suffix}`,
+    confirmedAt: `2025-03-10T18:${String(index % 60).padStart(2, '0')}:00.000Z`,
+    totalCents: 10_000,
+    paidCents: 10_000,
+    debtCents: 0,
+    paymentStatus: 'PAID' as const,
+    ...overrides,
+  }
+}
 
-    expect(wrapper.find('[data-testid="seller-report-seller-name"]').text()).toBe('Ana Vendedora')
-    expect(wrapper.find('[data-testid="seller-report-period"]').text()).toContain('01/03/2025')
-    expect(wrapper.find('[data-testid="seller-report-period"]').text()).toContain('01/04/2025')
-    // 15:04 UTC is 09:04 in Mexico City.
-    expect(wrapper.find('[data-testid="seller-report-generated-at"]').text()).toContain(
-      '01/04/2025, 09:04',
-    )
-    expect(wrapper.find('[data-testid="seller-report-zone"]').text()).toContain(
-      'America/Mexico_City',
-    )
+beforeEach(() => {
+  getByIdMock.mockReset()
+  getByIdMock.mockResolvedValue({
+    id: 'a1111111-1111-4111-8111-111111111111',
+    folio: 'F-0001',
+    status: 'CONFIRMED',
+    paidCents: 16_000,
+    debtCents: 100_000,
+    dueDate: null,
+    deliveryStatus: 'DELIVERED',
+    customer: { id: 'c-1', name: 'Rodrigo Salinas' },
+    cashier: { id: 'u-2', name: 'Jorge Ríos' },
+    seller: { id: SELLER_ID, name: 'Ana Vendedora' },
+    items: [],
+    payments: [],
   })
+})
 
+describe('SellerSalesReportContent — loaded report', () => {
   it('renders every backend metric verbatim instead of aggregating the rows', () => {
     const wrapper = mountContent()
 
@@ -157,7 +200,7 @@ describe('SellerSalesReportContent — loaded report', () => {
     const rows = confirmedRows(wrapper)
 
     expect(rows).toHaveLength(2)
-    expect(rows[0]?.get('[data-row-id]').attributes('data-row-id')).toBe('a1111111-1111-4111-8111-111111111111')
+    expect(rows[0]?.attributes('data-row-id')).toBe('a1111111-1111-4111-8111-111111111111')
     expect(rows[0]?.text()).toContain('F-0001')
     expect(rows[0]?.text()).toContain('Parcial')
     expect(rows[0]?.text()).toContain('$1,160.00')
@@ -180,20 +223,39 @@ describe('SellerSalesReportContent — loaded report', () => {
     expect(canceled[0]?.text()).toContain('—')
     expect(canceled[0]?.text()).toContain('08/03/2025, 09:00')
 
+    const summary = wrapper.get('[data-testid="seller-report-canceled"] summary').text()
+    expect(summary).toContain('Ventas canceladas')
+    expect(summary).toContain('1 · informativas')
+
     const text = wrapper.text()
     expect(text).toContain('No se suman a las ventas confirmadas')
     // The canceled-only amount must appear ONLY in the canceled section.
     expect(wrapper.find('[data-testid="seller-report-metrics"]').text()).not.toContain('$700.00')
   })
 
-  it('reports the returned row count against the backend cap', () => {
-    expect(mountContent().find('[data-testid="seller-report-row-count"]').text()).toContain(
-      '3 de 1,000',
-    )
+  it('labels each canceled sale with a neutral «Cancelada» StatusBadge in the table and the cards', () => {
+    const table = canceledRows(mountContent())
+    const tableBadges = table.flatMap((row) => row.findAll('.hf-status-badge'))
+    expect(tableBadges.map((badge) => [badge.text(), badge.attributes('data-tone')])).toEqual([
+      ['Cancelada', 'neutral'],
+    ])
+
+    phoneWidth.value = true
+    try {
+      const cards = mountContent().findAll('[data-testid="seller-report-canceled-card"]')
+      expect(cards).toHaveLength(1)
+      const cardBadges = cards.flatMap((card) => card.findAll('.hf-status-badge'))
+      expect(cardBadges.map((badge) => [badge.text(), badge.attributes('data-tone')])).toEqual([
+        ['Cancelada', 'neutral'],
+      ])
+    } finally {
+      phoneWidth.value = false
+    }
   })
 
-  it('renders the empty-period copy for both sections instead of a fake row', () => {
+  it('renders one period-without-sales state with real zeros and a wider-period shortcut', async () => {
     const wrapper = mountContent({
+      canWidenPeriod: true,
       report: makeReport({
         rowCount: 0,
         confirmed: {
@@ -211,13 +273,50 @@ describe('SellerSalesReportContent — loaded report', () => {
       }),
     })
 
-    expect(wrapper.find('[data-testid="seller-report-confirmed-empty"]').text()).toContain(
+    const empty = wrapper.get('[data-testid="seller-report-period-empty"]')
+    expect(empty.text()).toContain('Sin ventas en este periodo')
+    expect(empty.text()).toContain('Ana Vendedora no tiene ventas confirmadas ni canceladas en este periodo.')
+    expect(metric(wrapper, 'net-sales')).toContain('$0.00')
+    expect(confirmedRows(wrapper)).toHaveLength(0)
+    expect(wrapper.find('input[aria-label="Buscar ventas del reporte por folio"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="seller-report-canceled"]').exists()).toBe(false)
+
+    await empty.get('button').trigger('click')
+    expect(wrapper.emitted('widen-period')).toHaveLength(1)
+  })
+
+  it('offers no shortcut when the period cannot be widened', () => {
+    const wrapper = mountContent({
+      canWidenPeriod: false,
+      report: makeReport({
+        rowCount: 0,
+        confirmed: { ...makeReport().confirmed, rows: [] },
+        canceled: { dateBasis: 'canceledAt', saleCount: 0, rows: [] },
+      }),
+    })
+
+    expect(wrapper.get('[data-testid="seller-report-period-empty"]').find('button').exists()).toBe(false)
+  })
+
+  it('keeps the canceled section when only the confirmed list is empty', () => {
+    const wrapper = mountContent({
+      report: makeReport({ rowCount: 1, confirmed: { ...makeReport().confirmed, rows: [] } }),
+    })
+
+    expect(wrapper.get('[data-testid="seller-report-confirmed-empty"]').text()).toContain(
       'Sin ventas confirmadas',
     )
-    expect(wrapper.find('[data-testid="seller-report-canceled-empty"]').text()).toContain(
+    expect(canceledRows(wrapper)).toHaveLength(1)
+  })
+
+  it('says the canceled list is empty inside its section', () => {
+    const wrapper = mountContent({
+      report: makeReport({ canceled: { dateBasis: 'canceledAt', saleCount: 0, rows: [] } }),
+    })
+
+    expect(wrapper.get('[data-testid="seller-report-canceled-empty"]').text()).toContain(
       'Sin ventas canceladas',
     )
-    expect(confirmedRows(wrapper)).toHaveLength(0)
   })
 
   it('flags an inactive seller without hiding the report', () => {
@@ -241,15 +340,17 @@ describe('SellerSalesReportContent — design system', () => {
     ])
   })
 
-  it('names the seller with a semibold title and keeps money tabular and right-aligned', () => {
+  it('keeps money tabular and right-aligned in the aligned table', () => {
     const wrapper = mountContent()
 
-    expect(wrapper.get('[data-testid="seller-report-seller-name"]').classes()).toContain(
-      'font-semibold',
-    )
     const money = confirmedRows(wrapper).flatMap((row) => row.findAll('td.hf-figure'))
     expect(money).toHaveLength(6)
     expect(money.every((cell) => cell.classes().includes('text-right'))).toBe(true)
+    const headers = wrapper
+      .get('[data-testid="seller-report-confirmed-table"]')
+      .findAll('thead th')
+      .map((cell) => cell.text())
+    expect(headers).toEqual(['Abrir', 'Venta', 'Estado', 'Total', 'Pagado', 'Saldo'])
   })
 })
 
@@ -294,6 +395,24 @@ describe('SellerSalesReportContent — states', () => {
     expect(wrapper.emitted('retry')).toHaveLength(1)
   })
 
+  it('offers «Cambiar periodo» instead of a retry on the row-limit error', async () => {
+    const wrapper = mountContent({
+      report: null,
+      isError: true,
+      failureKind: 'row-limit-exceeded',
+      errorMessage: 'El reporte supera el límite de 1,000 filas: el periodo tiene 1,284 ventas.',
+    })
+
+    const failure = wrapper.get('[data-testid="seller-report-error"]')
+    expect(failure.attributes('data-failure-kind')).toBe('row-limit-exceeded')
+    expect(failure.text()).toContain('1,284 ventas')
+    expect(wrapper.find('[data-testid="seller-report-retry"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="seller-report-change-period"]').trigger('click')
+    expect(wrapper.emitted('change-period')).toHaveLength(1)
+    expect(wrapper.emitted('retry')).toBeUndefined()
+  })
+
   it('shows an idle status when there is no active query', () => {
     const wrapper = mountContent({ report: null })
 
@@ -317,48 +436,98 @@ describe('SellerSalesReportContent — states', () => {
   })
 })
 
-describe('SellerSalesReportContent — column layout (premium tables T9)', () => {
-  beforeEach(() => localStorage.clear())
-  afterEach(() => localStorage.clear())
-
-  it.each([
-    ['confirmed', 'admin-seller-report-confirmed', ['paymentStatus', 'sale', 'totalCents', 'paidCents', 'debtCents'], 'paidCents'],
-    ['canceled', 'admin-seller-report-canceled', ['canceledAt', 'sale', 'totalCents'], 'canceledAt'],
-  ] as const)('persists the %s layout under %s, for every seller', async (name, key, order, hidden) => {
+describe('SellerSalesReportContent — rows open in place (sales history redesign T2)', () => {
+  it('opens a row into the shared sale detail with one GET /sales/:id, naming the customer', async () => {
     const wrapper = mountContent()
-    const table = tableOf(wrapper, name)
-    expect(table.props('persistLayout')).toBe(true)
+    const toggle = wrapper.get('button[aria-label="Detalle de la venta F-0001"]')
 
-    table.vm.$emit('update:columnOrder', order)
-    table.vm.$emit('update:columnPinning', { left: ['sale'], right: [] })
-    table.vm.$emit('update:columnSizing', { totalCents: 140 })
-    table.vm.$emit('update:columnVisibility', { [hidden]: false })
-    table.vm.$emit('update:density', 'compact')
-    await nextTick()
-    expect(JSON.parse(localStorage.getItem(`table-preferences-${key}`) ?? '{}')).toMatchObject({
-      order,
-      pinning: { left: ['sale'] },
-      sizing: { totalCents: 140 },
-      visibility: { [hidden]: false },
-      density: 'compact',
-    })
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(toggle.classes()).toContain('size-11')
+    await toggle.trigger('click')
+    await flushPromises()
 
-    table.vm.$emit('reset-columns')
-    await nextTick()
-    expect(localStorage.getItem(`table-preferences-${key}`)).toBeNull()
-    expect(table.props('columnSizing')).toEqual({})
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    const detail = wrapper.get('[data-testid="sale-history-detail"]')
+    expect(getByIdMock).toHaveBeenCalledTimes(1)
+    expect(getByIdMock).toHaveBeenCalledWith('a1111111-1111-4111-8111-111111111111')
+    expect(detail.text()).toContain('Cliente')
+    expect(detail.text()).toContain('Rodrigo Salinas')
+    expect(detail.text()).toContain('Abrir venta')
+    // The seller report never charges: no «Cobrar» even on a sale that still owes.
+    expect(detail.text()).not.toContain('Cobrar')
+
+    await toggle.trigger('click')
+    expect(wrapper.find('[data-testid="sale-history-detail"]').exists()).toBe(false)
   })
 
-  it('names every column for the column menus, never with its id', () => {
+  it('«Abrir venta» routes to the sale detail', async () => {
     const wrapper = mountContent()
-    const labels = (name: 'confirmed' | 'canceled') =>
-      (tableOf(wrapper, name).props('columns') as Parameters<typeof columnLabel>[0][]).map(columnLabel)
-    expect(labels('confirmed')).toEqual(['Venta', 'Estado', 'Total', 'Pagado', 'Saldo'])
-    expect(labels('canceled')).toEqual(['Venta', 'Fecha de cancelación', 'Total'])
+    await wrapper.get('button[aria-label="Detalle de la venta F-0001"]').trigger('click')
+    await flushPromises()
+
+    const open = wrapper.findAll('button').find((button) => button.text().includes('Abrir venta'))
+    await open!.trigger('click')
+
+    expect(routerPush).toHaveBeenCalledWith({
+      name: 'pos-sale-detail',
+      params: { id: 'a1111111-1111-4111-8111-111111111111' },
+    })
   })
 
   it('never sums the rows: no totals row on either list', () => {
     const wrapper = mountContent()
     expect(wrapper.find('tfoot').exists()).toBe(false)
+  })
+})
+
+describe('SellerSalesReportContent — browser filters (no sums, no re-sorting)', () => {
+  it('filters the confirmed rows by the current payment labels and keeps the metrics', async () => {
+    const wrapper = mountContent()
+    const chips = wrapper.findAll('[data-testid="seller-report-status-chip"]')
+
+    expect(chips.map((chip) => chip.text())).toEqual(['Todas', 'Pagada', 'Parcial', 'A crédito'])
+    expect(chips.every((chip) => chip.classes().includes('min-h-11'))).toBe(true)
+
+    await chips[2]!.trigger('click')
+
+    expect(chips[2]!.attributes('aria-pressed')).toBe('true')
+    expect(confirmedRows(wrapper).map((row) => row.attributes('data-row-id'))).toEqual([
+      'a1111111-1111-4111-8111-111111111111',
+    ])
+    expect(wrapper.get('[data-testid="seller-report-confirmed-count"]').text()).toContain('1 de 2')
+    expect(metric(wrapper, 'net-sales')).toContain('$9,999.99')
+  })
+
+  it('searches by folio and offers to clear when nothing matches', async () => {
+    const wrapper = mountContent()
+    const search = wrapper.get('input[aria-label="Buscar ventas del reporte por folio"]')
+
+    await search.setValue('0001')
+    expect(confirmedRows(wrapper)).toHaveLength(1)
+
+    await search.setValue('zzz')
+    const noMatch = wrapper.get('[data-testid="seller-report-filter-empty"]')
+    expect(confirmedRows(wrapper)).toHaveLength(0)
+    await noMatch.get('button').trigger('click')
+    expect(confirmedRows(wrapper)).toHaveLength(2)
+  })
+
+  it('keeps the backend order and reveals long periods in steps', async () => {
+    const rows = Array.from({ length: 55 }, (_, index) => confirmedRow(index + 1))
+    const wrapper = mountContent({
+      report: makeReport({ rowCount: 55, confirmed: { ...makeReport().confirmed, rows } }),
+    })
+
+    expect(confirmedRows(wrapper)).toHaveLength(50)
+    expect(confirmedRows(wrapper)[0]!.attributes('data-row-id')).toBe(rows[0]!.id)
+    const more = wrapper.get('[data-testid="seller-report-show-more"]')
+    expect(more.text()).toContain('Mostrar las 5 ventas restantes')
+
+    await more.trigger('click')
+
+    expect(confirmedRows(wrapper).map((row) => row.attributes('data-row-id'))).toEqual(
+      rows.map((row) => row.id),
+    )
+    expect(wrapper.find('[data-testid="seller-report-show-more"]').exists()).toBe(false)
   })
 })

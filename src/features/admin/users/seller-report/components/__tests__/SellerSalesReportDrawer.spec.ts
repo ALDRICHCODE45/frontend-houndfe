@@ -13,15 +13,13 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { getMexicoCityRangePreset } from '@/core/shared/utils/mexicoCityCalendar'
+import { formatSellerReportPeriod } from '../../utils/sellerReportPresentation'
 import SellerSalesReportDrawer from '../SellerSalesReportDrawer.vue'
 import type { SellerSalesReport } from '../../interfaces/seller-report.types'
 
-// The confirmed list is an AppDataTable: its body rows, without the empty row.
+// The confirmed list is the aligned table shared with the customer history.
 const confirmedRows = (wrapper: VueWrapper) =>
-  wrapper
-    .get('[data-testid="seller-report-confirmed-table"]')
-    .findAll('tbody tr')
-    .filter((row) => row.find('td[data-slot="td"]').exists())
+  wrapper.get('[data-testid="seller-report-confirmed-table"]').findAll('tbody tr[data-row-id]')
 
 const apiMock = vi.hoisted(() => ({ getReport: vi.fn(), getReportPdf: vi.fn() }))
 vi.mock('../../api/sellerReport.api', () => ({ sellerReportApi: apiMock }))
@@ -262,8 +260,9 @@ describe('SellerSalesReportDrawer — request identity', () => {
       wrapper.find('[data-testid="responsive-drawer"]').attributes('data-desktop-ui') ?? '{}',
     ) as { content?: string }
 
-    expect(forwarded.content).toContain('sm:w-[45vw]')
-    expect(forwarded.content).toContain('sm:max-w-[45vw]')
+    // Sales history redesign T2: the same width as the customer history panel.
+    expect(forwarded.content).toContain('sm:w-[max(45vw,640px)]')
+    expect(forwarded.content).toContain('sm:max-w-[max(45vw,640px)]')
     expect(forwarded.content).toContain('max-w-none')
     // Mobile bottom sheet stays untouched: no mobile class override is sent.
     expect(drawn.props('mobileBodyClass')).toBeUndefined()
@@ -367,5 +366,145 @@ describe('SellerSalesReportDrawer — PDF download', () => {
     const notice = wrapper.find('[data-testid="seller-report-pdf-notice"]')
     expect(notice.exists()).toBe(true)
     expect(notice.text().toLowerCase()).toContain('pdf')
+  })
+})
+
+describe('SellerSalesReportDrawer — header, period and footer (sales history redesign T2)', () => {
+  const failure = (status: number, data: Record<string, unknown>) => ({ response: { status, data } })
+
+  it('names the seller with its active state before the report loads, then adds the generation instant', async () => {
+    const deferred = createDeferred<SellerSalesReport>()
+    apiMock.getReport.mockReturnValue(deferred.promise)
+
+    const wrapper = mountDrawer()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="seller-report-seller-name"]').text()).toBe('Ana Vendedora')
+    expect(wrapper.get('[data-testid="seller-report-seller-state"]').text()).toBe('Activo')
+    expect(wrapper.find('[data-testid="seller-report-generated-at"]').exists()).toBe(false)
+
+    deferred.resolve(makeReport({ seller: { id: SELLER_ID, name: 'Ana Vendedora Pérez' } }))
+    await flushPromises()
+
+    // The authoritative backend name wins once the report is loaded.
+    expect(wrapper.get('[data-testid="seller-report-seller-name"]').text()).toBe('Ana Vendedora Pérez')
+    // 15:04 UTC is 09:04 in Mexico City.
+    expect(wrapper.get('[data-testid="seller-report-generated-at"]').text()).toContain(
+      '01/04/2025, 09:04',
+    )
+    expect(wrapper.get('[data-testid="seller-report-zone"]').text()).toContain('America/Mexico_City')
+  })
+
+  it('marks an inactive seller in the header', async () => {
+    apiMock.getReport.mockResolvedValue(makeReport())
+
+    const wrapper = mountDrawer({ seller: { id: SELLER_ID, name: 'Ana Vendedora', isActive: false } })
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="seller-report-seller-state"]').text()).toBe('Inactivo')
+  })
+
+  it('shows the period with its last included day while sending the exclusive `to`', async () => {
+    apiMock.getReport.mockResolvedValue(makeReport())
+
+    const wrapper = mountDrawer()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="seller-report-period-toggle"]').text()).toContain(
+      formatSellerReportPeriod(MONTH.from, MONTH.to)!,
+    )
+    expect(apiMock.getReport.mock.calls[0]?.[0]).toEqual({
+      sellerUserId: SELLER_ID,
+      from: MONTH.from,
+      to: MONTH.to,
+    })
+  })
+
+  it('reports the returned rows against the backend cap in the footer', async () => {
+    apiMock.getReport.mockResolvedValue(makeReport({ rowCount: 40 }))
+
+    const wrapper = mountDrawer()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="seller-report-row-count"]').text()).toBe(
+      '40 de 1,000 filas permitidas por periodo',
+    )
+  })
+
+  it('explains why the PDF is unavailable while the report loads', async () => {
+    apiMock.getReport.mockReturnValue(createDeferred<SellerSalesReport>().promise)
+
+    const wrapper = mountDrawer()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="seller-report-pdf-hint"]').text()).toBe(
+      'Disponible cuando cargue el reporte.',
+    )
+    expect(wrapper.find('[data-testid="seller-report-row-count"]').exists()).toBe(false)
+  })
+
+  it('on the row-limit error: hints the PDF limit and «Cambiar periodo» opens the date fields', async () => {
+    apiMock.getReport.mockRejectedValue(
+      failure(422, { error: 'SELLER_REPORT_ROW_LIMIT_EXCEEDED', rowLimit: 1000, rowCount: 1284 }),
+    )
+
+    const wrapper = mountDrawer()
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="seller-report-error"]').text()).toContain('1,284')
+    expect(wrapper.get('[data-testid="seller-report-pdf-hint"]').text()).toBe(
+      'Elige un periodo con menos de 1,000 ventas para descargar el PDF.',
+    )
+    expect(wrapper.get('[data-testid="seller-report-download"]').attributes('disabled')).toBeDefined()
+
+    const toggle = wrapper.get('[data-testid="seller-report-period-toggle"]')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    await wrapper.get('[data-testid="seller-report-change-period"]').trigger('click')
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+  })
+
+  it('turns the action into «Reintentar descarga» after a failed PDF', async () => {
+    apiMock.getReport.mockResolvedValue(makeReport())
+    apiMock.getReportPdf.mockRejectedValueOnce(new Error('network'))
+
+    const wrapper = mountDrawer()
+    await flushPromises()
+    await wrapper.get('[data-testid="seller-report-download"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="seller-report-download-error"]').text()).toBe(
+      'No pudimos descargar el PDF del reporte. Inténtalo de nuevo en unos segundos.',
+    )
+    expect(wrapper.get('[data-testid="seller-report-download"]').text()).toContain(
+      'Reintentar descarga',
+    )
+  })
+
+  it('widens an empty period to this month from the empty state', async () => {
+    const empty = makeReport({
+      rowCount: 0,
+      confirmed: { ...makeReport().confirmed, rows: [] },
+      canceled: { dateBasis: 'canceledAt', saleCount: 0, rows: [] },
+    })
+    apiMock.getReport.mockResolvedValue(empty)
+
+    const wrapper = mountDrawer()
+    await flushPromises()
+    // Already on «Este mes»: there is nothing wider to offer.
+    expect(wrapper.find('[data-testid="seller-report-widen-period"]').exists()).toBe(false)
+
+    await wrapper
+      .get('[data-testid="seller-report-filter-preset"][data-preset-id="today"]')
+      .trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="seller-report-widen-period"]').trigger('click')
+    await flushPromises()
+
+    const today = getMexicoCityRangePreset('today')
+    expect(apiMock.getReport.mock.calls.map(([request]) => request)).toEqual([
+      { sellerUserId: SELLER_ID, from: MONTH.from, to: MONTH.to },
+      { sellerUserId: SELLER_ID, from: today.from, to: today.to },
+      { sellerUserId: SELLER_ID, from: MONTH.from, to: MONTH.to },
+    ])
   })
 })

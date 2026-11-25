@@ -1,0 +1,224 @@
+<div class="tools" role="group" aria-label="Opciones del artboard">
+  <span class="lbl">B · Línea de tiempo</span>
+  <span class="grow"></span>
+  <button type="button" id="t-notes" aria-expanded="false" aria-controls="notes"><svg class="icon sm"><use href="#i-notes"/></svg>Notas y datos</button>
+  <button type="button" id="t-theme" aria-pressed="false"><svg class="icon sm"><use href="#i-moon"/></svg><span>Tema claro</span></button>
+</div>
+
+<aside class="notes" id="notes" tabindex="-1" hidden aria-label="Notas del artboard">
+  <h2>B · Línea de tiempo</h2>
+  <p>Las ventas se leen como una historia: agrupadas por mes (cliente) o por día (vendedor) sobre un riel, con el resumen escrito como una frase. Cada evento abre la venta.</p>
+  <h3>Datos que ya llegan · cliente</h3>
+  <ul>
+    <li><code>folio</code>, <code>confirmedAt</code>, <code>status</code>, <code>paymentStatus</code>, <code>deliveryStatus</code>, <code>totalCents</code>, <code>debtCents</code>, <code>dueDate</code>, <code>channel</code>, <code>cancelReason</code></li>
+    <li>Frase: <code>summary.salesCount</code>, <code>summary.totalSoldCents</code>, <code>summary.outstandingDebtCents</code>, <code>counts.pendingPayments</code></li>
+    <li>Mascota: <code>filterSummary.count / totalCents / debtCents</code>; «Cargar más» usa <code>pagination.page / total</code></li>
+  </ul>
+  <h3>Datos que ya llegan · vendedor</h3>
+  <ul>
+    <li><code>confirmed.summary.*</code>, <code>confirmed.rows[]</code> (<code>folio</code>, <code>confirmedAt</code>, <code>totalCents</code>, <code>paidCents</code>, <code>debtCents</code>, <code>paymentStatus</code>), <code>canceled.saleCount</code>, <code>canceled.rows[]</code>, <code>generatedAt</code>, <code>from</code>/<code>to</code>, <code>rowCount</code>/<code>rowLimit</code></li>
+    <li>Agrupar por día usa solo <code>confirmedAt</code> en hora del centro de México; el orden es el del servidor.</li>
+  </ul>
+  <h3>Requiere backend</h3>
+  <ul>
+    <li>Subtotal por mes (cliente) y por día (vendedor): el navegador no suma montos; con 10 ventas por página la suma además sería parcial.</li>
+    <li>Gráfica «Ventas por día» del vendedor.</li>
+    <li>Mascotas de cada venta en el evento (las filas de la lista no traen líneas).</li>
+  </ul>
+  <h3>Costo</h3>
+  <ul><li>Comparar montos entre ventas es más lento que en una tabla: no hay columnas alineadas de Pagado y Saldo.</li></ul>
+</aside>
+
+<main class="board">
+  <header class="board-head">
+    <h1>B · Línea de tiempo</h1>
+    <p>El historial como una historia: un resumen escrito en una frase y las ventas sobre un riel, agrupadas por mes para el cliente y por día para el vendedor. Es lo más fácil de leer de corrido y lo que mejor se adapta al celular; compara peor los montos.</p>
+  </header>
+
+  <div class="pair">
+    <!-- ═════════════ CLIENTE ═════════════ -->
+    <section class="frame" aria-labelledby="c-title">
+      <p class="caption"><b>Historial del cliente</b><span class="sep">·</span>filtrado por la mascota «Bruno»</p>
+      <div class="drawer" role="dialog" aria-modal="false" aria-labelledby="c-title">
+        <header class="dh">
+          <span class="avatar" aria-hidden="true">AT</span>
+          <div class="who">
+            <p class="meta">Historial de ventas · <a class="link-inline" href="tel:+528123456789"><svg class="icon xs"><use href="#i-phone"/></svg>81 2345 6789</a></p>
+            <h2 id="c-title">Ana Sofía Treviño Garza</h2>
+          </div>
+          <div class="acts"><button class="icon-btn" type="button" aria-label="Cerrar historial de ventas"><svg class="icon"><use href="#i-x"/></svg></button></div>
+        </header>
+
+        <div class="db">
+          <p class="story">Ana Sofía lleva <b>23 ventas</b> por <b>$18,460.50</b>. Debe <b class="warn-ink">$1,284.00</b> de <b>2 ventas</b>; una venció el 20 nov.</p>
+
+          <div class="chips" role="group" aria-label="Filtrar ventas por mascota" data-single>
+            <span class="chips-label"><svg class="icon sm"><use href="#i-paw"/></svg>Mascota</span>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Todas</span></button>
+            <button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Bruno</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Mishi</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Canela</span><small>archivada</small></button>
+          </div>
+          <p class="petsum" role="status"><svg class="icon sm"><use href="#i-paw"/></svg><span>Bruno: <b>14 ventas</b> · <b>$12,615.50</b> · saldo <b>$1,284.00</b></span></p>
+
+          <div class="toolbar">
+            <div class="input"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" placeholder="Buscar por folio" aria-label="Buscar ventas por folio"></div>
+          </div>
+
+          <section class="group" aria-labelledby="m-nov">
+            <div class="ghead"><h3 id="m-nov">Noviembre 2026</h3><span class="c">4 ventas</span><span class="grow"></span><span class="be"><svg class="icon"><use href="#i-server"/></svg>total del mes: requiere backend</span></div>
+            <ol class="tl">
+              <li><a class="ev" href="#venta" aria-label="Venta S-000412 del 22 de noviembre, $1,486.00, saldo $786.00">
+                <span class="day"><b>22</b><small>nov</small></span><span class="rail"><span class="dot owe"></span></span>
+                <span class="body"><span class="l1"><span class="f">S-000412</span><span class="badge warning">Impaga</span><span class="badge danger">No entregada</span></span>
+                  <span class="l2"><span>Dom 17:42 · Mostrador</span><span class="be"><svg class="icon"><use href="#i-server"/></svg>Bruno, Mishi: requiere backend</span></span></span>
+                <span class="amt"><b>$1,486.00</b><small class="warn-ink">Debe $786.00 · vence 6 dic</small></span>
+              </a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000398 del 15 de noviembre, $498.00, saldo vencido $498.00">
+                <span class="day"><b>15</b><small>nov</small></span><span class="rail"><span class="dot owe"></span></span>
+                <span class="body"><span class="l1"><span class="f">S-000398</span><span class="badge danger">Deuda</span></span><span class="l2">Dom 11:08 · Mostrador · Entregada</span></span>
+                <span class="amt"><b>$498.00</b><small class="warn-ink">Debe $498.00 · venció 20 nov</small></span>
+              </a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000377 del 8 de noviembre, $642.50, pagada">
+                <span class="day"><b>8</b><small>nov</small></span><span class="rail"><span class="dot ok"></span></span>
+                <span class="body"><span class="l1"><span class="f">S-000377</span><span class="badge success">Pagada</span></span><span class="l2">Dom 13:25 · Mostrador</span></span>
+                <span class="amt"><b>$642.50</b></span>
+              </a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000361 del 1 de noviembre, $2,315.00, pagada">
+                <span class="day"><b>1</b><small>nov</small></span><span class="rail"><span class="dot ok"></span></span>
+                <span class="body"><span class="l1"><span class="f">S-000361</span><span class="badge success">Pagada</span><span class="badge success">Entregada</span></span><span class="l2">Dom 10:51 · Chatbot</span></span>
+                <span class="amt"><b>$2,315.00</b></span>
+              </a></li>
+            </ol>
+          </section>
+
+          <section class="group" aria-labelledby="m-oct">
+            <div class="ghead"><h3 id="m-oct">Octubre 2026</h3><span class="c">3 ventas</span></div>
+            <ol class="tl">
+              <li><a class="ev canceled" href="#venta" aria-label="Venta S-000344 del 26 de octubre, cancelada">
+                <span class="day"><b>26</b><small>oct</small></span><span class="rail"><span class="dot cx"></span></span>
+                <span class="body"><span class="l1"><span class="f">S-000344</span><span class="badge">Cancelada</span></span><span class="l2">Lun 18:03 · Solicitud del cliente</span></span>
+                <span class="amt"><b>$380.00</b><small>No suma</small></span>
+              </a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000329 del 19 de octubre, $1,120.00, pagada">
+                <span class="day"><b>19</b><small>oct</small></span><span class="rail"><span class="dot ok"></span></span>
+                <span class="body"><span class="l1"><span class="f">S-000329</span><span class="badge success">Pagada</span></span><span class="l2">Lun 12:40 · Mostrador</span></span>
+                <span class="amt"><b>$1,120.00</b></span>
+              </a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000301 del 5 de octubre, $864.00, pagada">
+                <span class="day"><b>5</b><small>oct</small></span><span class="rail"><span class="dot ok"></span></span>
+                <span class="body"><span class="l1"><span class="f">S-000301</span><span class="badge success">Pagada</span><span class="badge success">Entregada</span></span><span class="l2">Lun 09:58 · Mostrador</span></span>
+                <span class="amt"><b>$864.00</b></span>
+              </a></li>
+            </ol>
+          </section>
+
+          <section class="group" aria-labelledby="m-sep">
+            <div class="ghead"><h3 id="m-sep">Septiembre y agosto 2026</h3><span class="c">3 ventas</span></div>
+            <ol class="tl">
+              <li><a class="ev" href="#venta" aria-label="Venta S-000287 del 28 de septiembre, $455.00, pagada"><span class="day"><b>28</b><small>sep</small></span><span class="rail"><span class="dot ok"></span></span><span class="body"><span class="l1"><span class="f">S-000287</span><span class="badge success">Pagada</span></span><span class="l2">Lun 16:15 · Mostrador</span></span><span class="amt"><b>$455.00</b></span></a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000263 del 14 de septiembre, $1,730.00, pagada"><span class="day"><b>14</b><small>sep</small></span><span class="rail"><span class="dot ok"></span></span><span class="body"><span class="l1"><span class="f">S-000263</span><span class="badge success">Pagada</span><span class="badge success">Entregada</span></span><span class="l2">Lun 11:32 · Chatbot</span></span><span class="amt"><b>$1,730.00</b></span></a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000240 del 30 de agosto, $598.00, pagada"><span class="day"><b>30</b><small>ago</small></span><span class="rail"><span class="dot ok"></span></span><span class="body"><span class="l1"><span class="f">S-000240</span><span class="badge success">Pagada</span></span><span class="l2">Dom 17:20 · Mostrador</span></span><span class="amt"><b>$598.00</b></span></a></li>
+            </ol>
+          </section>
+
+          <div class="loadmore">
+            <button class="btn" type="button"><svg class="icon sm"><use href="#i-chev-d"/></svg>Cargar 4 ventas más</button>
+            <span class="sub">10 de 14 de Bruno</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════════════ VENDEDOR ═════════════ -->
+    <section class="frame" aria-labelledby="s-title">
+      <p class="caption"><b>Reporte del vendedor</b><span class="sep">·</span>periodo «Este mes»</p>
+      <div class="drawer" role="dialog" aria-modal="false" aria-labelledby="s-title">
+        <header class="dh">
+          <span class="avatar" aria-hidden="true">LO</span>
+          <div class="who">
+            <p class="meta">Reporte de ventas · generado hoy 10:14</p>
+            <h2 id="s-title">Luis Fernando Ortega</h2>
+          </div>
+          <div class="acts">
+            <button class="icon-btn" type="button" aria-label="Cerrar el reporte de ventas"><svg class="icon"><use href="#i-x"/></svg></button>
+          </div>
+        </header>
+
+        <div class="db">
+          <div class="chips" role="group" aria-label="Periodo del reporte" data-single>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Hoy</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Últimos 7 días</span></button>
+            <button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Este mes</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Mes anterior</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon sm"><use href="#i-calendar"/></svg><span class="t">Otro periodo…</span></button>
+          </div>
+
+          <p class="story">Del <b>1 al 30 de noviembre</b>, Luis Fernando vendió <b>$52,318.00</b> en <b>38 ventas</b>. Ya se cobraron <b>$47,902.50</b> y faltan <b class="warn-ink">$4,415.50</b>.</p>
+          <p class="facts"><span>Ticket promedio <b>$1,376.79</b></span><span>Canceladas <b>2</b> (no suman)</span><span>Ventas del vendedor asignado hoy · saldos actuales</span></p>
+
+          <div class="be-zone daychart">
+            <span class="be"><svg class="icon"><use href="#i-server"/></svg>requiere backend</span>
+            <p class="sub"><svg class="icon xs" style="vertical-align:-2px"><use href="#i-chart"/></svg> Ventas por día (totales calculados por el servidor)</p>
+            <div class="bars" aria-hidden="true">
+              <span style="height:10%"></span><span style="height:0"></span><span style="height:55%"></span><span style="height:80%"></span><span style="height:12%"></span><span style="height:30%"></span><span style="height:58%"></span><span style="height:35%"></span><span style="height:20%"></span><span style="height:44%"></span><span style="height:62%"></span><span style="height:28%"></span><span style="height:70%"></span><span style="height:48%"></span><span style="height:15%"></span><span style="height:38%"></span><span style="height:52%"></span><span style="height:66%"></span><span style="height:24%"></span><span style="height:90%"></span><span style="height:42%"></span><span style="height:30%"></span><span style="height:56%"></span><span style="height:8%"></span><span style="height:0"></span><span style="height:0"></span><span style="height:0"></span><span style="height:0"></span><span style="height:0"></span><span style="height:0"></span>
+            </div>
+            <div class="bars-axis" aria-hidden="true"><span>1 nov</span><span>15 nov</span><span>30 nov</span></div>
+          </div>
+
+          <section class="group" aria-labelledby="d3">
+            <div class="ghead"><h3 id="d3">Martes 3 de noviembre</h3><span class="c">2 ventas</span><span class="grow"></span><span class="be"><svg class="icon"><use href="#i-server"/></svg>total del día: requiere backend</span></div>
+            <ol class="tl">
+              <li><a class="ev" href="#venta" aria-label="Venta S-000352, 09:14, $1,240.00, pagada"><span class="day"><b>09:14</b></span><span class="rail"><span class="dot ok"></span></span><span class="body"><span class="l1"><span class="f">S-000352</span><span class="badge success">Pagada</span></span></span><span class="amt"><b>$1,240.00</b></span></a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000355, 12:47, $865.50, pagada"><span class="day"><b>12:47</b></span><span class="rail"><span class="dot ok"></span></span><span class="body"><span class="l1"><span class="f">S-000355</span><span class="badge success">Pagada</span></span></span><span class="amt"><b>$865.50</b></span></a></li>
+            </ol>
+          </section>
+          <section class="group" aria-labelledby="d4">
+            <div class="ghead"><h3 id="d4">Miércoles 4 de noviembre</h3><span class="c">1 venta</span></div>
+            <ol class="tl">
+              <li><a class="ev" href="#venta" aria-label="Venta S-000359, 16:02, $2,980.00, pago parcial, saldo $1,480.00"><span class="day"><b>16:02</b></span><span class="rail"><span class="dot owe"></span></span><span class="body"><span class="l1"><span class="f">S-000359</span><span class="badge warning">Parcial</span></span><span class="l2">Pagado $1,500.00</span></span><span class="amt"><b>$2,980.00</b><small class="warn-ink">Saldo $1,480.00</small></span></a></li>
+            </ol>
+          </section>
+          <section class="group" aria-labelledby="d5">
+            <div class="ghead"><h3 id="d5">Jueves 5 de noviembre</h3><span class="c">1 venta</span></div>
+            <ol class="tl">
+              <li><a class="ev" href="#venta" aria-label="Venta S-000363, 10:31, $430.00, pagada"><span class="day"><b>10:31</b></span><span class="rail"><span class="dot ok"></span></span><span class="body"><span class="l1"><span class="f">S-000363</span><span class="badge success">Pagada</span></span></span><span class="amt"><b>$430.00</b></span></a></li>
+            </ol>
+          </section>
+          <section class="group" aria-labelledby="d6">
+            <div class="ghead"><h3 id="d6">Viernes 6 de noviembre</h3><span class="c">1 venta</span></div>
+            <ol class="tl">
+              <li><a class="ev" href="#venta" aria-label="Venta S-000368, 18:20, $1,150.00, a crédito, saldo $1,150.00"><span class="day"><b>18:20</b></span><span class="rail"><span class="dot owe"></span></span><span class="body"><span class="l1"><span class="f">S-000368</span><span class="badge info">A crédito</span></span><span class="l2">Pagado $0.00</span></span><span class="amt"><b>$1,150.00</b><small class="warn-ink">Saldo $1,150.00</small></span></a></li>
+            </ol>
+          </section>
+          <section class="group" aria-labelledby="d8">
+            <div class="ghead"><h3 id="d8">Sábado 7 y domingo 8 de noviembre</h3><span class="c">3 ventas</span></div>
+            <ol class="tl">
+              <li><a class="ev" href="#venta" aria-label="Venta S-000370, sábado 11:05, $2,215.00, pagada"><span class="day"><b>11:05</b><small>sáb</small></span><span class="rail"><span class="dot ok"></span></span><span class="body"><span class="l1"><span class="f">S-000370</span><span class="badge success">Pagada</span></span></span><span class="amt"><b>$2,215.00</b></span></a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000377, domingo 13:25, $642.50, pagada"><span class="day"><b>13:25</b><small>dom</small></span><span class="rail"><span class="dot ok"></span></span><span class="body"><span class="l1"><span class="f">S-000377</span><span class="badge success">Pagada</span></span></span><span class="amt"><b>$642.50</b></span></a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000379, domingo 17:58, $1,785.50, pago parcial, saldo $785.50"><span class="day"><b>17:58</b><small>dom</small></span><span class="rail"><span class="dot owe"></span></span><span class="body"><span class="l1"><span class="f">S-000379</span><span class="badge warning">Parcial</span></span><span class="l2">Pagado $1,000.00</span></span><span class="amt"><b>$1,785.50</b><small class="warn-ink">Saldo $785.50</small></span></a></li>
+            </ol>
+          </section>
+
+          <div class="loadmore">
+            <button class="btn" type="button"><svg class="icon sm"><use href="#i-chev-d"/></svg>Mostrar del 9 al 30 de noviembre</button>
+            <span class="sub">30 ventas más</span>
+          </div>
+
+          <details class="disc">
+            <summary><svg class="icon sm chev"><use href="#i-chev-r"/></svg><svg class="icon sm" style="color:var(--hf-muted)"><use href="#i-ban"/></svg>Ventas canceladas <span class="c">2 · no suman a las ventas netas ni a los saldos</span></summary>
+            <ol class="tl" style="margin-top:4px">
+              <li><a class="ev canceled" href="#venta"><span class="day"><b>5</b><small>nov</small></span><span class="rail"><span class="dot cx"></span></span><span class="body"><span class="l1"><span class="f">S-000366</span><span class="badge">Cancelada</span></span><span class="l2">Confirmada 15:12 · cancelada 15:40</span></span><span class="amt"><b>$520.00</b></span></a></li>
+              <li><a class="ev canceled" href="#venta"><span class="day"><b>10</b><small>nov</small></span><span class="rail"><span class="dot cx"></span></span><span class="body"><span class="l1"><span class="f">S-000381</span><span class="badge">Cancelada</span></span><span class="l2">Confirmada 9 nov, 10:02 · cancelada 09:15</span></span><span class="amt"><b>$1,310.00</b></span></a></li>
+            </ol>
+          </details>
+        </div>
+
+        <footer class="df">
+          <p class="grow sub">40 de 1,000 filas permitidas · el PDF se genera con una consulta nueva</p>
+          <button class="btn primary" type="button"><svg class="icon sm"><use href="#i-download"/></svg>Descargar PDF</button>
+        </footer>
+      </div>
+    </section>
+  </div>
+</main>

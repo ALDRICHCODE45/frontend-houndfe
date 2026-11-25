@@ -1,0 +1,648 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HoundFe · Historial de ventas · 02-linea-de-tiempo</title>
+<style>
+/* Historial de ventas (cliente y vendedor): shared tokens and components.
+   Source only: build.sh inlines this file into every artboard (the canvas serves only .html).
+   Every value comes from design/system.md (src/core/shared/design-system/*). */
+:root{
+--hf-page:#f5f6f8;--hf-surface:#ffffff;--hf-surface-muted:#e7eef7;--hf-field:#ffffff;--hf-field-border:#8593a3;
+--hf-ink:#24313d;--hf-heading:#173968;--hf-muted:#576574;--hf-border:#dce2e8;
+--hf-action:#2442f6;--hf-on-action:#ffffff;--hf-active:#2442f6;--hf-active-soft:#edf0ff;--hf-focus:#2442f6;
+--hf-gold:#f6bb13;--hf-gold-soft:#fff5d6;--hf-gold-ink:#443218;
+--hf-warning:#805511;--hf-warning-soft:#fff5d6;--hf-success:#236044;
+--hf-danger:#b42318;--hf-danger-soft:#fef3f2;--hf-danger-border:#f4b8b2;
+--hf-font:'Geist',ui-sans-serif,system-ui,sans-serif;
+--hf-radius-card:12px;--hf-radius-control:6px;--hf-control-height:44px;
+--table-head:color-mix(in srgb,var(--hf-ink) 4%,var(--hf-surface));
+--row-hover:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface));
+--skel:color-mix(in srgb,var(--hf-ink) 16%,var(--hf-surface));
+--shadow-soft:0 1px 2px color-mix(in srgb,var(--hf-ink) 5%,transparent);
+--shadow-pop:0 12px 32px -12px color-mix(in srgb,var(--hf-ink) 24%,transparent),0 2px 6px color-mix(in srgb,var(--hf-ink) 8%,transparent);
+color-scheme:light;
+}
+html.dark{
+--hf-page:#0e1520;--hf-surface:#192332;--hf-surface-muted:#202e43;--hf-field:#121d2c;--hf-field-border:#64758d;
+--hf-ink:#edf2fa;--hf-heading:#edf2fa;--hf-muted:#adbcd0;--hf-border:#354459;
+--hf-action:#91b0ff;--hf-on-action:#132344;--hf-active:#b3caff;--hf-active-soft:#223555;--hf-focus:#a6c1ff;
+--hf-gold:#f2c456;--hf-gold-soft:#3b311d;--hf-gold-ink:#f2cb71;
+--hf-warning:#f2cb71;--hf-warning-soft:#3b311d;--hf-success:#a2d9b9;
+--hf-danger:#ffb4ab;--hf-danger-soft:#3d2220;--hf-danger-border:#7a3f3b;
+--shadow-soft:0 1px 2px color-mix(in srgb,var(--hf-page) 40%,transparent);
+--shadow-pop:0 12px 32px -12px color-mix(in srgb,var(--hf-page) 90%,transparent),0 2px 6px color-mix(in srgb,var(--hf-page) 60%,transparent);
+color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--hf-page);color:var(--hf-ink);font:400 14px/1.5 var(--hf-font);font-feature-settings:"cv11","ss01"}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3,h4,p,ul,ol,dl,dd,figure{margin:0}
+ul,ol{padding:0;list-style:none}
+h1,h2,h3,h4{color:var(--hf-heading);font-weight:600}
+a{color:var(--hf-action)}
+:focus-visible{outline:2px solid var(--hf-focus);outline-offset:2px}
+.icon{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.icon.sm{width:16px;height:16px}.icon.xs{width:14px;height:14px}.icon.lg{width:24px;height:24px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.fig{font-variant-numeric:tabular-nums}
+.muted{color:var(--hf-muted)}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.warn-ink{color:var(--hf-warning)}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ── artboard tools (outside the mock) ───────────────────────────── */
+.tools{position:sticky;top:0;z-index:200;display:flex;flex-wrap:wrap;align-items:center;gap:4px;min-height:44px;padding:4px 16px;background:var(--hf-surface-muted);border-bottom:1px solid var(--hf-border)}
+.tools .grow{flex:1}
+.tools .lbl{font-size:12px;font-weight:600;color:var(--hf-muted);padding:0 8px}
+.tools button{height:32px;padding:0 10px;border:0;border-radius:8px;background:transparent;font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap}
+.tools button:hover{background:var(--hf-surface)}
+.tools [aria-pressed="true"]{background:var(--hf-active-soft);color:var(--hf-active)}
+.notes{position:fixed;z-index:210;top:52px;right:16px;width:min(480px,calc(100vw - 32px));max-height:calc(100vh - 72px);overflow:auto;padding:16px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:12px;box-shadow:var(--shadow-pop);font-size:13px}
+.notes h2{font-size:15px;margin-bottom:8px}.notes h3{font-size:13px;margin:16px 0 4px}
+.notes ul{display:grid;gap:4px;padding-left:16px;list-style:disc;color:var(--hf-muted)}
+.notes code{font-size:12px;color:var(--hf-ink)}
+.notes p{color:var(--hf-muted)}
+
+/* ── board frame ──────────────────────────────────────────────────── */
+.board{padding:24px 24px 48px;display:grid;gap:20px}
+.board-head{display:grid;gap:4px;max-width:1100px}
+.board-head h1{font-size:clamp(1.75rem,1.55rem + 0.6vw,2rem);line-height:1.25;letter-spacing:-0.045em}
+.board-head p{color:var(--hf-muted);max-width:90ch}
+.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:start}
+.frame{display:grid;gap:8px;min-width:0}
+.caption{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--hf-muted)}
+.caption b{color:var(--hf-ink);font-weight:600}
+.caption .sep{color:var(--hf-border)}
+
+/* drawer (slideover) */
+.drawer{display:flex;flex-direction:column;min-width:0;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:var(--shadow-pop);overflow:hidden}
+.dh{display:flex;align-items:flex-start;gap:12px;padding:16px 16px 16px 20px;border-bottom:1px solid var(--hf-border)}
+.dh .who{flex:1;min-width:0;display:grid;gap:2px}
+.dh .meta{font-size:13px;color:var(--hf-muted);display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.dh h2{font-size:22px;line-height:1.25;letter-spacing:-0.02em;overflow-wrap:anywhere}
+.dh .acts{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.db{display:grid;gap:16px;padding:16px 20px 20px;min-width:0}
+.df{display:flex;align-items:center;gap:12px;padding:12px 20px;border-top:1px solid var(--hf-border);background:var(--hf-surface)}
+.df .grow{flex:1;min-width:0}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--hf-surface-muted);color:var(--hf-heading);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;flex-shrink:0}
+.icon-btn{width:44px;height:44px;border:0;border-radius:6px;background:transparent;color:var(--hf-muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.icon-btn:hover{background:var(--hf-surface-muted);color:var(--hf-ink)}
+.link-inline{display:inline-flex;align-items:center;gap:4px;color:var(--hf-action);font-weight:500;text-decoration:none;border-radius:4px}
+.link-inline:hover{text-decoration:underline}
+
+/* buttons */
+.btn{min-height:44px;padding:0 16px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-surface);color:var(--hf-ink);font-size:14px;font-weight:600;line-height:1.2;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;text-decoration:none}
+.btn:hover:not(:disabled){background:var(--hf-surface-muted)}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.primary{background:var(--hf-action);border-color:var(--hf-action);color:var(--hf-on-action)}
+.btn.primary:hover:not(:disabled){background:color-mix(in srgb,var(--hf-action) 88%,var(--hf-ink))}
+.btn.sm{min-height:36px;padding:0 12px;font-size:13px}
+.btn:disabled{cursor:not-allowed;background:var(--hf-page);border-color:var(--hf-border);color:var(--hf-muted)}
+html.dark .btn:disabled{color:color-mix(in srgb,var(--hf-muted) 60%,var(--hf-page))}
+.btn.block{width:100%}
+
+/* fields */
+.field{display:grid;gap:4px;min-width:0}
+.field label,.field .lab{font-size:13px;font-weight:500;color:var(--hf-ink)}
+.input{position:relative;display:flex;align-items:center;min-height:44px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-field);min-width:0}
+.input:hover{border-color:var(--hf-field-border)}
+.input:focus-within{outline:2px solid var(--hf-focus);outline-offset:0;border-color:transparent}
+.input .icon{margin-left:12px;color:var(--hf-muted)}
+.input input{flex:1;min-width:0;height:42px;border:0;background:transparent;padding:0 12px;outline:0}
+.input input::placeholder{color:var(--hf-muted);opacity:1}
+.input.disabled{background:var(--hf-page)}
+
+/* toolbar row inside a drawer */
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;min-width:0}
+.toolbar .input{flex:1 1 220px;max-width:320px}
+
+/* toggle chips (HfToggleChips) */
+.chips{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.chip{min-height:36px;max-width:100%;padding:0 12px;border:1px solid var(--hf-muted);border-radius:999px;background:var(--hf-surface);color:var(--hf-ink);font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.chip .icon{width:14px;height:14px}
+.chip .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip small{color:var(--hf-muted);font-size:12px;font-weight:400}
+.chip:hover{background:var(--hf-surface-muted)}
+.chip[aria-pressed="true"]{background:var(--hf-active-soft);border-color:var(--hf-active);color:var(--hf-active);font-weight:600}
+.chip[aria-pressed="true"] small{color:var(--hf-active)}
+.chip .ck{display:none}
+.chip[aria-pressed="true"] .ck{display:inline}
+.chips-label{font-size:13px;font-weight:500;color:var(--hf-muted);display:inline-flex;align-items:center;gap:6px;min-height:36px}
+
+/* segmented control (HfSegmented) */
+.seg{display:inline-flex;flex-wrap:wrap;padding:2px;gap:2px;background:var(--hf-surface-muted);border-radius:8px;min-width:0}
+.seg button{min-height:40px;padding:0 12px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--hf-muted);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.seg button:hover{color:var(--hf-ink)}
+.seg button[aria-pressed="true"]{background:var(--hf-surface);border-color:var(--hf-border);color:var(--hf-heading);font-weight:600}
+.date-btn{min-height:44px;padding:0 12px;border:1px solid var(--hf-border);border-radius:6px;background:var(--hf-field);display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.date-btn:hover{border-color:var(--hf-field-border)}
+.date-btn .icon{color:var(--hf-muted)}
+
+/* badges (StatusBadge) */
+.badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;background:var(--hf-surface-muted);color:var(--hf-muted);max-width:100%}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.badge.nodot::before{display:none}
+.badge.warning{background:var(--hf-warning-soft);color:var(--hf-warning)}
+.badge.info{background:var(--hf-active-soft);color:var(--hf-active)}
+.badge.success{background:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface));color:var(--hf-success)}
+.badge.danger{background:var(--hf-danger-soft);color:var(--hf-danger)}
+
+/* «requiere backend» annotation: gold accent, dashed, with a server icon. Never a real control. */
+.be{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border:1px dashed var(--hf-gold-ink);border-radius:6px;background:var(--hf-gold-soft);color:var(--hf-gold-ink);font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;vertical-align:middle}
+.be .icon{width:12px;height:12px}
+.be-zone{position:relative;border:1px dashed var(--hf-gold-ink);border-radius:8px;background:color-mix(in srgb,var(--hf-gold-soft) 45%,var(--hf-surface));padding:12px}
+.be-zone > .be{position:absolute;top:-11px;right:12px}
+.be-zone .ghost-txt{color:var(--hf-muted)}
+/* «ya en la API, no se usa hoy»: neutral annotation for params the endpoint already accepts */
+.api{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border:1px dashed var(--hf-muted);border-radius:6px;color:var(--hf-muted);font-size:12px;font-weight:500;white-space:nowrap;flex-shrink:0;vertical-align:middle}
+.api .icon{width:12px;height:12px}
+
+/* KPI strip: one aligned row of metrics, no nested cards */
+.kpis{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);background:var(--hf-surface);min-width:0}
+.kpis > div{display:grid;gap:2px;padding:12px 16px;min-width:0;border-left:1px solid var(--hf-border)}
+.kpis > div:first-child{border-left:0}
+.kpis dt{font-size:12px;color:var(--hf-muted);font-weight:500;white-space:nowrap}
+.kpis dd{font-size:16px;font-weight:600;color:var(--hf-heading);font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:-0.01em}
+.kpis dd small{display:block;font-size:12px;font-weight:500;color:var(--hf-muted);letter-spacing:0}
+.kpis .hot{background:var(--hf-warning-soft)}
+.kpis .hot dd{color:var(--hf-warning)}
+.kpis .hot:first-child{border-radius:12px 0 0 12px}
+.kpis .hot:last-child{border-radius:0 12px 12px 0}
+
+/* inline notice (12px, icon on first line) */
+.notice{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.45;min-width:0}
+.notice .icon{width:16px;height:16px;margin-top:1px}
+.notice.warn{color:var(--hf-warning);font-weight:600}
+.notice.info{color:var(--hf-muted)}
+.banner{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-radius:var(--hf-radius-card);border:1px solid var(--hf-border);background:var(--hf-surface-muted);font-size:13px;min-width:0}
+.banner.warn{background:var(--hf-warning-soft);border-color:color-mix(in srgb,var(--hf-warning) 35%,var(--hf-warning-soft))}
+.banner .icon{margin-top:1px}
+.banner .txt{flex:1;min-width:0;display:grid;gap:2px}
+.banner b{color:var(--hf-heading);font-weight:600}
+.banner.warn b,.banner.warn .icon{color:var(--hf-warning)}
+
+/* table (hf-data-table look) */
+.tsurf{border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);background:var(--hf-surface);box-shadow:var(--shadow-soft);overflow:hidden;min-width:0}
+table.t{width:100%;border-collapse:collapse;table-layout:fixed}
+
+.t th{height:40px;padding:0 12px;background:var(--table-head);color:var(--hf-muted);font-size:13px;font-weight:600;text-align:left;border-bottom:1px solid var(--hf-border);white-space:nowrap}
+.t th.num{text-align:right}
+.t td{padding:10px 12px;border-bottom:1px solid var(--hf-border);vertical-align:middle;min-width:0}
+.t tbody tr:last-child td{border-bottom:0}
+.t tr.row{cursor:pointer}
+.t tr.row:hover td{background:var(--row-hover)}
+.t tr.row.open td{background:var(--hf-active-soft);border-bottom-color:transparent}
+.t .p{display:block;font-weight:600;color:var(--hf-heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t .s{display:block;font-size:13px;color:var(--hf-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t .s.warn{color:var(--hf-warning);font-weight:600}
+.t .p.warn-ink{color:var(--hf-warning)}
+.t .amt{font-weight:600;color:var(--hf-heading)}
+.t .zero{color:var(--hf-muted);font-weight:400}
+.t .cx{width:44px;padding:0 0 0 4px}
+.xbtn{width:36px;height:36px;border:0;border-radius:6px;background:transparent;color:var(--hf-muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.xbtn:hover{background:var(--hf-surface-muted);color:var(--hf-ink)}
+.xbtn .icon{transition:transform 150ms}
+tr.open .xbtn .icon,.xbtn[aria-expanded="true"] .icon{transform:rotate(90deg)}
+.t tr.canceled .p{color:var(--hf-muted);text-decoration:line-through;text-decoration-thickness:1px}
+.t tr.canceled .amt{color:var(--hf-muted);font-weight:500;text-decoration:line-through;text-decoration-thickness:1px}
+.t tr.expand td{background:var(--hf-active-soft);padding:0 12px 16px 56px}
+.t tfoot td{height:40px;padding:0 12px;background:var(--table-head);font-size:13px;font-weight:600;border-top:1px solid var(--hf-border);border-bottom:0}
+
+/* expanded sale detail */
+.xpanel{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:16px;padding:12px 16px;border-radius:8px;background:var(--hf-surface);border:1px solid var(--hf-border)}
+.xpanel h4{font-size:13px;margin-bottom:6px}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;font-size:13px}
+.kv dt{color:var(--hf-muted)}
+.kv dd{color:var(--hf-ink);font-weight:500;overflow-wrap:anywhere}
+.items{display:grid;gap:6px;font-size:13px}
+.items li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px}
+.items .n{font-weight:500;color:var(--hf-ink)}
+.items .v{grid-column:1;font-size:12px;color:var(--hf-muted);display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.items .m{grid-row:1;grid-column:2;text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+.pet{display:inline-flex;align-items:center;gap:4px;color:var(--hf-muted)}
+.pet .icon{width:12px;height:12px}
+.xacts{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding-top:12px;border-top:1px solid var(--hf-border)}
+.xacts .grow{flex:1}
+.loadnote{font-size:12px;color:var(--hf-muted);display:inline-flex;align-items:center;gap:4px}
+.loadnote .icon{width:12px;height:12px}
+
+/* pagination */
+.pager{display:flex;align-items:center;gap:4px}
+.pager button{min-width:36px;height:36px;padding:0 8px;border:1px solid var(--hf-border);border-radius:6px;background:var(--hf-surface);font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.pager button[aria-current="page"]{background:var(--hf-active-soft);border-color:var(--hf-active);color:var(--hf-active);font-weight:600}
+.pager button:disabled{color:var(--hf-muted);background:var(--hf-page);cursor:not-allowed}
+
+/* section heading inside a drawer */
+.sh{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-width:0}
+.sh h3{font-size:16px}
+.sh .c{font-size:13px;color:var(--hf-muted)}
+.sh .grow{flex:1}
+.sub{font-size:13px;color:var(--hf-muted)}
+
+/* disclosure */
+details.disc > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;min-height:44px;padding:0 12px;border-radius:8px;font-weight:600;color:var(--hf-heading)}
+details.disc > summary::-webkit-details-marker{display:none}
+details.disc > summary:hover{background:var(--hf-surface-muted)}
+details.disc > summary .icon.chev{transition:transform 150ms;color:var(--hf-muted)}
+details.disc[open] > summary .icon.chev{transform:rotate(90deg)}
+details.disc > summary .c{font-weight:400;color:var(--hf-muted);font-size:13px}
+
+/* empty / error / skeleton */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;padding:40px 16px;min-height:8rem}
+.empty .icon{width:24px;height:24px;color:var(--hf-muted)}
+.empty h3{font-size:15px}
+.empty p{font-size:13px;color:var(--hf-muted);max-width:28rem}
+.empty .btn{margin-top:8px}
+.empty.error{background:var(--hf-danger-soft);border:1px solid var(--hf-danger-border);border-radius:12px}
+.empty.error .icon,.empty.error h3{color:var(--hf-danger)}
+.sk{display:block;background:var(--skel);border-radius:6px}
+
+/* data-source legend chip used in notes */
+.legend{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--hf-muted)}
+@media (max-width:1100px){.pair{grid-template-columns:minmax(0,1fr)}}
+/* B · Línea de tiempo */
+.story{font-size:15px;line-height:1.55;color:var(--hf-ink)}
+.story b{font-weight:600;color:var(--hf-heading);font-variant-numeric:tabular-nums}
+.story b.warn-ink{color:var(--hf-warning)}
+.facts{display:flex;flex-wrap:wrap;gap:4px 20px;font-size:13px;color:var(--hf-muted)}
+.facts b{color:var(--hf-heading);font-weight:600;font-variant-numeric:tabular-nums}
+.facts .hot b{color:var(--hf-warning)}
+.petsum{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 12px;border-radius:8px;background:var(--hf-active-soft);color:var(--hf-active);font-size:13px}
+.petsum b{font-weight:600;font-variant-numeric:tabular-nums}
+.group{display:grid;gap:4px}
+.ghead{position:sticky;top:0;z-index:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:40px;padding:0 4px;background:var(--hf-surface);border-bottom:1px solid var(--hf-border)}
+.ghead h3{font-size:14px}
+.ghead .c{font-size:13px;color:var(--hf-muted)}
+.ghead .grow{flex:1}
+.tl{display:grid}
+.ev{position:relative;display:grid;grid-template-columns:52px 24px minmax(0,1fr) auto;gap:0 8px;align-items:start;padding:10px 4px;border-radius:8px;cursor:pointer}
+.ev:hover{background:var(--row-hover)}
+.ev:focus-visible{outline-offset:-2px}
+.ev .day{text-align:right;line-height:1.15;padding-top:1px}
+.ev .day b{display:block;font-size:16px;font-weight:600;color:var(--hf-heading);font-variant-numeric:tabular-nums}
+.ev .day small{font-size:12px;color:var(--hf-muted)}
+.ev .day.same{visibility:hidden}
+.ev .rail{position:relative;align-self:stretch;display:flex;justify-content:center}
+.ev .rail::before{content:"";position:absolute;top:-10px;bottom:-10px;left:50%;width:2px;margin-left:-1px;background:var(--hf-border)}
+.tl li:first-child .ev .rail::before{top:10px}
+.tl li:last-child .ev .rail::before{bottom:auto;height:20px}
+.tl li:only-child .ev .rail::before{display:none}
+.ev .dot{position:relative;margin-top:5px;width:12px;height:12px;border-radius:50%;background:var(--hf-surface);border:2px solid var(--hf-muted)}
+.ev .dot.ok{border-color:var(--hf-success);background:var(--hf-success)}
+.ev .dot.owe{border-color:var(--hf-warning);background:var(--hf-warning-soft)}
+.ev .dot.cx{border-color:var(--hf-muted);background:var(--hf-surface)}
+.ev .body{display:grid;gap:2px;min-width:0}
+.ev .l1{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.ev .l1 .f{font-weight:600;color:var(--hf-heading)}
+.ev .l2{font-size:13px;color:var(--hf-muted);display:flex;flex-wrap:wrap;gap:2px 8px;align-items:center}
+.ev .amt{display:grid;justify-items:end;gap:2px;text-align:right}
+.ev .amt b{font-weight:600;color:var(--hf-heading);font-variant-numeric:tabular-nums}
+.ev .amt small{font-size:13px;font-variant-numeric:tabular-nums;color:var(--hf-muted)}
+.ev .amt small.warn-ink{font-weight:600;color:var(--hf-warning)}
+.ev.canceled .f,.ev.canceled .amt b{color:var(--hf-muted);text-decoration:line-through;text-decoration-thickness:1px}
+.loadmore{display:flex;align-items:center;justify-content:center;gap:12px;padding:8px 0}
+.daychart{display:grid;gap:8px}
+.bars{display:flex;align-items:flex-end;gap:4px;height:64px}
+.bars span{flex:1;border-radius:4px 4px 0 0;background:color-mix(in srgb,var(--hf-gold-ink) 22%,var(--hf-surface))}
+.bars-axis{display:flex;justify-content:space-between;font-size:12px;color:var(--hf-muted)}
+a.ev{color:inherit;text-decoration:none}
+.chev-end{color:var(--hf-muted);margin-top:2px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-search-x" viewBox="0 0 24 24"><path d="m13.5 8.5-5 5"/><path d="m8.5 8.5 5 5"/><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+<symbol id="i-chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+<symbol id="i-arrow-l" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+<symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M13 16H8"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+<symbol id="i-triangle" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+<symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+<symbol id="i-paw" viewBox="0 0 24 24"><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/></symbol>
+<symbol id="i-server" viewBox="0 0 24 24"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/></symbol>
+<symbol id="i-wallet" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+<symbol id="i-open" viewBox="0 0 24 24"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></symbol>
+<symbol id="i-truck" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+<symbol id="i-loader" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></symbol>
+<symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+<symbol id="i-notes" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+<symbol id="i-store" viewBox="0 0 24 24"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></symbol>
+<symbol id="i-package" viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/></symbol>
+<symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+<symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></symbol>
+<symbol id="i-sort" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+</svg>
+<div class="tools" role="group" aria-label="Opciones del artboard">
+  <span class="lbl">B · Línea de tiempo</span>
+  <span class="grow"></span>
+  <button type="button" id="t-notes" aria-expanded="false" aria-controls="notes"><svg class="icon sm"><use href="#i-notes"/></svg>Notas y datos</button>
+  <button type="button" id="t-theme" aria-pressed="false"><svg class="icon sm"><use href="#i-moon"/></svg><span>Tema claro</span></button>
+</div>
+
+<aside class="notes" id="notes" tabindex="-1" hidden aria-label="Notas del artboard">
+  <h2>B · Línea de tiempo</h2>
+  <p>Las ventas se leen como una historia: agrupadas por mes (cliente) o por día (vendedor) sobre un riel, con el resumen escrito como una frase. Cada evento abre la venta.</p>
+  <h3>Datos que ya llegan · cliente</h3>
+  <ul>
+    <li><code>folio</code>, <code>confirmedAt</code>, <code>status</code>, <code>paymentStatus</code>, <code>deliveryStatus</code>, <code>totalCents</code>, <code>debtCents</code>, <code>dueDate</code>, <code>channel</code>, <code>cancelReason</code></li>
+    <li>Frase: <code>summary.salesCount</code>, <code>summary.totalSoldCents</code>, <code>summary.outstandingDebtCents</code>, <code>counts.pendingPayments</code></li>
+    <li>Mascota: <code>filterSummary.count / totalCents / debtCents</code>; «Cargar más» usa <code>pagination.page / total</code></li>
+  </ul>
+  <h3>Datos que ya llegan · vendedor</h3>
+  <ul>
+    <li><code>confirmed.summary.*</code>, <code>confirmed.rows[]</code> (<code>folio</code>, <code>confirmedAt</code>, <code>totalCents</code>, <code>paidCents</code>, <code>debtCents</code>, <code>paymentStatus</code>), <code>canceled.saleCount</code>, <code>canceled.rows[]</code>, <code>generatedAt</code>, <code>from</code>/<code>to</code>, <code>rowCount</code>/<code>rowLimit</code></li>
+    <li>Agrupar por día usa solo <code>confirmedAt</code> en hora del centro de México; el orden es el del servidor.</li>
+  </ul>
+  <h3>Requiere backend</h3>
+  <ul>
+    <li>Subtotal por mes (cliente) y por día (vendedor): el navegador no suma montos; con 10 ventas por página la suma además sería parcial.</li>
+    <li>Gráfica «Ventas por día» del vendedor.</li>
+    <li>Mascotas de cada venta en el evento (las filas de la lista no traen líneas).</li>
+  </ul>
+  <h3>Costo</h3>
+  <ul><li>Comparar montos entre ventas es más lento que en una tabla: no hay columnas alineadas de Pagado y Saldo.</li></ul>
+</aside>
+
+<main class="board">
+  <header class="board-head">
+    <h1>B · Línea de tiempo</h1>
+    <p>El historial como una historia: un resumen escrito en una frase y las ventas sobre un riel, agrupadas por mes para el cliente y por día para el vendedor. Es lo más fácil de leer de corrido y lo que mejor se adapta al celular; compara peor los montos.</p>
+  </header>
+
+  <div class="pair">
+    <!-- ═════════════ CLIENTE ═════════════ -->
+    <section class="frame" aria-labelledby="c-title">
+      <p class="caption"><b>Historial del cliente</b><span class="sep">·</span>filtrado por la mascota «Bruno»</p>
+      <div class="drawer" role="dialog" aria-modal="false" aria-labelledby="c-title">
+        <header class="dh">
+          <span class="avatar" aria-hidden="true">AT</span>
+          <div class="who">
+            <p class="meta">Historial de ventas · <a class="link-inline" href="tel:+528123456789"><svg class="icon xs"><use href="#i-phone"/></svg>81 2345 6789</a></p>
+            <h2 id="c-title">Ana Sofía Treviño Garza</h2>
+          </div>
+          <div class="acts"><button class="icon-btn" type="button" aria-label="Cerrar historial de ventas"><svg class="icon"><use href="#i-x"/></svg></button></div>
+        </header>
+
+        <div class="db">
+          <p class="story">Ana Sofía lleva <b>23 ventas</b> por <b>$18,460.50</b>. Debe <b class="warn-ink">$1,284.00</b> de <b>2 ventas</b>; una venció el 20 nov.</p>
+
+          <div class="chips" role="group" aria-label="Filtrar ventas por mascota" data-single>
+            <span class="chips-label"><svg class="icon sm"><use href="#i-paw"/></svg>Mascota</span>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Todas</span></button>
+            <button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Bruno</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Mishi</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Canela</span><small>archivada</small></button>
+          </div>
+          <p class="petsum" role="status"><svg class="icon sm"><use href="#i-paw"/></svg><span>Bruno: <b>14 ventas</b> · <b>$12,615.50</b> · saldo <b>$1,284.00</b></span></p>
+
+          <div class="toolbar">
+            <div class="input"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" placeholder="Buscar por folio" aria-label="Buscar ventas por folio"></div>
+          </div>
+
+          <section class="group" aria-labelledby="m-nov">
+            <div class="ghead"><h3 id="m-nov">Noviembre 2026</h3><span class="c">4 ventas</span><span class="grow"></span><span class="be"><svg class="icon"><use href="#i-server"/></svg>total del mes: requiere backend</span></div>
+            <ol class="tl">
+              <li><a class="ev" href="#venta" aria-label="Venta S-000412 del 22 de noviembre, $1,486.00, saldo $786.00">
+                <span class="day"><b>22</b><small>nov</small></span><span class="rail"><span class="dot owe"></span></span>
+                <span class="body"><span class="l1"><span class="f">S-000412</span><span class="badge warning">Impaga</span><span class="badge danger">No entregada</span></span>
+                  <span class="l2"><span>Dom 17:42 · Mostrador</span><span class="be"><svg class="icon"><use href="#i-server"/></svg>Bruno, Mishi: requiere backend</span></span></span>
+                <span class="amt"><b>$1,486.00</b><small class="warn-ink">Debe $786.00 · vence 6 dic</small></span>
+              </a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000398 del 15 de noviembre, $498.00, saldo vencido $498.00">
+                <span class="day"><b>15</b><small>nov</small></span><span class="rail"><span class="dot owe"></span></span>
+                <span class="body"><span class="l1"><span class="f">S-000398</span><span class="badge danger">Deuda</span></span><span class="l2">Dom 11:08 · Mostrador · Entregada</span></span>
+                <span class="amt"><b>$498.00</b><small class="warn-ink">Debe $498.00 · venció 20 nov</small></span>
+              </a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000377 del 8 de noviembre, $642.50, pagada">
+                <span class="day"><b>8</b><small>nov</small></span><span class="rail"><span class="dot ok"></span></span>
+                <span class="body"><span class="l1"><span class="f">S-000377</span><span class="badge success">Pagada</span></span><span class="l2">Dom 13:25 · Mostrador</span></span>
+                <span class="amt"><b>$642.50</b></span>
+              </a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000361 del 1 de noviembre, $2,315.00, pagada">
+                <span class="day"><b>1</b><small>nov</small></span><span class="rail"><span class="dot ok"></span></span>
+                <span class="body"><span class="l1"><span class="f">S-000361</span><span class="badge success">Pagada</span><span class="badge success">Entregada</span></span><span class="l2">Dom 10:51 · Chatbot</span></span>
+                <span class="amt"><b>$2,315.00</b></span>
+              </a></li>
+            </ol>
+          </section>
+
+          <section class="group" aria-labelledby="m-oct">
+            <div class="ghead"><h3 id="m-oct">Octubre 2026</h3><span class="c">3 ventas</span></div>
+            <ol class="tl">
+              <li><a class="ev canceled" href="#venta" aria-label="Venta S-000344 del 26 de octubre, cancelada">
+                <span class="day"><b>26</b><small>oct</small></span><span class="rail"><span class="dot cx"></span></span>
+                <span class="body"><span class="l1"><span class="f">S-000344</span><span class="badge">Cancelada</span></span><span class="l2">Lun 18:03 · Solicitud del cliente</span></span>
+                <span class="amt"><b>$380.00</b><small>No suma</small></span>
+              </a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000329 del 19 de octubre, $1,120.00, pagada">
+                <span class="day"><b>19</b><small>oct</small></span><span class="rail"><span class="dot ok"></span></span>
+                <span class="body"><span class="l1"><span class="f">S-000329</span><span class="badge success">Pagada</span></span><span class="l2">Lun 12:40 · Mostrador</span></span>
+                <span class="amt"><b>$1,120.00</b></span>
+              </a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000301 del 5 de octubre, $864.00, pagada">
+                <span class="day"><b>5</b><small>oct</small></span><span class="rail"><span class="dot ok"></span></span>
+                <span class="body"><span class="l1"><span class="f">S-000301</span><span class="badge success">Pagada</span><span class="badge success">Entregada</span></span><span class="l2">Lun 09:58 · Mostrador</span></span>
+                <span class="amt"><b>$864.00</b></span>
+              </a></li>
+            </ol>
+          </section>
+
+          <section class="group" aria-labelledby="m-sep">
+            <div class="ghead"><h3 id="m-sep">Septiembre y agosto 2026</h3><span class="c">3 ventas</span></div>
+            <ol class="tl">
+              <li><a class="ev" href="#venta" aria-label="Venta S-000287 del 28 de septiembre, $455.00, pagada"><span class="day"><b>28</b><small>sep</small></span><span class="rail"><span class="dot ok"></span></span><span class="body"><span class="l1"><span class="f">S-000287</span><span class="badge success">Pagada</span></span><span class="l2">Lun 16:15 · Mostrador</span></span><span class="amt"><b>$455.00</b></span></a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000263 del 14 de septiembre, $1,730.00, pagada"><span class="day"><b>14</b><small>sep</small></span><span class="rail"><span class="dot ok"></span></span><span class="body"><span class="l1"><span class="f">S-000263</span><span class="badge success">Pagada</span><span class="badge success">Entregada</span></span><span class="l2">Lun 11:32 · Chatbot</span></span><span class="amt"><b>$1,730.00</b></span></a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000240 del 30 de agosto, $598.00, pagada"><span class="day"><b>30</b><small>ago</small></span><span class="rail"><span class="dot ok"></span></span><span class="body"><span class="l1"><span class="f">S-000240</span><span class="badge success">Pagada</span></span><span class="l2">Dom 17:20 · Mostrador</span></span><span class="amt"><b>$598.00</b></span></a></li>
+            </ol>
+          </section>
+
+          <div class="loadmore">
+            <button class="btn" type="button"><svg class="icon sm"><use href="#i-chev-d"/></svg>Cargar 4 ventas más</button>
+            <span class="sub">10 de 14 de Bruno</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═════════════ VENDEDOR ═════════════ -->
+    <section class="frame" aria-labelledby="s-title">
+      <p class="caption"><b>Reporte del vendedor</b><span class="sep">·</span>periodo «Este mes»</p>
+      <div class="drawer" role="dialog" aria-modal="false" aria-labelledby="s-title">
+        <header class="dh">
+          <span class="avatar" aria-hidden="true">LO</span>
+          <div class="who">
+            <p class="meta">Reporte de ventas · generado hoy 10:14</p>
+            <h2 id="s-title">Luis Fernando Ortega</h2>
+          </div>
+          <div class="acts">
+            <button class="icon-btn" type="button" aria-label="Cerrar el reporte de ventas"><svg class="icon"><use href="#i-x"/></svg></button>
+          </div>
+        </header>
+
+        <div class="db">
+          <div class="chips" role="group" aria-label="Periodo del reporte" data-single>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Hoy</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Últimos 7 días</span></button>
+            <button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Este mes</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Mes anterior</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon sm"><use href="#i-calendar"/></svg><span class="t">Otro periodo…</span></button>
+          </div>
+
+          <p class="story">Del <b>1 al 30 de noviembre</b>, Luis Fernando vendió <b>$52,318.00</b> en <b>38 ventas</b>. Ya se cobraron <b>$47,902.50</b> y faltan <b class="warn-ink">$4,415.50</b>.</p>
+          <p class="facts"><span>Ticket promedio <b>$1,376.79</b></span><span>Canceladas <b>2</b> (no suman)</span><span>Ventas del vendedor asignado hoy · saldos actuales</span></p>
+
+          <div class="be-zone daychart">
+            <span class="be"><svg class="icon"><use href="#i-server"/></svg>requiere backend</span>
+            <p class="sub"><svg class="icon xs" style="vertical-align:-2px"><use href="#i-chart"/></svg> Ventas por día (totales calculados por el servidor)</p>
+            <div class="bars" aria-hidden="true">
+              <span style="height:10%"></span><span style="height:0"></span><span style="height:55%"></span><span style="height:80%"></span><span style="height:12%"></span><span style="height:30%"></span><span style="height:58%"></span><span style="height:35%"></span><span style="height:20%"></span><span style="height:44%"></span><span style="height:62%"></span><span style="height:28%"></span><span style="height:70%"></span><span style="height:48%"></span><span style="height:15%"></span><span style="height:38%"></span><span style="height:52%"></span><span style="height:66%"></span><span style="height:24%"></span><span style="height:90%"></span><span style="height:42%"></span><span style="height:30%"></span><span style="height:56%"></span><span style="height:8%"></span><span style="height:0"></span><span style="height:0"></span><span style="height:0"></span><span style="height:0"></span><span style="height:0"></span><span style="height:0"></span>
+            </div>
+            <div class="bars-axis" aria-hidden="true"><span>1 nov</span><span>15 nov</span><span>30 nov</span></div>
+          </div>
+
+          <section class="group" aria-labelledby="d3">
+            <div class="ghead"><h3 id="d3">Martes 3 de noviembre</h3><span class="c">2 ventas</span><span class="grow"></span><span class="be"><svg class="icon"><use href="#i-server"/></svg>total del día: requiere backend</span></div>
+            <ol class="tl">
+              <li><a class="ev" href="#venta" aria-label="Venta S-000352, 09:14, $1,240.00, pagada"><span class="day"><b>09:14</b></span><span class="rail"><span class="dot ok"></span></span><span class="body"><span class="l1"><span class="f">S-000352</span><span class="badge success">Pagada</span></span></span><span class="amt"><b>$1,240.00</b></span></a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000355, 12:47, $865.50, pagada"><span class="day"><b>12:47</b></span><span class="rail"><span class="dot ok"></span></span><span class="body"><span class="l1"><span class="f">S-000355</span><span class="badge success">Pagada</span></span></span><span class="amt"><b>$865.50</b></span></a></li>
+            </ol>
+          </section>
+          <section class="group" aria-labelledby="d4">
+            <div class="ghead"><h3 id="d4">Miércoles 4 de noviembre</h3><span class="c">1 venta</span></div>
+            <ol class="tl">
+              <li><a class="ev" href="#venta" aria-label="Venta S-000359, 16:02, $2,980.00, pago parcial, saldo $1,480.00"><span class="day"><b>16:02</b></span><span class="rail"><span class="dot owe"></span></span><span class="body"><span class="l1"><span class="f">S-000359</span><span class="badge warning">Parcial</span></span><span class="l2">Pagado $1,500.00</span></span><span class="amt"><b>$2,980.00</b><small class="warn-ink">Saldo $1,480.00</small></span></a></li>
+            </ol>
+          </section>
+          <section class="group" aria-labelledby="d5">
+            <div class="ghead"><h3 id="d5">Jueves 5 de noviembre</h3><span class="c">1 venta</span></div>
+            <ol class="tl">
+              <li><a class="ev" href="#venta" aria-label="Venta S-000363, 10:31, $430.00, pagada"><span class="day"><b>10:31</b></span><span class="rail"><span class="dot ok"></span></span><span class="body"><span class="l1"><span class="f">S-000363</span><span class="badge success">Pagada</span></span></span><span class="amt"><b>$430.00</b></span></a></li>
+            </ol>
+          </section>
+          <section class="group" aria-labelledby="d6">
+            <div class="ghead"><h3 id="d6">Viernes 6 de noviembre</h3><span class="c">1 venta</span></div>
+            <ol class="tl">
+              <li><a class="ev" href="#venta" aria-label="Venta S-000368, 18:20, $1,150.00, a crédito, saldo $1,150.00"><span class="day"><b>18:20</b></span><span class="rail"><span class="dot owe"></span></span><span class="body"><span class="l1"><span class="f">S-000368</span><span class="badge info">A crédito</span></span><span class="l2">Pagado $0.00</span></span><span class="amt"><b>$1,150.00</b><small class="warn-ink">Saldo $1,150.00</small></span></a></li>
+            </ol>
+          </section>
+          <section class="group" aria-labelledby="d8">
+            <div class="ghead"><h3 id="d8">Sábado 7 y domingo 8 de noviembre</h3><span class="c">3 ventas</span></div>
+            <ol class="tl">
+              <li><a class="ev" href="#venta" aria-label="Venta S-000370, sábado 11:05, $2,215.00, pagada"><span class="day"><b>11:05</b><small>sáb</small></span><span class="rail"><span class="dot ok"></span></span><span class="body"><span class="l1"><span class="f">S-000370</span><span class="badge success">Pagada</span></span></span><span class="amt"><b>$2,215.00</b></span></a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000377, domingo 13:25, $642.50, pagada"><span class="day"><b>13:25</b><small>dom</small></span><span class="rail"><span class="dot ok"></span></span><span class="body"><span class="l1"><span class="f">S-000377</span><span class="badge success">Pagada</span></span></span><span class="amt"><b>$642.50</b></span></a></li>
+              <li><a class="ev" href="#venta" aria-label="Venta S-000379, domingo 17:58, $1,785.50, pago parcial, saldo $785.50"><span class="day"><b>17:58</b><small>dom</small></span><span class="rail"><span class="dot owe"></span></span><span class="body"><span class="l1"><span class="f">S-000379</span><span class="badge warning">Parcial</span></span><span class="l2">Pagado $1,000.00</span></span><span class="amt"><b>$1,785.50</b><small class="warn-ink">Saldo $785.50</small></span></a></li>
+            </ol>
+          </section>
+
+          <div class="loadmore">
+            <button class="btn" type="button"><svg class="icon sm"><use href="#i-chev-d"/></svg>Mostrar del 9 al 30 de noviembre</button>
+            <span class="sub">30 ventas más</span>
+          </div>
+
+          <details class="disc">
+            <summary><svg class="icon sm chev"><use href="#i-chev-r"/></svg><svg class="icon sm" style="color:var(--hf-muted)"><use href="#i-ban"/></svg>Ventas canceladas <span class="c">2 · no suman a las ventas netas ni a los saldos</span></summary>
+            <ol class="tl" style="margin-top:4px">
+              <li><a class="ev canceled" href="#venta"><span class="day"><b>5</b><small>nov</small></span><span class="rail"><span class="dot cx"></span></span><span class="body"><span class="l1"><span class="f">S-000366</span><span class="badge">Cancelada</span></span><span class="l2">Confirmada 15:12 · cancelada 15:40</span></span><span class="amt"><b>$520.00</b></span></a></li>
+              <li><a class="ev canceled" href="#venta"><span class="day"><b>10</b><small>nov</small></span><span class="rail"><span class="dot cx"></span></span><span class="body"><span class="l1"><span class="f">S-000381</span><span class="badge">Cancelada</span></span><span class="l2">Confirmada 9 nov, 10:02 · cancelada 09:15</span></span><span class="amt"><b>$1,310.00</b></span></a></li>
+            </ol>
+          </details>
+        </div>
+
+        <footer class="df">
+          <p class="grow sub">40 de 1,000 filas permitidas · el PDF se genera con una consulta nueva</p>
+          <button class="btn primary" type="button"><svg class="icon sm"><use href="#i-download"/></svg>Descargar PDF</button>
+        </footer>
+      </div>
+    </section>
+  </div>
+</main>
+<script>
+(() => {
+// Shared artboard behavior: theme, notes sheet, expandable rows, single-choice chips and segments.
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+
+const themeBtn = $('#t-theme');
+function paintTheme() {
+  const dark = document.documentElement.classList.contains('dark');
+  themeBtn.setAttribute('aria-pressed', String(dark));
+  themeBtn.lastChild.textContent = dark ? 'Tema oscuro' : 'Tema claro';
+}
+themeBtn?.addEventListener('click', () => { document.documentElement.classList.toggle('dark'); paintTheme(); });
+if (themeBtn) paintTheme();
+
+const notesBtn = $('#t-notes');
+const notes = $('#notes');
+notesBtn?.addEventListener('click', () => {
+  const open = notes.hidden;
+  notes.hidden = !open;
+  notesBtn.setAttribute('aria-expanded', String(open));
+  if (open) notes.focus();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && notes && !notes.hidden) { notes.hidden = true; notesBtn.setAttribute('aria-expanded', 'false'); notesBtn.focus(); }
+});
+
+// Expandable rows: the chevron button owns aria-expanded; clicking the row toggles too.
+function toggleRow(row) {
+  const btn = $('.xbtn', row);
+  const panel = document.getElementById(btn.getAttribute('aria-controls'));
+  const open = btn.getAttribute('aria-expanded') !== 'true';
+  btn.setAttribute('aria-expanded', String(open));
+  row.classList.toggle('open', open);
+  if (panel) panel.hidden = !open;
+}
+$$('tr.row').forEach((row) => {
+  row.addEventListener('click', (e) => {
+    if (e.target.closest('a, .btn, .chip')) return;
+    if ($('.xbtn', row)) toggleRow(row);
+  });
+});
+$$('[data-toggle-card]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const panel = document.getElementById(btn.getAttribute('aria-controls'));
+    const open = btn.getAttribute('aria-expanded') !== 'true';
+    btn.setAttribute('aria-expanded', String(open));
+    if (panel) panel.hidden = !open;
+    const lbl = btn.querySelector('[data-lbl]');
+    if (lbl) lbl.textContent = open ? lbl.dataset.open : lbl.dataset.closed;
+  });
+});
+
+// Single-choice chip groups and segmented controls (visual only; the data stays as drawn).
+$$('[data-single]').forEach((group) => {
+  group.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b || !group.contains(b)) return;
+    $$('button', group).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    const target = group.dataset.single && document.getElementById(group.dataset.single);
+    if (target && b.dataset.show) {
+      $$('[data-view]', target).forEach((v) => { v.hidden = v.dataset.view !== b.dataset.show; });
+    }
+  });
+});
+
+})();
+</script>
+</body>
+</html>

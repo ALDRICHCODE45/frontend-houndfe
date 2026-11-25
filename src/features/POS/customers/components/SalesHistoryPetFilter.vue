@@ -11,11 +11,10 @@ const options = computed(() => [
   ...props.pets.filter((pet) => pet.status === 'ARCHIVED'),
 ])
 
-function chipClass(active: boolean) {
-  return active
-    ? 'border-[var(--ui-primary)] bg-[var(--ui-primary)]/10 text-highlighted'
-    : 'border-default text-muted hover:bg-elevated'
-}
+// Sales history redesign T1: toggle chips, 44px below md; a long name ends in «…» in the chip and
+// is read whole in the title (and on the product lines of the opened sale).
+const chipClass =
+  'inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-full border px-3 text-[13px] font-medium md:min-h-9 border-[var(--hf-muted)] bg-[var(--hf-surface)] text-[var(--hf-ink)] hover:bg-[var(--hf-surface-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--hf-focus)] aria-pressed:border-[var(--hf-active)] aria-pressed:bg-[var(--hf-active-soft)] aria-pressed:font-semibold aria-pressed:text-[var(--hf-active)]'
 </script>
 
 <template>
@@ -23,29 +22,35 @@ function chipClass(active: boolean) {
     role="group"
     aria-label="Filtrar ventas por mascota"
     data-testid="history-pet-filter"
-    class="flex min-w-0 flex-wrap gap-2"
+    class="flex min-w-0 flex-wrap items-center gap-2"
   >
+    <span class="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--hf-muted)]">
+      <UIcon name="i-lucide-paw-print" class="size-3.5" aria-hidden="true" />
+      Mascota
+    </span>
     <button
       type="button"
       data-testid="history-pet-chip"
-      class="min-h-9 rounded-full border px-3 text-sm font-medium"
-      :class="chipClass(selected === null)"
+      :class="chipClass"
       :aria-pressed="selected === null"
       @click="selected = null"
     >
-      Todas
+      <UIcon v-if="selected === null" name="i-lucide-check" class="size-3.5 shrink-0" aria-hidden="true" />
+      <span class="truncate">Todas</span>
     </button>
     <button
       v-for="pet in options"
       :key="pet.id"
       type="button"
       data-testid="history-pet-chip"
-      class="min-h-9 max-w-full truncate rounded-full border px-3 text-sm font-medium"
-      :class="chipClass(selected === pet.id)"
+      :class="chipClass"
+      :title="pet.name"
       :aria-pressed="selected === pet.id"
       @click="selected = pet.id"
     >
-      {{ pet.name }}<span v-if="pet.status === 'ARCHIVED'" class="text-muted"> (archivada)</span>
+      <UIcon v-if="selected === pet.id" name="i-lucide-check" class="size-3.5 shrink-0" aria-hidden="true" />
+      <span class="truncate">{{ pet.name }}</span>
+      <small v-if="pet.status === 'ARCHIVED'" class="shrink-0 text-xs font-normal"> (archivada)</small>
     </button>
   </div>
 </template>

@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
-import { nextTick, shallowRef } from 'vue'
+import { computed, nextTick, shallowRef } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import type { Customer } from '../interfaces/customer.types'
@@ -14,9 +14,17 @@ vi.mock('vue-router', async (importOriginal) => ({
   useRouter: () => ({ push: routerPush }),
 }))
 
+vi.mock('@/features/auth/stores/useAuthStore', () => ({
+  useAuthStore: () => ({ currentTenantId: 'tenant-1', userCan: () => true }),
+}))
+
 // Mocked S2 query state: the slideover unit pins its consumption contract only.
+const response$ = shallowRef<ConfirmedSalesListResponse>()
 const history = {
-  response: shallowRef<ConfirmedSalesListResponse>(),
+  response: response$,
+  // Sales history redesign T1: the metric strip reads the customer-wide aggregates.
+  customerSummary: computed(() => response$.value?.summary),
+  customerCounts: computed(() => response$.value?.counts),
   isLoading: shallowRef(false),
   isFetching: shallowRef(false),
   isPageTransition: shallowRef(false),
@@ -124,7 +132,7 @@ describe('CustomerSalesHistorySlideover', () => {
     await flushPromises()
 
     const dialog = element('[role="dialog"]')
-    expect(dialog.className).toContain('sm:!max-w-[520px]')
+    expect(dialog.className).toContain('sm:!max-w-[max(45vw,640px)]')
     expect(element('[data-slot="body"]').className).toContain('p-0')
     expect(dialog.textContent).toContain('Historial de ventas')
     expect(dialog.textContent).toContain('Ana López')
@@ -211,7 +219,8 @@ describe('CustomerSalesHistorySlideover', () => {
     expect(history.refetch).toHaveBeenCalledOnce()
   })
 
-  it('keeps the backend summary during page transitions and routes selected rows by name', async () => {
+  // Sales history redesign T1: a row opens in place; «Abrir venta» (SaleHistoryRowDetail spec) routes.
+  it('keeps the backend summary during page transitions and opens rows in place', async () => {
     history.response.value = response({
       data: [sale('sale-42')],
       pagination: { page: 1, limit: 10, total: 23, totalPages: 3 },
@@ -226,8 +235,9 @@ describe('CustomerSalesHistorySlideover', () => {
     expect(element('[aria-busy="true"]').className).toContain('opacity-50')
     expect(element('[data-testid="history-pagination"]').dataset.disabled).toBe('true')
     expect(element('[data-testid="history-pagination"]').textContent).toContain('23 ventas')
-    element('button[aria-label^="Venta folio"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    expect(routerPush).toHaveBeenCalledWith({ name: 'pos-sale-detail', params: { id: 'sale-42' } })
+    const toggle = element('button[aria-label="Detalle de la venta A-1"]')
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(routerPush).not.toHaveBeenCalled()
   })
 
   it('resets the 1-based page synchronously when the customer changes', async () => {
@@ -261,7 +271,8 @@ describe('CustomerSalesHistorySlideover', () => {
 
   it('forwards the trimmed debounced search to the composable', async () => {
     vi.useFakeTimers()
-    history.response.value = response()
+    // Sales history redesign T1: a customer with no sale at all gets no search box (design 04 · 3).
+    history.response.value = response({ data: [sale()], summary: { salesCount: 1, totalSoldCents: 100_000, outstandingDebtCents: 0 } })
     mountSlideover()
     await flushPromises()
 

@@ -14,92 +14,126 @@
  *     snapshot the component shows the failure (or the idle/loading status) and
  *     nothing else.
  *   - Instants are rendered in `America/Mexico_City` (the window the backend
- *     filtered on); calendar boundaries are formatted from their own digits.
+ *     filtered on).
+ *
+ * Sales history redesign T2 (design 01/04, S1-S5): the same pattern as the customer
+ * history — a metric strip, the folio search and payment chips by the list, an
+ * aligned table (cards at phone width) whose rows open in place into the shared
+ * sale detail, and the canceled sales folded under their own disclosure. The search
+ * and chips only HIDE backend rows (design 01 notes: no sums, no re-sorting); long
+ * periods reveal rows in steps of {@link ROW_STEP}. The seller, period, generation
+ * instant and row count live in the drawer header and footer.
  */
-import { computed } from 'vue'
-import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
+import { computed, shallowRef, watch } from 'vue'
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
-import { useTablePreferences } from '@/core/shared/composables/useTablePreferences'
-import type { TableColumn } from '@/core/shared/types/table.types'
+import SellerReportSalesList from './SellerReportSalesList.vue'
 import {
   SELLER_REPORT_PAYMENT_STATUS_LABELS,
-  SELLER_REPORT_PAYMENT_STATUS_TONES,
-  SELLER_REPORT_TIME_ZONE_LABEL,
-  formatSellerReportCalendarDate,
   formatSellerReportCents,
   formatSellerReportCount,
   formatSellerReportInstant,
 } from '../utils/sellerReportPresentation'
-import type { SellerSalesReport } from '../interfaces/seller-report.types'
+import type {
+  SellerReportFailure,
+  SellerReportPaymentStatus,
+  SellerSalesReport,
+} from '../interfaces/seller-report.types'
 
-type ConfirmedRow = SellerSalesReport['confirmed']['rows'][number]
-type CanceledRow = SellerSalesReport['canceled']['rows'][number]
+const props = withDefaults(
+  defineProps<{
+    /** The validated, unmasked snapshot. `null` while loading, idle or failed. */
+    report: SellerSalesReport | null
+    isInitialLoading: boolean
+    isFetching: boolean
+    isError: boolean
+    errorMessage: string | null
+    /** Normalized failure kind; the row-limit error offers «Cambiar periodo» instead of a retry. */
+    failureKind?: SellerReportFailure['kind'] | null
+    /** Whether the seller is currently active. Inactive sellers are still reportable. */
+    sellerIsActive: boolean
+    /** Whether «Ver este mes» may widen an empty period (design 04 · 9). */
+    canWidenPeriod?: boolean
+  }>(),
+  { failureKind: null, canWidenPeriod: false },
+)
 
-const props = defineProps<{
-  /** The validated, unmasked snapshot. `null` while loading, idle or failed. */
-  report: SellerSalesReport | null
-  isInitialLoading: boolean
-  isFetching: boolean
-  isError: boolean
-  errorMessage: string | null
-  /** Whether the seller is currently active. Inactive sellers are still reportable. */
-  sellerIsActive: boolean
-}>()
+const emit = defineEmits<{ retry: []; 'change-period': []; 'widen-period': [] }>()
 
-defineEmits<{ retry: [] }>()
+/** Rows revealed per step on a long period; the rest stay one click away. */
+const ROW_STEP = 50
+const STATUS_ORDER: readonly SellerReportPaymentStatus[] = ['PAID', 'PARTIAL', 'CREDIT']
 
-const period = computed(() => {
-  if (!props.report) return ''
-  return `${formatSellerReportCalendarDate(props.report.from)} → ${formatSellerReportCalendarDate(props.report.to)}`
+type StatusFilter = 'all' | SellerReportPaymentStatus
+const statusChips = computed(() => [
+  { value: 'all' as StatusFilter, label: 'Todas' },
+  ...STATUS_ORDER.map((status) => ({
+    value: status as StatusFilter,
+    label: SELLER_REPORT_PAYMENT_STATUS_LABELS[status],
+  })),
+])
+
+const search = shallowRef('')
+const status = shallowRef<StatusFilter>('all')
+const visibleCount = shallowRef(ROW_STEP)
+
+// A new snapshot or filter starts from the first step again.
+watch(
+  () => props.report,
+  () => {
+    visibleCount.value = ROW_STEP
+  },
+)
+watch([search, status], () => {
+  visibleCount.value = ROW_STEP
 })
+
+const isPhone = useBreakpoints(breakpointsTailwind).smaller('md')
+const listLayout = computed(() => (isPhone.value ? 'cards' : 'table'))
 
 /** A refresh indicator only ever sits on top of an already loaded report. */
 const isRefreshing = computed(() => props.report !== null && props.isFetching)
+const isRowLimitError = computed(() => props.failureKind === 'row-limit-exceeded')
 
-// Both lists on the shared AppDataTable (premium tables S7): order, pins, widths, visibility and
-// density saved per user, one layout for every seller. No sorting and no totals row: the browser
-// never reorders or sums the backend rows.
-const money = { class: { th: 'text-right', td: 'hf-figure text-right' } }
-// The drawer is ~45vw (about 570px of table at 1440): the sale column carries the folio and its date
-// on a second line, so the status badge and the three amounts keep their whole width without a scroll.
-const confirmedColumns: TableColumn<ConfirmedRow>[] = [
-  { id: 'sale', header: 'Venta', minSize: 144, enableSorting: false },
-  { id: 'paymentStatus', header: 'Estado', size: 120, minSize: 120, enableSorting: false },
-  { id: 'totalCents', header: 'Total', size: 104, minSize: 96, enableSorting: false, meta: money },
-  { id: 'paidCents', header: 'Pagado', size: 104, minSize: 96, enableSorting: false, meta: money },
-  { id: 'debtCents', header: 'Saldo', size: 104, minSize: 96, enableSorting: false, meta: money },
-]
-const canceledColumns: TableColumn<CanceledRow>[] = [
-  { id: 'sale', header: 'Venta', minSize: 160, enableSorting: false },
-  { id: 'canceledAt', header: 'Fecha de cancelación', size: 184, minSize: 168, enableSorting: false },
-  { id: 'totalCents', header: 'Total', size: 112, minSize: 96, enableSorting: false, meta: money },
-]
-// The cell slots of AppDataTable type their row loosely; these keep the status lookups typed.
-const statusLabel = (sale: ConfirmedRow) => SELLER_REPORT_PAYMENT_STATUS_LABELS[sale.paymentStatus]
-const statusTone = (sale: ConfirmedRow) => SELLER_REPORT_PAYMENT_STATUS_TONES[sale.paymentStatus]
-const confirmedLayout = useTablePreferences({
-  persistKey: 'admin-seller-report-confirmed',
-  columnIds: confirmedColumns.map((column) => column.id ?? ''),
+const allConfirmed = computed(() => props.report?.confirmed.rows ?? [])
+const hasFilter = computed(() => status.value !== 'all' || search.value.trim() !== '')
+/** Hides rows only: the backend order and every figure stay untouched. */
+const filteredConfirmed = computed(() => {
+  const needle = search.value.trim().toLowerCase()
+  return allConfirmed.value.filter(
+    (sale) =>
+      (status.value === 'all' || sale.paymentStatus === status.value) &&
+      (!needle || (sale.folio ?? '').toLowerCase().includes(needle)),
+  )
 })
-const canceledLayout = useTablePreferences({
-  persistKey: 'admin-seller-report-canceled',
-  columnIds: canceledColumns.map((column) => column.id ?? ''),
-})
-const {
-  columnOrder: confirmedOrder,
-  columnPinning: confirmedPinning,
-  columnSizing: confirmedSizing,
-  columnVisibility: confirmedVisibility,
-  density: confirmedDensity,
-} = confirmedLayout
-const {
-  columnOrder: canceledOrder,
-  columnPinning: canceledPinning,
-  columnSizing: canceledSizing,
-  columnVisibility: canceledVisibility,
-  density: canceledDensity,
-} = canceledLayout
+const visibleConfirmed = computed(() => filteredConfirmed.value.slice(0, visibleCount.value))
+const remainingCount = computed(() => filteredConfirmed.value.length - visibleConfirmed.value.length)
+const confirmedCountLabel = computed(() =>
+  hasFilter.value
+    ? `${formatSellerReportCount(filteredConfirmed.value.length)} de ${formatSellerReportCount(allConfirmed.value.length)}`
+    : formatSellerReportCount(allConfirmed.value.length),
+)
+
+const periodIsEmpty = computed(
+  () =>
+    props.report !== null &&
+    props.report.confirmed.rows.length === 0 &&
+    props.report.canceled.rows.length === 0,
+)
+const hasDebt = computed(() => (props.report?.confirmed.summary.outstandingDebtCents ?? 0) > 0)
+const listCaption = computed(() =>
+  props.report ? `Ventas confirmadas de ${props.report.seller.name}` : 'Ventas confirmadas',
+)
+
+function clearFilters() {
+  search.value = ''
+  status.value = 'all'
+}
+
+function showMore() {
+  visibleCount.value += remainingCount.value
+}
 </script>
 
 <template>
@@ -110,28 +144,61 @@ const {
       data-testid="seller-report-loading"
       role="status"
       aria-busy="true"
-      class="flex min-w-0 flex-col gap-4"
+      class="flex min-w-0 flex-col gap-3"
     >
       <span class="sr-only">Cargando el reporte de ventas…</span>
-      <USkeleton class="h-5 w-1/3" />
-      <div class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <USkeleton v-for="tile in 3" :key="tile" class="h-16 w-full" />
+      <div
+        class="grid min-w-0 grid-cols-2 overflow-hidden rounded-xl border border-[var(--hf-border)] md:grid-cols-5"
+        aria-hidden="true"
+      >
+        <div
+          v-for="tile in 5"
+          :key="tile"
+          class="grid gap-1.5 px-3 py-3"
+          :class="{ 'col-span-2 md:col-span-1': tile === 5 }"
+        >
+          <USkeleton class="h-3 w-16 !rounded" />
+          <USkeleton class="h-5 w-20 !rounded" />
+        </div>
       </div>
-      <div class="flex min-w-0 flex-col gap-2">
-        <USkeleton v-for="row in 4" :key="row" class="h-10 w-full" />
+      <div class="grid min-w-0 gap-2" aria-hidden="true">
+        <div
+          v-for="row in 4"
+          :key="row"
+          class="grid gap-1.5 rounded-xl border border-[var(--hf-border)] px-4 py-3"
+        >
+          <div class="flex items-center justify-between gap-3">
+            <USkeleton class="h-4 w-24 !rounded" />
+            <USkeleton class="h-4 w-16 !rounded" />
+          </div>
+          <USkeleton class="h-3 w-40 !rounded" />
+        </div>
       </div>
     </div>
 
-    <!-- Failure with nothing valid to show: one message, one retry. -->
+    <!-- Failure with nothing valid to show: one message, one way out. -->
+    <EmptyState
+      v-else-if="isError && !report && isRowLimitError"
+      data-testid="seller-report-error"
+      data-failure-kind="row-limit-exceeded"
+      kind="error"
+      title="No se pudo cargar el reporte"
+      :description="errorMessage ?? undefined"
+      action-label="Cambiar periodo"
+      action-icon="i-lucide-calendar"
+      action-test-id="seller-report-change-period"
+      @action="emit('change-period')"
+    />
     <EmptyState
       v-else-if="isError && !report"
       data-testid="seller-report-error"
+      :data-failure-kind="failureKind ?? undefined"
       kind="error"
       title="No se pudo cargar el reporte"
       :description="errorMessage ?? undefined"
       action-label="Reintentar"
       action-test-id="seller-report-retry"
-      @action="$emit('retry')"
+      @action="emit('retry')"
     />
 
     <p
@@ -143,265 +210,343 @@ const {
       No hay una consulta activa para este reporte.
     </p>
 
-    <div v-else data-testid="seller-report-summary" class="flex min-w-0 flex-col gap-5">
+    <div v-else data-testid="seller-report-summary" class="flex min-w-0 flex-col gap-3">
+      <p
+        v-if="!sellerIsActive"
+        data-testid="seller-report-inactive-note"
+        role="status"
+        class="flex items-start gap-2 rounded-lg border border-[color-mix(in_srgb,var(--hf-warning)_35%,var(--hf-warning-soft))] bg-[var(--hf-warning-soft)] px-3 py-2 text-[13px] text-[var(--hf-warning)]"
+      >
+        <UIcon name="i-lucide-info" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+        <span>Este vendedor está inactivo; el reporte muestra las ventas que ya tenía confirmadas.</span>
+      </p>
+
+      <dl
+        data-testid="seller-report-metrics"
+        aria-label="Resumen del periodo"
+        class="grid min-w-0 grid-cols-2 overflow-hidden rounded-xl border border-[var(--hf-border)] bg-[var(--hf-surface)] md:grid-cols-5"
+      >
+        <div
+          data-testid="seller-report-metric-sale-count"
+          class="grid min-w-0 content-start gap-0.5 px-3 py-3"
+        >
+          <dt class="truncate text-xs font-medium text-[var(--hf-muted)]">Ventas</dt>
+          <dd class="hf-figure truncate text-base font-semibold text-[var(--hf-heading)]">
+            {{ formatSellerReportCount(report.confirmed.summary.saleCount) }}
+          </dd>
+        </div>
+        <div
+          data-testid="seller-report-metric-net-sales"
+          class="grid min-w-0 content-start gap-0.5 border-l border-[var(--hf-border)] px-3 py-3"
+        >
+          <dt class="truncate text-xs font-medium text-[var(--hf-muted)]">Ventas netas</dt>
+          <dd class="hf-figure truncate text-base font-semibold text-[var(--hf-heading)]">
+            {{ formatSellerReportCents(report.confirmed.summary.netSalesCents) }}
+          </dd>
+        </div>
+        <div
+          data-testid="seller-report-metric-collected"
+          class="grid min-w-0 content-start gap-0.5 border-t border-[var(--hf-border)] px-3 py-3 md:border-l md:border-t-0"
+        >
+          <dt class="truncate text-xs font-medium text-[var(--hf-muted)]">Cobrado</dt>
+          <dd class="hf-figure truncate text-base font-semibold text-[var(--hf-heading)]">
+            {{ formatSellerReportCents(report.confirmed.summary.collectedCents) }}
+          </dd>
+        </div>
+        <div
+          data-testid="seller-report-metric-outstanding"
+          class="grid min-w-0 content-start gap-0.5 border-l border-t border-[var(--hf-border)] px-3 py-3 md:border-t-0"
+          :class="{ 'bg-[var(--hf-warning-soft)]': hasDebt }"
+        >
+          <dt class="truncate text-xs font-medium text-[var(--hf-muted)]">Saldo pendiente</dt>
+          <dd
+            class="hf-figure truncate text-base font-semibold"
+            :class="hasDebt ? 'text-[var(--hf-warning)]' : 'text-[var(--hf-heading)]'"
+          >
+            {{ formatSellerReportCents(report.confirmed.summary.outstandingDebtCents) }}
+          </dd>
+        </div>
+        <div
+          data-testid="seller-report-metric-average-ticket"
+          class="col-span-2 grid min-w-0 content-start gap-0.5 border-t border-[var(--hf-border)] px-3 py-3 md:col-span-1 md:border-l md:border-t-0"
+        >
+          <dt class="truncate text-xs font-medium text-[var(--hf-muted)]">Ticket promedio</dt>
+          <dd class="hf-figure truncate text-base font-semibold text-[var(--hf-heading)]">
+            {{ formatSellerReportCents(report.confirmed.summary.averageTicketCents) }}
+          </dd>
+        </div>
+      </dl>
+
+      <!--
+        Approved business rule: the report is attributed to the CURRENTLY assigned
+        seller, and a reassignment also moves past periods in this report. Without
+        this disclosure the metrics could read as "sold by this person", and the
+        current balances caveat must stay next to it.
+      -->
+      <details
+        data-testid="seller-report-attribution"
+        class="rounded-lg bg-[var(--hf-active-soft)] px-3 py-2 text-[13px] text-[var(--hf-ink)]"
+      >
+        <summary class="flex min-h-6 cursor-pointer list-none items-start gap-2">
+          <UIcon
+            name="i-lucide-info"
+            class="mt-0.5 size-4 shrink-0 text-[var(--hf-active)]"
+            aria-hidden="true"
+          />
+          <span>
+            Ventas atribuidas al vendedor asignado actualmente. Saldos actuales al generar el
+            reporte.
+            <span class="font-medium text-[var(--hf-action)] underline">Qué significa</span>
+          </span>
+        </summary>
+        <p class="mb-0 ml-6 mt-1 text-[var(--hf-muted)]">
+          Si una venta se reasigna a otro vendedor, su atribución cambia también en este reporte de
+          periodos anteriores. Los cobros y saldos se leen al generar el reporte.
+        </p>
+      </details>
+
       <div
         v-if="isRefreshing"
         data-testid="seller-report-refreshing"
+        role="status"
         aria-live="polite"
-        class="flex min-w-0 items-center gap-2 text-xs text-muted"
+        class="flex min-w-0 items-center gap-2 rounded-lg bg-[var(--hf-active-soft)] px-3 py-2 text-[13px] text-[var(--hf-active)]"
       >
         <UIcon
           name="i-lucide-loader-circle"
-          class="size-4 shrink-0 animate-spin"
+          class="size-4 shrink-0 animate-spin motion-reduce:animate-none"
           aria-hidden="true"
         />
         <span>Actualizando el reporte…</span>
       </div>
 
-      <header class="flex min-w-0 flex-col gap-1">
-        <h3 data-testid="seller-report-seller-name" class="text-base font-semibold text-highlighted">
-          {{ report.seller.name }}
-        </h3>
-        <p data-testid="seller-report-period" class="text-sm text-muted">Periodo {{ period }}</p>
-        <p data-testid="seller-report-generated-at" class="text-xs text-muted">
-          Generado el {{ formatSellerReportInstant(report.generatedAt) }}
-          <span data-testid="seller-report-zone">· {{ SELLER_REPORT_TIME_ZONE_LABEL }}</span>
-        </p>
-        <p
-          v-if="!sellerIsActive"
-          data-testid="seller-report-inactive-note"
-          role="status"
-          class="mt-1 rounded-lg border border-warning/30 bg-warning/5 p-2 text-xs text-warning"
+      <EmptyState
+        v-if="periodIsEmpty"
+        data-testid="seller-report-period-empty"
+        title="Sin ventas en este periodo"
+        :description="`${report.seller.name} no tiene ventas confirmadas ni canceladas en este periodo.`"
+        :action-label="canWidenPeriod ? 'Ver este mes' : undefined"
+        action-test-id="seller-report-widen-period"
+        @action="emit('widen-period')"
+      />
+
+      <div
+        v-else
+        class="flex min-w-0 flex-col gap-3"
+        :aria-busy="isRefreshing || undefined"
+        :class="{ 'opacity-60': isRefreshing }"
+      >
+        <div
+          v-if="allConfirmed.length > 0"
+          class="flex min-w-0 flex-col gap-3 md:flex-row md:flex-wrap md:items-center"
         >
-          Este vendedor está inactivo; el reporte muestra las ventas que ya tenía confirmadas.
-        </p>
-      </header>
-
-      <section class="flex min-w-0 flex-col gap-3">
-        <div class="flex min-w-0 flex-col gap-1">
-          <h4 class="text-sm font-semibold text-highlighted">Ventas confirmadas</h4>
-          <!--
-            Approved business rule: the report is attributed to the CURRENTLY
-            assigned seller, and a reassignment also moves past periods in this
-            report. Without this disclosure the metrics could read as "sold by this
-            person", and the current balances caveat must stay next to it.
-          -->
-          <p data-testid="seller-report-attribution" class="text-xs text-muted">
-            Ventas atribuidas al vendedor asignado actualmente. Si una venta se reasigna a otro
-            vendedor, su atribución cambia también en este reporte de periodos anteriores. Los
-            cobros y saldos mostrados son los Saldos actuales leídos al generar el reporte.
-          </p>
-        </div>
-
-        <dl
-          data-testid="seller-report-metrics"
-          class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
-        >
+          <UInput
+            v-model="search"
+            data-testid="seller-report-search"
+            type="search"
+            icon="i-lucide-search"
+            size="lg"
+            placeholder="Buscar por folio..."
+            aria-label="Buscar ventas del reporte por folio"
+            class="w-full md:w-auto md:min-w-40 md:flex-1"
+          />
           <div
-            data-testid="seller-report-metric-sale-count"
-            class="rounded-lg border border-default bg-elevated/40 p-3"
+            role="group"
+            aria-label="Filtrar por estado de pago"
+            class="flex min-w-0 flex-wrap gap-2"
           >
-            <dt class="text-xs text-muted">Ventas confirmadas</dt>
-            <dd class="text-lg font-semibold text-highlighted">
-              {{ formatSellerReportCount(report.confirmed.summary.saleCount) }}
-            </dd>
-          </div>
-          <div
-            data-testid="seller-report-metric-net-sales"
-            class="rounded-lg border border-default bg-elevated/40 p-3"
-          >
-            <dt class="text-xs text-muted">Ventas netas</dt>
-            <dd class="text-lg font-semibold text-highlighted">
-              {{ formatSellerReportCents(report.confirmed.summary.netSalesCents) }}
-            </dd>
-          </div>
-          <div
-            data-testid="seller-report-metric-collected"
-            class="rounded-lg border border-default bg-elevated/40 p-3"
-          >
-            <dt class="text-xs text-muted">Cobrado</dt>
-            <dd class="text-lg font-semibold text-highlighted">
-              {{ formatSellerReportCents(report.confirmed.summary.collectedCents) }}
-            </dd>
-          </div>
-          <div
-            data-testid="seller-report-metric-outstanding"
-            class="rounded-lg border border-default bg-elevated/40 p-3"
-          >
-            <dt class="text-xs text-muted">Saldo pendiente</dt>
-            <dd class="text-lg font-semibold text-highlighted">
-              {{ formatSellerReportCents(report.confirmed.summary.outstandingDebtCents) }}
-            </dd>
-          </div>
-          <div
-            data-testid="seller-report-metric-average-ticket"
-            class="rounded-lg border border-default bg-elevated/40 p-3"
-          >
-            <dt class="text-xs text-muted">Ticket promedio</dt>
-            <dd class="text-lg font-semibold text-highlighted">
-              {{ formatSellerReportCents(report.confirmed.summary.averageTicketCents) }}
-            </dd>
-          </div>
-        </dl>
-
-        <div data-testid="seller-report-confirmed-table" class="seller-report-table">
-          <AppDataTable
-            v-model:column-order="confirmedOrder"
-            v-model:column-pinning="confirmedPinning"
-            v-model:column-sizing="confirmedSizing"
-            v-model:column-visibility="confirmedVisibility"
-            v-model:density="confirmedDensity"
-            :persist-layout="true"
-            :show-toolbar="false"
-            :columns="confirmedColumns"
-            :data="report.confirmed.rows"
-            display-mode="auto"
-            mobile-render="cards"
-            class="hf-data-table"
-            @reset-columns="confirmedLayout.reset"
-          >
-            <template #sale-cell="{ row }">
-              <span class="hf-row-primary" :data-row-id="row.original.id">{{ row.original.folio ?? 'Sin folio' }}</span>
-              <span class="hf-row-secondary" title="Fecha de confirmación">{{ formatSellerReportInstant(row.original.confirmedAt) }}</span>
-            </template>
-            <template #paymentStatus-cell="{ row }">
-              <StatusBadge
-                :label="statusLabel(row.original)"
-                :tone="statusTone(row.original)"
+            <button
+              v-for="chip in statusChips"
+              :key="chip.value"
+              type="button"
+              data-testid="seller-report-status-chip"
+              class="inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-full border border-[var(--hf-muted)] bg-[var(--hf-surface)] px-3 text-[13px] font-medium text-[var(--hf-ink)] hover:bg-[var(--hf-surface-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--hf-focus)] aria-pressed:border-[var(--hf-active)] aria-pressed:bg-[var(--hf-active-soft)] aria-pressed:font-semibold aria-pressed:text-[var(--hf-active)] md:min-h-9"
+              :aria-pressed="status === chip.value"
+              @click="status = chip.value"
+            >
+              <UIcon
+                v-if="status === chip.value"
+                name="i-lucide-check"
+                class="size-3.5 shrink-0"
+                aria-hidden="true"
               />
-            </template>
-            <template #totalCents-cell="{ row }">{{ formatSellerReportCents(row.original.totalCents) }}</template>
-            <template #paidCents-cell="{ row }">{{ formatSellerReportCents(row.original.paidCents) }}</template>
-            <template #debtCents-cell="{ row }">{{ formatSellerReportCents(row.original.debtCents) }}</template>
-            <template #empty>
-              <p data-testid="seller-report-confirmed-empty" class="seller-report-empty">
-                Sin ventas confirmadas en el periodo
-              </p>
-            </template>
-            <template #cards>
-              <p
-                v-if="report.confirmed.rows.length === 0"
-                data-testid="seller-report-confirmed-empty"
-                class="seller-report-empty"
-              >
-                Sin ventas confirmadas en el periodo
-              </p>
-              <ul v-else class="seller-report-cards">
-                <li
-                  v-for="sale in report.confirmed.rows"
-                  :key="sale.id"
-                  data-testid="seller-report-confirmed-card"
-                  class="seller-report-card"
-                >
-                  <div class="seller-report-card__top">
-                    <span class="hf-row-primary" :data-row-id="sale.id">{{ sale.folio ?? 'Sin folio' }}</span>
-                    <StatusBadge
-                      :label="SELLER_REPORT_PAYMENT_STATUS_LABELS[sale.paymentStatus]"
-                      :tone="SELLER_REPORT_PAYMENT_STATUS_TONES[sale.paymentStatus]"
-                    />
-                  </div>
-                  <span class="hf-row-secondary">{{ formatSellerReportInstant(sale.confirmedAt) }}</span>
-                  <dl class="seller-report-card__figures">
-                    <div><dt>Total</dt><dd class="hf-figure">{{ formatSellerReportCents(sale.totalCents) }}</dd></div>
-                    <div><dt>Pagado</dt><dd class="hf-figure">{{ formatSellerReportCents(sale.paidCents) }}</dd></div>
-                    <div><dt>Saldo</dt><dd class="hf-figure">{{ formatSellerReportCents(sale.debtCents) }}</dd></div>
-                  </dl>
-                </li>
-              </ul>
-            </template>
-          </AppDataTable>
-        </div>
-      </section>
-
-      <section class="flex min-w-0 flex-col gap-3">
-        <div class="flex min-w-0 flex-col gap-1">
-          <h4 class="text-sm font-semibold text-highlighted">Ventas canceladas</h4>
-          <p data-testid="seller-report-canceled-note" class="text-xs text-muted">
-            Los montos de esta sección son informativos. No se suman a las ventas confirmadas ni a
-            los saldos actuales.
-          </p>
+              <span class="truncate">{{ chip.label }}</span>
+            </button>
+          </div>
         </div>
 
-        <div data-testid="seller-report-canceled-table" class="seller-report-table seller-report-table--canceled">
-          <AppDataTable
-            v-model:column-order="canceledOrder"
-            v-model:column-pinning="canceledPinning"
-            v-model:column-sizing="canceledSizing"
-            v-model:column-visibility="canceledVisibility"
-            v-model:density="canceledDensity"
-            :persist-layout="true"
-            :show-toolbar="false"
-            :columns="canceledColumns"
-            :data="report.canceled.rows"
-            display-mode="auto"
-            mobile-render="cards"
-            class="hf-data-table"
-            @reset-columns="canceledLayout.reset"
+        <section class="flex min-w-0 flex-col gap-2" aria-labelledby="seller-report-confirmed-title">
+          <div class="flex min-w-0 items-baseline gap-2">
+            <h3
+              id="seller-report-confirmed-title"
+              class="text-base font-semibold text-[var(--hf-heading)]"
+            >
+              Ventas confirmadas
+            </h3>
+            <span
+              data-testid="seller-report-confirmed-count"
+              class="hf-figure text-[13px] text-[var(--hf-muted)]"
+              >{{ confirmedCountLabel }}</span
+            >
+          </div>
+
+          <p
+            v-if="allConfirmed.length === 0"
+            data-testid="seller-report-confirmed-empty"
+            class="m-0 rounded-xl border border-[var(--hf-border)] px-4 py-4 text-center text-sm text-[var(--hf-muted)]"
           >
-            <template #sale-cell="{ row }">
-              <span class="hf-row-primary" :data-row-id="row.original.id">{{ row.original.folio ?? 'Sin folio' }}</span>
-              <span class="hf-row-secondary">
-                Confirmada: {{ row.original.confirmedAt ? formatSellerReportInstant(row.original.confirmedAt) : '—' }}
-              </span>
-            </template>
-            <template #canceledAt-cell="{ row }">{{ formatSellerReportInstant(row.original.canceledAt) }}</template>
-            <template #totalCents-cell="{ row }">{{ formatSellerReportCents(row.original.totalCents) }}</template>
-            <template #empty>
-              <p data-testid="seller-report-canceled-empty" class="seller-report-empty">
-                Sin ventas canceladas en el periodo
-              </p>
-            </template>
-            <template #cards>
-              <p
-                v-if="report.canceled.rows.length === 0"
-                data-testid="seller-report-canceled-empty"
-                class="seller-report-empty"
+            Sin ventas confirmadas en el periodo
+          </p>
+          <EmptyState
+            v-else-if="filteredConfirmed.length === 0"
+            data-testid="seller-report-filter-empty"
+            kind="no-match"
+            title="Ninguna venta coincide con el filtro"
+            description="Las cifras del periodo no cambian con la búsqueda ni con el estado."
+            action-label="Ver todas"
+            @action="clearFilters"
+          />
+          <template v-else>
+            <div data-testid="seller-report-confirmed-table">
+              <SellerReportSalesList
+                :sales="visibleConfirmed"
+                :layout="listLayout"
+                :caption="listCaption"
+              />
+            </div>
+            <div v-if="remainingCount > 0" class="flex min-w-0 flex-wrap items-center gap-3">
+              <UButton
+                data-testid="seller-report-show-more"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-chevron-down"
+                class="min-h-11 text-[var(--hf-action)]"
+                @click="showMore"
               >
-                Sin ventas canceladas en el periodo
-              </p>
-              <ul v-else class="seller-report-cards">
-                <li
-                  v-for="sale in report.canceled.rows"
-                  :key="sale.id"
-                  data-testid="seller-report-canceled-card"
-                  class="seller-report-card"
-                >
-                  <div class="seller-report-card__top">
-                    <span class="hf-row-primary" :data-row-id="sale.id">{{ sale.folio ?? 'Sin folio' }}</span>
-                    <span class="hf-figure seller-report-card__total">{{ formatSellerReportCents(sale.totalCents) }}</span>
-                  </div>
-                  <span class="hf-row-secondary">
-                    Confirmada: {{ sale.confirmedAt ? formatSellerReportInstant(sale.confirmedAt) : '—' }}
-                  </span>
-                  <span class="hf-row-secondary">Cancelada: {{ formatSellerReportInstant(sale.canceledAt) }}</span>
-                </li>
-              </ul>
-            </template>
-          </AppDataTable>
-        </div>
+                Mostrar las {{ formatSellerReportCount(remainingCount) }} ventas restantes
+              </UButton>
+              <span class="hf-figure text-[13px] text-[var(--hf-muted)]">
+                {{ formatSellerReportCount(visibleConfirmed.length) }} de
+                {{ formatSellerReportCount(filteredConfirmed.length) }} visibles
+              </span>
+            </div>
+          </template>
+        </section>
 
-        <p data-testid="seller-report-row-count" class="text-xs text-muted">
-          Filas incluidas: {{ formatSellerReportCount(report.rowCount) }} de
-          {{ formatSellerReportCount(report.rowLimit) }}.
-        </p>
-      </section>
+        <details
+          data-testid="seller-report-canceled"
+          class="group min-w-0 rounded-xl border border-[var(--hf-border)] bg-[var(--hf-surface)]"
+        >
+          <summary
+            class="flex min-h-11 cursor-pointer list-none items-center gap-2 px-3 text-sm font-semibold text-[var(--hf-heading)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--hf-focus)]"
+          >
+            <UIcon
+              name="i-lucide-chevron-right"
+              class="size-4 shrink-0 text-[var(--hf-muted)] transition-transform group-open:rotate-90 motion-reduce:transition-none"
+              aria-hidden="true"
+            />
+            <UIcon name="i-lucide-ban" class="size-4 shrink-0 text-[var(--hf-muted)]" aria-hidden="true" />
+            <span class="shrink-0">Ventas canceladas</span>
+            <span class="hf-figure min-w-0 truncate text-[13px] font-normal text-[var(--hf-muted)]"
+              >{{ formatSellerReportCount(report.canceled.saleCount) }} · informativas, no suman a
+              las ventas netas ni a los saldos</span
+            >
+          </summary>
+
+          <div class="grid min-w-0 gap-2 border-t border-[var(--hf-border)] p-3">
+            <p data-testid="seller-report-canceled-note" class="m-0 text-xs text-[var(--hf-muted)]">
+              Los montos de esta sección son informativos. No se suman a las ventas confirmadas ni a
+              los saldos actuales.
+            </p>
+            <p
+              v-if="report.canceled.rows.length === 0"
+              data-testid="seller-report-canceled-empty"
+              class="m-0 py-2 text-center text-sm text-[var(--hf-muted)]"
+            >
+              Sin ventas canceladas en el periodo
+            </p>
+            <ul
+              v-else-if="listLayout === 'cards'"
+              data-testid="seller-report-canceled-cards"
+              class="grid min-w-0 gap-2"
+              aria-label="Ventas canceladas"
+            >
+              <li
+                v-for="sale in report.canceled.rows"
+                :key="sale.id"
+                data-testid="seller-report-canceled-card"
+                :data-row-id="sale.id"
+                class="grid min-w-0 gap-0.5 rounded-lg border border-[var(--hf-border)] px-3 py-2 text-[13px] text-[var(--hf-muted)]"
+              >
+                <span class="flex min-w-0 items-baseline justify-between gap-3">
+                  <span class="min-w-0 break-all font-semibold">{{ sale.folio ?? 'Sin folio' }}</span>
+                  <span class="hf-figure shrink-0 font-semibold">{{
+                    formatSellerReportCents(sale.totalCents)
+                  }}</span>
+                </span>
+                <span
+                  >Confirmada:
+                  {{ sale.confirmedAt ? formatSellerReportInstant(sale.confirmedAt) : '—' }}</span
+                >
+                <span>Cancelada: {{ formatSellerReportInstant(sale.canceledAt) }}</span>
+                <span class="mt-1 flex"><StatusBadge label="Cancelada" /></span>
+              </li>
+            </ul>
+            <div
+              v-else
+              data-testid="seller-report-canceled-table"
+              class="min-w-0 overflow-hidden rounded-lg border border-[var(--hf-border)]"
+            >
+              <table class="hf-plain-table w-full table-fixed border-collapse text-sm">
+                <caption class="sr-only">
+                  Ventas canceladas del periodo
+                </caption>
+                <colgroup>
+                  <col />
+                  <col class="w-[11rem]" />
+                  <col class="w-[7rem]" />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th scope="col" class="h-10 px-3 text-left">Venta</th>
+                    <th scope="col" class="h-10 px-3 text-left">Cancelada</th>
+                    <th scope="col" class="h-10 px-3 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="sale in report.canceled.rows"
+                    :key="sale.id"
+                    :data-row-id="sale.id"
+                    class="text-[var(--hf-muted)]"
+                  >
+                    <td class="min-w-0 px-3 py-2.5">
+                      <span class="flex min-w-0 items-center gap-2">
+                        <span class="min-w-0 truncate font-semibold">{{
+                          sale.folio ?? 'Sin folio'
+                        }}</span>
+                        <StatusBadge label="Cancelada" />
+                      </span>
+                      <span class="block truncate text-[13px]"
+                        >Confirmada:
+                        {{
+                          sale.confirmedAt ? formatSellerReportInstant(sale.confirmedAt) : '—'
+                        }}</span
+                      >
+                    </td>
+                    <td class="px-3 py-2.5 text-[13px]">
+                      {{ formatSellerReportInstant(sale.canceledAt) }}
+                    </td>
+                    <td class="hf-figure px-3 py-2.5 text-right">
+                      {{ formatSellerReportCents(sale.totalCents) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-/* From md each list sits in a bordered card, like every table; phone cards keep their own. */
-@media (min-width: 768px) {
-  .seller-report-table { overflow: hidden; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); }
-}
-/* Canceled sales are informative only: their cells read quieter than the confirmed ones. */
-.seller-report-table--canceled :deep(td[data-slot='td']) { color: var(--hf-muted); }
-.seller-report-empty { margin: 0; padding: 16px 0; color: var(--hf-muted); font-size: 14px; text-align: center; }
-.seller-report-cards { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
-.seller-report-card { display: grid; gap: 2px; min-width: 0; padding: 12px 16px; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); }
-.seller-report-card__top { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
-.seller-report-card__total { color: var(--hf-heading); font-weight: 600; }
-.seller-report-card__figures { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 8px 0 0; padding-top: 8px; border-top: 1px solid var(--hf-border); }
-.seller-report-card__figures dt { color: var(--hf-muted); font-size: 12px; }
-.seller-report-card__figures dd { margin: 0; color: var(--hf-heading); font-size: 14px; font-weight: 600; }
-</style>

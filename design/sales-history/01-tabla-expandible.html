@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HoundFe · Historial de ventas · 01-tabla-expandible</title>
+<style>
+/* Historial de ventas (cliente y vendedor): shared tokens and components.
+   Source only: build.sh inlines this file into every artboard (the canvas serves only .html).
+   Every value comes from design/system.md (src/core/shared/design-system/*). */
+:root{
+--hf-page:#f5f6f8;--hf-surface:#ffffff;--hf-surface-muted:#e7eef7;--hf-field:#ffffff;--hf-field-border:#8593a3;
+--hf-ink:#24313d;--hf-heading:#173968;--hf-muted:#576574;--hf-border:#dce2e8;
+--hf-action:#2442f6;--hf-on-action:#ffffff;--hf-active:#2442f6;--hf-active-soft:#edf0ff;--hf-focus:#2442f6;
+--hf-gold:#f6bb13;--hf-gold-soft:#fff5d6;--hf-gold-ink:#443218;
+--hf-warning:#805511;--hf-warning-soft:#fff5d6;--hf-success:#236044;
+--hf-danger:#b42318;--hf-danger-soft:#fef3f2;--hf-danger-border:#f4b8b2;
+--hf-font:'Geist',ui-sans-serif,system-ui,sans-serif;
+--hf-radius-card:12px;--hf-radius-control:6px;--hf-control-height:44px;
+--table-head:color-mix(in srgb,var(--hf-ink) 4%,var(--hf-surface));
+--row-hover:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface));
+--skel:color-mix(in srgb,var(--hf-ink) 16%,var(--hf-surface));
+--shadow-soft:0 1px 2px color-mix(in srgb,var(--hf-ink) 5%,transparent);
+--shadow-pop:0 12px 32px -12px color-mix(in srgb,var(--hf-ink) 24%,transparent),0 2px 6px color-mix(in srgb,var(--hf-ink) 8%,transparent);
+color-scheme:light;
+}
+html.dark{
+--hf-page:#0e1520;--hf-surface:#192332;--hf-surface-muted:#202e43;--hf-field:#121d2c;--hf-field-border:#64758d;
+--hf-ink:#edf2fa;--hf-heading:#edf2fa;--hf-muted:#adbcd0;--hf-border:#354459;
+--hf-action:#91b0ff;--hf-on-action:#132344;--hf-active:#b3caff;--hf-active-soft:#223555;--hf-focus:#a6c1ff;
+--hf-gold:#f2c456;--hf-gold-soft:#3b311d;--hf-gold-ink:#f2cb71;
+--hf-warning:#f2cb71;--hf-warning-soft:#3b311d;--hf-success:#a2d9b9;
+--hf-danger:#ffb4ab;--hf-danger-soft:#3d2220;--hf-danger-border:#7a3f3b;
+--shadow-soft:0 1px 2px color-mix(in srgb,var(--hf-page) 40%,transparent);
+--shadow-pop:0 12px 32px -12px color-mix(in srgb,var(--hf-page) 90%,transparent),0 2px 6px color-mix(in srgb,var(--hf-page) 60%,transparent);
+color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--hf-page);color:var(--hf-ink);font:400 14px/1.5 var(--hf-font);font-feature-settings:"cv11","ss01"}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3,h4,p,ul,ol,dl,dd,figure{margin:0}
+ul,ol{padding:0;list-style:none}
+h1,h2,h3,h4{color:var(--hf-heading);font-weight:600}
+a{color:var(--hf-action)}
+:focus-visible{outline:2px solid var(--hf-focus);outline-offset:2px}
+.icon{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.icon.sm{width:16px;height:16px}.icon.xs{width:14px;height:14px}.icon.lg{width:24px;height:24px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.fig{font-variant-numeric:tabular-nums}
+.muted{color:var(--hf-muted)}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.warn-ink{color:var(--hf-warning)}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ── artboard tools (outside the mock) ───────────────────────────── */
+.tools{position:sticky;top:0;z-index:200;display:flex;flex-wrap:wrap;align-items:center;gap:4px;min-height:44px;padding:4px 16px;background:var(--hf-surface-muted);border-bottom:1px solid var(--hf-border)}
+.tools .grow{flex:1}
+.tools .lbl{font-size:12px;font-weight:600;color:var(--hf-muted);padding:0 8px}
+.tools button{height:32px;padding:0 10px;border:0;border-radius:8px;background:transparent;font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap}
+.tools button:hover{background:var(--hf-surface)}
+.tools [aria-pressed="true"]{background:var(--hf-active-soft);color:var(--hf-active)}
+.notes{position:fixed;z-index:210;top:52px;right:16px;width:min(480px,calc(100vw - 32px));max-height:calc(100vh - 72px);overflow:auto;padding:16px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:12px;box-shadow:var(--shadow-pop);font-size:13px}
+.notes h2{font-size:15px;margin-bottom:8px}.notes h3{font-size:13px;margin:16px 0 4px}
+.notes ul{display:grid;gap:4px;padding-left:16px;list-style:disc;color:var(--hf-muted)}
+.notes code{font-size:12px;color:var(--hf-ink)}
+.notes p{color:var(--hf-muted)}
+
+/* ── board frame ──────────────────────────────────────────────────── */
+.board{padding:24px 24px 48px;display:grid;gap:20px}
+.board-head{display:grid;gap:4px;max-width:1100px}
+.board-head h1{font-size:clamp(1.75rem,1.55rem + 0.6vw,2rem);line-height:1.25;letter-spacing:-0.045em}
+.board-head p{color:var(--hf-muted);max-width:90ch}
+.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:start}
+.frame{display:grid;gap:8px;min-width:0}
+.caption{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--hf-muted)}
+.caption b{color:var(--hf-ink);font-weight:600}
+.caption .sep{color:var(--hf-border)}
+
+/* drawer (slideover) */
+.drawer{display:flex;flex-direction:column;min-width:0;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:var(--shadow-pop);overflow:hidden}
+.dh{display:flex;align-items:flex-start;gap:12px;padding:16px 16px 16px 20px;border-bottom:1px solid var(--hf-border)}
+.dh .who{flex:1;min-width:0;display:grid;gap:2px}
+.dh .meta{font-size:13px;color:var(--hf-muted);display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.dh h2{font-size:22px;line-height:1.25;letter-spacing:-0.02em;overflow-wrap:anywhere}
+.dh .acts{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.db{display:grid;gap:16px;padding:16px 20px 20px;min-width:0}
+.df{display:flex;align-items:center;gap:12px;padding:12px 20px;border-top:1px solid var(--hf-border);background:var(--hf-surface)}
+.df .grow{flex:1;min-width:0}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--hf-surface-muted);color:var(--hf-heading);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;flex-shrink:0}
+.icon-btn{width:44px;height:44px;border:0;border-radius:6px;background:transparent;color:var(--hf-muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.icon-btn:hover{background:var(--hf-surface-muted);color:var(--hf-ink)}
+.link-inline{display:inline-flex;align-items:center;gap:4px;color:var(--hf-action);font-weight:500;text-decoration:none;border-radius:4px}
+.link-inline:hover{text-decoration:underline}
+
+/* buttons */
+.btn{min-height:44px;padding:0 16px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-surface);color:var(--hf-ink);font-size:14px;font-weight:600;line-height:1.2;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;text-decoration:none}
+.btn:hover:not(:disabled){background:var(--hf-surface-muted)}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.primary{background:var(--hf-action);border-color:var(--hf-action);color:var(--hf-on-action)}
+.btn.primary:hover:not(:disabled){background:color-mix(in srgb,var(--hf-action) 88%,var(--hf-ink))}
+.btn.sm{min-height:36px;padding:0 12px;font-size:13px}
+.btn:disabled{cursor:not-allowed;background:var(--hf-page);border-color:var(--hf-border);color:var(--hf-muted)}
+html.dark .btn:disabled{color:color-mix(in srgb,var(--hf-muted) 60%,var(--hf-page))}
+.btn.block{width:100%}
+
+/* fields */
+.field{display:grid;gap:4px;min-width:0}
+.field label,.field .lab{font-size:13px;font-weight:500;color:var(--hf-ink)}
+.input{position:relative;display:flex;align-items:center;min-height:44px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-field);min-width:0}
+.input:hover{border-color:var(--hf-field-border)}
+.input:focus-within{outline:2px solid var(--hf-focus);outline-offset:0;border-color:transparent}
+.input .icon{margin-left:12px;color:var(--hf-muted)}
+.input input{flex:1;min-width:0;height:42px;border:0;background:transparent;padding:0 12px;outline:0}
+.input input::placeholder{color:var(--hf-muted);opacity:1}
+.input.disabled{background:var(--hf-page)}
+
+/* toolbar row inside a drawer */
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;min-width:0}
+.toolbar .input{flex:1 1 220px;max-width:320px}
+
+/* toggle chips (HfToggleChips) */
+.chips{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.chip{min-height:36px;max-width:100%;padding:0 12px;border:1px solid var(--hf-muted);border-radius:999px;background:var(--hf-surface);color:var(--hf-ink);font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.chip .icon{width:14px;height:14px}
+.chip .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip small{color:var(--hf-muted);font-size:12px;font-weight:400}
+.chip:hover{background:var(--hf-surface-muted)}
+.chip[aria-pressed="true"]{background:var(--hf-active-soft);border-color:var(--hf-active);color:var(--hf-active);font-weight:600}
+.chip[aria-pressed="true"] small{color:var(--hf-active)}
+.chip .ck{display:none}
+.chip[aria-pressed="true"] .ck{display:inline}
+.chips-label{font-size:13px;font-weight:500;color:var(--hf-muted);display:inline-flex;align-items:center;gap:6px;min-height:36px}
+
+/* segmented control (HfSegmented) */
+.seg{display:inline-flex;flex-wrap:wrap;padding:2px;gap:2px;background:var(--hf-surface-muted);border-radius:8px;min-width:0}
+.seg button{min-height:40px;padding:0 12px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--hf-muted);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.seg button:hover{color:var(--hf-ink)}
+.seg button[aria-pressed="true"]{background:var(--hf-surface);border-color:var(--hf-border);color:var(--hf-heading);font-weight:600}
+.date-btn{min-height:44px;padding:0 12px;border:1px solid var(--hf-border);border-radius:6px;background:var(--hf-field);display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.date-btn:hover{border-color:var(--hf-field-border)}
+.date-btn .icon{color:var(--hf-muted)}
+
+/* badges (StatusBadge) */
+.badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;background:var(--hf-surface-muted);color:var(--hf-muted);max-width:100%}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.badge.nodot::before{display:none}
+.badge.warning{background:var(--hf-warning-soft);color:var(--hf-warning)}
+.badge.info{background:var(--hf-active-soft);color:var(--hf-active)}
+.badge.success{background:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface));color:var(--hf-success)}
+.badge.danger{background:var(--hf-danger-soft);color:var(--hf-danger)}
+
+/* «requiere backend» annotation: gold accent, dashed, with a server icon. Never a real control. */
+.be{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border:1px dashed var(--hf-gold-ink);border-radius:6px;background:var(--hf-gold-soft);color:var(--hf-gold-ink);font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;vertical-align:middle}
+.be .icon{width:12px;height:12px}
+.be-zone{position:relative;border:1px dashed var(--hf-gold-ink);border-radius:8px;background:color-mix(in srgb,var(--hf-gold-soft) 45%,var(--hf-surface));padding:12px}
+.be-zone > .be{position:absolute;top:-11px;right:12px}
+.be-zone .ghost-txt{color:var(--hf-muted)}
+/* «ya en la API, no se usa hoy»: neutral annotation for params the endpoint already accepts */
+.api{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border:1px dashed var(--hf-muted);border-radius:6px;color:var(--hf-muted);font-size:12px;font-weight:500;white-space:nowrap;flex-shrink:0;vertical-align:middle}
+.api .icon{width:12px;height:12px}
+
+/* KPI strip: one aligned row of metrics, no nested cards */
+.kpis{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);background:var(--hf-surface);min-width:0}
+.kpis > div{display:grid;gap:2px;padding:12px 16px;min-width:0;border-left:1px solid var(--hf-border)}
+.kpis > div:first-child{border-left:0}
+.kpis dt{font-size:12px;color:var(--hf-muted);font-weight:500;white-space:nowrap}
+.kpis dd{font-size:16px;font-weight:600;color:var(--hf-heading);font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:-0.01em}
+.kpis dd small{display:block;font-size:12px;font-weight:500;color:var(--hf-muted);letter-spacing:0}
+.kpis .hot{background:var(--hf-warning-soft)}
+.kpis .hot dd{color:var(--hf-warning)}
+.kpis .hot:first-child{border-radius:12px 0 0 12px}
+.kpis .hot:last-child{border-radius:0 12px 12px 0}
+
+/* inline notice (12px, icon on first line) */
+.notice{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.45;min-width:0}
+.notice .icon{width:16px;height:16px;margin-top:1px}
+.notice.warn{color:var(--hf-warning);font-weight:600}
+.notice.info{color:var(--hf-muted)}
+.banner{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-radius:var(--hf-radius-card);border:1px solid var(--hf-border);background:var(--hf-surface-muted);font-size:13px;min-width:0}
+.banner.warn{background:var(--hf-warning-soft);border-color:color-mix(in srgb,var(--hf-warning) 35%,var(--hf-warning-soft))}
+.banner .icon{margin-top:1px}
+.banner .txt{flex:1;min-width:0;display:grid;gap:2px}
+.banner b{color:var(--hf-heading);font-weight:600}
+.banner.warn b,.banner.warn .icon{color:var(--hf-warning)}
+
+/* table (hf-data-table look) */
+.tsurf{border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);background:var(--hf-surface);box-shadow:var(--shadow-soft);overflow:hidden;min-width:0}
+table.t{width:100%;border-collapse:collapse;table-layout:fixed}
+
+.t th{height:40px;padding:0 12px;background:var(--table-head);color:var(--hf-muted);font-size:13px;font-weight:600;text-align:left;border-bottom:1px solid var(--hf-border);white-space:nowrap}
+.t th.num{text-align:right}
+.t td{padding:10px 12px;border-bottom:1px solid var(--hf-border);vertical-align:middle;min-width:0}
+.t tbody tr:last-child td{border-bottom:0}
+.t tr.row{cursor:pointer}
+.t tr.row:hover td{background:var(--row-hover)}
+.t tr.row.open td{background:var(--hf-active-soft);border-bottom-color:transparent}
+.t .p{display:block;font-weight:600;color:var(--hf-heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t .s{display:block;font-size:13px;color:var(--hf-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t .s.warn{color:var(--hf-warning);font-weight:600}
+.t .p.warn-ink{color:var(--hf-warning)}
+.t .amt{font-weight:600;color:var(--hf-heading)}
+.t .zero{color:var(--hf-muted);font-weight:400}
+.t .cx{width:44px;padding:0 0 0 4px}
+.xbtn{width:36px;height:36px;border:0;border-radius:6px;background:transparent;color:var(--hf-muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.xbtn:hover{background:var(--hf-surface-muted);color:var(--hf-ink)}
+.xbtn .icon{transition:transform 150ms}
+tr.open .xbtn .icon,.xbtn[aria-expanded="true"] .icon{transform:rotate(90deg)}
+.t tr.canceled .p{color:var(--hf-muted);text-decoration:line-through;text-decoration-thickness:1px}
+.t tr.canceled .amt{color:var(--hf-muted);font-weight:500;text-decoration:line-through;text-decoration-thickness:1px}
+.t tr.expand td{background:var(--hf-active-soft);padding:0 12px 16px 56px}
+.t tfoot td{height:40px;padding:0 12px;background:var(--table-head);font-size:13px;font-weight:600;border-top:1px solid var(--hf-border);border-bottom:0}
+
+/* expanded sale detail */
+.xpanel{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:16px;padding:12px 16px;border-radius:8px;background:var(--hf-surface);border:1px solid var(--hf-border)}
+.xpanel h4{font-size:13px;margin-bottom:6px}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;font-size:13px}
+.kv dt{color:var(--hf-muted)}
+.kv dd{color:var(--hf-ink);font-weight:500;overflow-wrap:anywhere}
+.items{display:grid;gap:6px;font-size:13px}
+.items li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px}
+.items .n{font-weight:500;color:var(--hf-ink)}
+.items .v{grid-column:1;font-size:12px;color:var(--hf-muted);display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.items .m{grid-row:1;grid-column:2;text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+.pet{display:inline-flex;align-items:center;gap:4px;color:var(--hf-muted)}
+.pet .icon{width:12px;height:12px}
+.xacts{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding-top:12px;border-top:1px solid var(--hf-border)}
+.xacts .grow{flex:1}
+.loadnote{font-size:12px;color:var(--hf-muted);display:inline-flex;align-items:center;gap:4px}
+.loadnote .icon{width:12px;height:12px}
+
+/* pagination */
+.pager{display:flex;align-items:center;gap:4px}
+.pager button{min-width:36px;height:36px;padding:0 8px;border:1px solid var(--hf-border);border-radius:6px;background:var(--hf-surface);font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.pager button[aria-current="page"]{background:var(--hf-active-soft);border-color:var(--hf-active);color:var(--hf-active);font-weight:600}
+.pager button:disabled{color:var(--hf-muted);background:var(--hf-page);cursor:not-allowed}
+
+/* section heading inside a drawer */
+.sh{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-width:0}
+.sh h3{font-size:16px}
+.sh .c{font-size:13px;color:var(--hf-muted)}
+.sh .grow{flex:1}
+.sub{font-size:13px;color:var(--hf-muted)}
+
+/* disclosure */
+details.disc > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;min-height:44px;padding:0 12px;border-radius:8px;font-weight:600;color:var(--hf-heading)}
+details.disc > summary::-webkit-details-marker{display:none}
+details.disc > summary:hover{background:var(--hf-surface-muted)}
+details.disc > summary .icon.chev{transition:transform 150ms;color:var(--hf-muted)}
+details.disc[open] > summary .icon.chev{transform:rotate(90deg)}
+details.disc > summary .c{font-weight:400;color:var(--hf-muted);font-size:13px}
+
+/* empty / error / skeleton */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;padding:40px 16px;min-height:8rem}
+.empty .icon{width:24px;height:24px;color:var(--hf-muted)}
+.empty h3{font-size:15px}
+.empty p{font-size:13px;color:var(--hf-muted);max-width:28rem}
+.empty .btn{margin-top:8px}
+.empty.error{background:var(--hf-danger-soft);border:1px solid var(--hf-danger-border);border-radius:12px}
+.empty.error .icon,.empty.error h3{color:var(--hf-danger)}
+.sk{display:block;background:var(--skel);border-radius:6px}
+
+/* data-source legend chip used in notes */
+.legend{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--hf-muted)}
+@media (max-width:1100px){.pair{grid-template-columns:minmax(0,1fr)}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-search-x" viewBox="0 0 24 24"><path d="m13.5 8.5-5 5"/><path d="m8.5 8.5 5 5"/><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+<symbol id="i-chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+<symbol id="i-arrow-l" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+<symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M13 16H8"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+<symbol id="i-triangle" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+<symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+<symbol id="i-paw" viewBox="0 0 24 24"><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/></symbol>
+<symbol id="i-server" viewBox="0 0 24 24"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/></symbol>
+<symbol id="i-wallet" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+<symbol id="i-open" viewBox="0 0 24 24"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></symbol>
+<symbol id="i-truck" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+<symbol id="i-loader" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></symbol>
+<symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+<symbol id="i-notes" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+<symbol id="i-store" viewBox="0 0 24 24"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></symbol>
+<symbol id="i-package" viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/></symbol>
+<symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+<symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></symbol>
+<symbol id="i-sort" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+</svg>
+<div class="tools" role="group" aria-label="Opciones del artboard">
+  <span class="lbl">A · Tabla con detalle expandible</span>
+  <span class="grow"></span>
+  <button type="button" id="t-notes" aria-expanded="false" aria-controls="notes"><svg class="icon sm"><use href="#i-notes"/></svg>Notas y datos</button>
+  <button type="button" id="t-theme" aria-pressed="false"><svg class="icon sm"><use href="#i-moon"/></svg><span>Tema claro</span></button>
+</div>
+
+<aside class="notes" id="notes" tabindex="-1" hidden aria-label="Notas del artboard">
+  <h2>A · Tabla con detalle expandible</h2>
+  <p>Las dos vistas usan el mismo patrón que la lista de Ventas: franja de métricas, filtros junto a la lista y una tabla alineada. Una fila se abre en su sitio para ver el detalle sin salir del historial.</p>
+  <h3>Datos que ya llegan (cliente · <code>GET /sales?customerId=</code>)</h3>
+  <ul>
+    <li>Fila: <code>folio</code>, <code>confirmedAt</code>, <code>status</code>, <code>paymentStatus</code>, <code>deliveryStatus</code>, <code>totalCents</code>, <code>debtCents</code>, <code>dueDate</code>, <code>seller.name</code>, <code>cashier.name</code>, <code>paymentMethods</code>, <code>channel</code>, <code>cancelReason</code></li>
+    <li>Métricas: <code>summary.salesCount</code>, <code>summary.totalSoldCents</code>, <code>summary.outstandingDebtCents</code>, <code>counts.pendingPayments</code>, <code>counts.notDelivered</code></li>
+    <li>Con mascota: <code>filterSummary.count / totalCents / debtCents</code>; paginación <code>pagination.total / totalPages</code></li>
+    <li>Cabecera: <code>Customer.fullName</code>, <code>phone</code>, <code>createdAt</code>; mascotas <code>Pet.name</code>, <code>Pet.status</code></li>
+    <li>Productos del detalle abierto: <code>GET /sales/:id</code> (<code>items[].productName</code>, <code>variantName</code>, <code>quantity</code>, <code>subtotalCents</code>, mascota de la línea). Una petición por fila abierta.</li>
+  </ul>
+  <h3>Datos que ya llegan (vendedor · reporte)</h3>
+  <ul>
+    <li><code>seller.name</code>, <code>from</code>, <code>to</code>, <code>generatedAt</code>, <code>rowCount</code>, <code>rowLimit</code></li>
+    <li><code>confirmed.summary.saleCount / netSalesCents / collectedCents / outstandingDebtCents / averageTicketCents</code></li>
+    <li><code>confirmed.rows[]</code>: <code>id</code>, <code>folio</code>, <code>confirmedAt</code>, <code>totalCents</code>, <code>paidCents</code>, <code>debtCents</code>, <code>paymentStatus</code></li>
+    <li><code>canceled.saleCount</code>, <code>canceled.rows[]</code>: <code>folio</code>, <code>confirmedAt</code>, <code>canceledAt</code>, <code>totalCents</code>; <code>isActive</code> del usuario</li>
+  </ul>
+  <h3>Ya en la API, no se envía hoy</h3>
+  <ul><li>Filtros «Con saldo» y «Sin entregar» del cliente: <code>paymentStatus=PARTIAL,CREDIT</code> y <code>deliveryStatus=PENDING</code> en <code>GET /sales</code>. Hay que confirmar con backend que combinan con <code>customerId</code> y <code>petId</code>.</li></ul>
+  <h3>Requiere backend</h3>
+  <ul>
+    <li>Ticket promedio del cliente (no está en <code>summary</code>).</li>
+    <li>Productos de cada venta en la fila de la lista, sin abrirla.</li>
+    <li>Cliente de cada venta en las filas del reporte del vendedor.</li>
+    <li>Productos más vendidos del vendedor en el periodo.</li>
+  </ul>
+  <h3>Sin backend nuevo, solo frontend</h3>
+  <ul>
+    <li>Abrir la venta desde el reporte del vendedor (ruta <code>pos-sale-detail</code> con <code>id</code>).</li>
+    <li>«Cobrar saldo» abre el <code>DebtPaymentModal</code> que ya usa el detalle de la venta.</li>
+    <li>El periodo se muestra con el último día incluido (30 nov); al servidor sigue yendo <code>to</code> excluyente.</li>
+    <li>Filtrar las filas del reporte por estado o folio en el navegador: no suma ni reordena.</li>
+  </ul>
+</aside>
+
+<main class="board">
+  <header class="board-head">
+    <h1>A · Tabla con detalle expandible</h1>
+    <p>Mismo lenguaje que la lista de Ventas: métricas en una franja, filtros junto a la lista y columnas alineadas para comparar montos. Cada fila se abre en su sitio con los datos de la venta y sus productos. Los dos paneles comparten el ancho del reporte del vendedor (45 vw ≈ 650 px).</p>
+  </header>
+
+  <div class="pair">
+    <!-- ═════════════ CLIENTE ═════════════ -->
+    <section class="frame" aria-labelledby="c-title">
+      <p class="caption"><b>Historial del cliente</b><span class="sep">·</span>Clientes → ⋮ → Ver historial de ventas<span class="sep">·</span>panel lateral</p>
+      <div class="drawer" role="dialog" aria-modal="false" aria-labelledby="c-title">
+        <header class="dh">
+          <span class="avatar" aria-hidden="true">AT</span>
+          <div class="who">
+            <p class="meta">Historial de ventas · cliente desde mar 2025</p>
+            <h2 id="c-title">Ana Sofía Treviño Garza</h2>
+            <p class="meta"><a class="link-inline" href="tel:+528123456789"><svg class="icon xs"><use href="#i-phone"/></svg>81 2345 6789</a></p>
+          </div>
+          <div class="acts">
+            <button class="icon-btn" type="button" aria-label="Cerrar historial de ventas"><svg class="icon"><use href="#i-x"/></svg></button>
+          </div>
+        </header>
+
+        <div class="db">
+          <dl class="kpis" aria-label="Resumen del cliente">
+            <div><dt>Ventas</dt><dd>23<small>1 sin entregar</small></dd></div>
+            <div><dt>Total vendido</dt><dd>$18,460.50<small>todas sus ventas</small></dd></div>
+            <div class="hot"><dt>Saldo pendiente</dt><dd>$1,284.00<small class="warn-ink">2 ventas por cobrar</small></dd></div>
+            <div><dt>Ticket promedio</dt><dd>—<small><span class="be"><svg class="icon"><use href="#i-server"/></svg>requiere backend</span></small></dd></div>
+          </dl>
+
+          <div class="toolbar">
+            <div class="input"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" placeholder="Buscar por folio" aria-label="Buscar ventas por folio"></div>
+            <div class="chips" role="group" aria-label="Filtrar por estado" data-single>
+              <button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Todas</span></button>
+              <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Con saldo</span><small>2</small></button>
+              <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Sin entregar</span><small>1</small></button>
+            </div>
+            <span class="api"><svg class="icon"><use href="#i-filter"/></svg>ya en la API</span>
+          </div>
+
+          <div class="chips" role="group" aria-label="Filtrar ventas por mascota" data-single>
+            <span class="chips-label"><svg class="icon sm"><use href="#i-paw"/></svg>Mascota</span>
+            <button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Todas</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Bruno</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Mishi</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Canela</span><small>archivada</small></button>
+          </div>
+
+          <div class="tsurf">
+            <table class="t">
+              <caption class="sr">Ventas de Ana Sofía Treviño Garza, más recientes primero</caption>
+              <colgroup><col style="width:44px"><col><col style="width:150px"><col style="width:108px"><col style="width:124px"></colgroup>
+              <thead><tr><th class="cx"><span class="sr">Abrir</span></th><th>Venta</th><th>Pago</th><th class="num">Total</th><th class="num">Saldo</th></tr></thead>
+              <tbody>
+                <tr class="row open">
+                  <td class="cx"><button class="xbtn" type="button" aria-expanded="true" aria-controls="cx1" aria-label="Detalle de la venta S-000412"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                  <td><span class="p">S-000412</span><span class="s">22 nov 2026, 17:42 · Mostrador</span></td>
+                  <td><span class="badge warning">Impaga</span><span class="s">No entregada</span></td>
+                  <td class="num amt">$1,486.00</td>
+                  <td class="num"><span class="p warn-ink">$786.00</span><span class="s">Vence 6 dic</span></td>
+                </tr>
+                <tr class="expand" id="cx1"><td colspan="5">
+                  <div class="xpanel">
+                    <div>
+                      <h4>Datos de la venta</h4>
+                      <dl class="kv">
+                        <dt>Vendedor</dt><dd>Karla Méndez</dd>
+                        <dt>Cajero</dt><dd>Jorge Ríos</dd>
+                        <dt>Pago</dt><dd>Efectivo · Crédito</dd>
+                        <dt>Vence</dt><dd>6 dic 2026</dd>
+                        <dt>Entrega</dt><dd>No entregada</dd>
+                      </dl>
+                    </div>
+                    <div>
+                      <h4>Productos · 3</h4>
+                      <ul class="items">
+                        <li><span class="n">Croquetas Adulto Raza Mediana</span><span class="m">$1,089.00</span><span class="v">15 kg · 1 pza <span class="pet"><svg class="icon"><use href="#i-paw"/></svg>Bruno</span></span></li>
+                        <li><span class="n">Arena aglomerante sin aroma</span><span class="m">$289.00</span><span class="v">10 kg · 1 pza <span class="pet"><svg class="icon"><use href="#i-paw"/></svg>Mishi</span></span></li>
+                        <li><span class="n">Premios dentales</span><span class="m">$108.00</span><span class="v">Mediano · 2 pzas <span class="pet"><svg class="icon"><use href="#i-paw"/></svg>Bruno</span></span></li>
+                      </ul>
+                    </div>
+                    <div class="xacts">
+                      <span class="loadnote"><svg class="icon"><use href="#i-info"/></svg>Productos cargados al abrir la fila</span>
+                      <span class="grow"></span>
+                      <a class="btn sm" href="#venta"><svg class="icon sm"><use href="#i-open"/></svg>Abrir venta</a>
+                      <button class="btn sm" type="button"><svg class="icon sm"><use href="#i-wallet"/></svg>Cobrar $786.00</button>
+                    </div>
+                  </div>
+                </td></tr>
+                <tr class="row">
+                  <td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-controls="cx2" aria-label="Detalle de la venta S-000398"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                  <td><span class="p">S-000398</span><span class="s">15 nov 2026, 11:08 · Mostrador</span></td>
+                  <td><span class="badge danger">Deuda</span><span class="s">Entregada</span></td>
+                  <td class="num amt">$498.00</td>
+                  <td class="num"><span class="p warn-ink">$498.00</span><span class="s warn">Venció 20 nov</span></td>
+                </tr>
+                <tr class="expand" id="cx2" hidden><td colspan="5"><div class="xpanel"><div><h4>Datos de la venta</h4><dl class="kv"><dt>Vendedor</dt><dd>Karla Méndez</dd><dt>Pago</dt><dd>Crédito</dd><dt>Vence</dt><dd>20 nov 2026</dd></dl></div><div><h4>Productos · 1</h4><ul class="items"><li><span class="n">Shampoo hipoalergénico</span><span class="m">$498.00</span><span class="v">1 L · 1 pza <span class="pet"><svg class="icon"><use href="#i-paw"/></svg>Bruno</span></span></li></ul></div></div></td></tr>
+                <tr class="row">
+                  <td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000377"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                  <td><span class="p">S-000377</span><span class="s">8 nov 2026, 13:25 · Mostrador</span></td>
+                  <td><span class="badge success">Pagada</span><span class="s">Sin envío</span></td>
+                  <td class="num amt">$642.50</td>
+                  <td class="num zero">$0.00</td>
+                </tr>
+                <tr class="row">
+                  <td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000361"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                  <td><span class="p">S-000361</span><span class="s">1 nov 2026, 10:51 · Chatbot</span></td>
+                  <td><span class="badge success">Pagada</span><span class="s">Entregada</span></td>
+                  <td class="num amt">$2,315.00</td>
+                  <td class="num zero">$0.00</td>
+                </tr>
+                <tr class="row canceled">
+                  <td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000344, cancelada"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                  <td><span class="p">S-000344</span><span class="s">26 oct 2026, 18:03 · Mostrador</span></td>
+                  <td><span class="badge">Cancelada</span><span class="s">Solicitud del cliente</span></td>
+                  <td class="num amt">$380.00</td>
+                  <td class="num zero">—</td>
+                </tr>
+                <tr class="row">
+                  <td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000329"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                  <td><span class="p">S-000329</span><span class="s">19 oct 2026, 12:40 · Mostrador</span></td>
+                  <td><span class="badge success">Pagada</span><span class="s">Sin envío</span></td>
+                  <td class="num amt">$1,120.00</td>
+                  <td class="num zero">$0.00</td>
+                </tr>
+                <tr class="row">
+                  <td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000301"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                  <td><span class="p">S-000301</span><span class="s">5 oct 2026, 09:58 · Mostrador</span></td>
+                  <td><span class="badge success">Pagada</span><span class="s">Entregada</span></td>
+                  <td class="num amt">$864.00</td>
+                  <td class="num zero">$0.00</td>
+                </tr>
+                <tr class="row">
+                  <td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000287"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                  <td><span class="p">S-000287</span><span class="s">28 sep 2026, 16:15 · Mostrador</span></td>
+                  <td><span class="badge success">Pagada</span><span class="s">Sin envío</span></td>
+                  <td class="num amt">$455.00</td>
+                  <td class="num zero">$0.00</td>
+                </tr>
+                <tr class="row">
+                  <td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000263"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                  <td><span class="p">S-000263</span><span class="s">14 sep 2026, 11:32 · Chatbot</span></td>
+                  <td><span class="badge success">Pagada</span><span class="s">Entregada</span></td>
+                  <td class="num amt">$1,730.00</td>
+                  <td class="num zero">$0.00</td>
+                </tr>
+                <tr class="row">
+                  <td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000240"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                  <td><span class="p">S-000240</span><span class="s">30 ago 2026, 17:20 · Mostrador</span></td>
+                  <td><span class="badge success">Pagada</span><span class="s">Sin envío</span></td>
+                  <td class="num amt">$598.00</td>
+                  <td class="num zero">$0.00</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="be-zone">
+            <span class="be"><svg class="icon"><use href="#i-server"/></svg>requiere backend</span>
+            <p class="sub ghost-txt">Productos de cada venta en la fila, sin abrirla: «Croquetas Adulto Raza Mediana, Arena aglomerante +1».</p>
+          </div>
+        </div>
+
+        <footer class="df">
+          <p class="grow sub"><b class="fig" style="color:var(--hf-ink)">1–10</b> de 23 ventas · más recientes primero</p>
+          <nav class="pager" aria-label="Páginas del historial">
+            <button type="button" disabled aria-label="Página anterior"><svg class="icon sm"><use href="#i-chev-l"/></svg></button>
+            <button type="button" aria-current="page">1</button>
+            <button type="button">2</button>
+            <button type="button">3</button>
+            <button type="button" aria-label="Página siguiente"><svg class="icon sm"><use href="#i-chev-r"/></svg></button>
+          </nav>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ═════════════ VENDEDOR ═════════════ -->
+    <section class="frame" aria-labelledby="s-title">
+      <p class="caption"><b>Reporte del vendedor</b><span class="sep">·</span>Usuarios → ⋮ → Reporte de ventas<span class="sep">·</span>panel lateral</p>
+      <div class="drawer" role="dialog" aria-modal="false" aria-labelledby="s-title">
+        <header class="dh">
+          <span class="avatar" aria-hidden="true">LO</span>
+          <div class="who">
+            <p class="meta">Reporte de ventas · <span class="badge success">Activo</span></p>
+            <h2 id="s-title">Luis Fernando Ortega</h2>
+            <p class="meta">Generado hoy 24 nov, 10:14 · hora del centro de México</p>
+          </div>
+          <div class="acts">
+            <button class="icon-btn" type="button" aria-label="Cerrar el reporte de ventas"><svg class="icon"><use href="#i-x"/></svg></button>
+          </div>
+        </header>
+
+        <div class="db">
+          <div class="toolbar" role="group" aria-label="Periodo del reporte">
+            <div class="seg" data-single>
+              <button type="button" aria-pressed="false">Hoy</button>
+              <button type="button" aria-pressed="false">Últimos 7 días</button>
+              <button type="button" aria-pressed="true">Este mes</button>
+              <button type="button" aria-pressed="false">Mes anterior</button>
+            </div>
+            <button type="button" class="date-btn" aria-label="Periodo personalizado: del 1 al 30 de noviembre de 2026"><svg class="icon sm"><use href="#i-calendar"/></svg>1 – 30 nov 2026</button>
+          </div>
+
+          <dl class="kpis" aria-label="Resumen del periodo">
+            <div><dt>Ventas</dt><dd>38</dd></div>
+            <div><dt>Ventas netas</dt><dd>$52,318.00</dd></div>
+            <div><dt>Cobrado</dt><dd>$47,902.50</dd></div>
+            <div class="hot"><dt>Saldo pendiente</dt><dd>$4,415.50</dd></div>
+            <div><dt>Ticket promedio</dt><dd>$1,376.79</dd></div>
+          </dl>
+
+          <details class="notice info">
+            <summary style="cursor:pointer;list-style:none;display:flex;gap:8px;align-items:flex-start"><svg class="icon"><use href="#i-info"/></svg><span>Ventas del vendedor asignado hoy; cobros y saldos actuales. <span class="link-inline">Qué significa</span></span></summary>
+            <p style="margin:4px 0 0 24px">Si una venta se reasigna a otro vendedor, también cambia en los periodos anteriores de este reporte. Los cobros y saldos se leen al generar el reporte.</p>
+          </details>
+
+          <div class="toolbar">
+            <div class="input"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" placeholder="Buscar por folio" aria-label="Buscar ventas del reporte por folio"></div>
+            <div class="chips" role="group" aria-label="Filtrar por estado de pago" data-single>
+              <button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Todas</span></button>
+              <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Pagadas</span></button>
+              <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Parcial</span></button>
+              <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">A crédito</span></button>
+            </div>
+          </div>
+
+          <div class="sh"><h3>Ventas confirmadas</h3><span class="c">38 · más antiguas primero</span></div>
+          <div class="tsurf">
+            <table class="t">
+              <caption class="sr">Ventas confirmadas de Luis Fernando Ortega del 1 al 30 de noviembre de 2026</caption>
+              <colgroup><col style="width:44px"><col><col style="width:112px"><col style="width:104px"><col style="width:104px"><col style="width:104px"></colgroup>
+              <thead><tr><th class="cx"><span class="sr">Abrir</span></th><th>Venta</th><th>Estado</th><th class="num">Total</th><th class="num">Pagado</th><th class="num">Saldo</th></tr></thead>
+              <tbody>
+                <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000352"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td><td><span class="p">S-000352</span><span class="s">3 nov, 09:14</span></td><td><span class="badge success">Pagada</span></td><td class="num amt">$1,240.00</td><td class="num">$1,240.00</td><td class="num zero">$0.00</td></tr>
+                <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000355"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td><td><span class="p">S-000355</span><span class="s">3 nov, 12:47</span></td><td><span class="badge success">Pagada</span></td><td class="num amt">$865.50</td><td class="num">$865.50</td><td class="num zero">$0.00</td></tr>
+                <tr class="row open"><td class="cx"><button class="xbtn" type="button" aria-expanded="true" aria-controls="sx3" aria-label="Detalle de la venta S-000359"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td><td><span class="p">S-000359</span><span class="s">4 nov, 16:02</span></td><td><span class="badge warning">Parcial</span></td><td class="num amt">$2,980.00</td><td class="num">$1,500.00</td><td class="num"><span class="p warn-ink">$1,480.00</span></td></tr>
+                <tr class="expand" id="sx3"><td colspan="6">
+                  <div class="xpanel">
+                    <div>
+                      <h4>Datos de la venta</h4>
+                      <dl class="kv">
+                        <dt>Cliente</dt><dd>Rodrigo Salinas Cantú</dd>
+                        <dt>Pago</dt><dd>Efectivo $1,500.00</dd>
+                        <dt>Vence</dt><dd>18 nov 2026</dd>
+                        <dt>Canal</dt><dd>Mostrador</dd>
+                      </dl>
+                    </div>
+                    <div>
+                      <h4>Productos · 3</h4>
+                      <ul class="items">
+                        <li><span class="n">Cama ortopédica</span><span class="m">$1,000.00</span><span class="v">Mediana · 1 pza</span></li>
+                        <li><span class="n">Collar antipulgas perro grande</span><span class="m">$1,284.00</span><span class="v">8 meses · 1 pza</span></li>
+                        <li><span class="n">Alimento húmedo gato</span><span class="m">$696.00</span><span class="v">Paquete de 12 · 2 pzas</span></li>
+                      </ul>
+                    </div>
+                    <div class="xacts">
+                      <span class="loadnote"><svg class="icon"><use href="#i-info"/></svg>Cliente y productos cargados al abrir la fila</span>
+                      <span class="grow"></span>
+                      <a class="btn sm" href="#venta"><svg class="icon sm"><use href="#i-open"/></svg>Abrir venta</a>
+                    </div>
+                  </div>
+                </td></tr>
+                <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000363"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td><td><span class="p">S-000363</span><span class="s">5 nov, 10:31</span></td><td><span class="badge success">Pagada</span></td><td class="num amt">$430.00</td><td class="num">$430.00</td><td class="num zero">$0.00</td></tr>
+                <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000368"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td><td><span class="p">S-000368</span><span class="s">6 nov, 18:20</span></td><td><span class="badge info">A crédito</span></td><td class="num amt">$1,150.00</td><td class="num zero">$0.00</td><td class="num"><span class="p warn-ink">$1,150.00</span></td></tr>
+                <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000370"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td><td><span class="p">S-000370</span><span class="s">7 nov, 11:05</span></td><td><span class="badge success">Pagada</span></td><td class="num amt">$2,215.00</td><td class="num">$2,215.00</td><td class="num zero">$0.00</td></tr>
+                <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000377"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td><td><span class="p">S-000377</span><span class="s">8 nov, 13:25</span></td><td><span class="badge success">Pagada</span></td><td class="num amt">$642.50</td><td class="num">$642.50</td><td class="num zero">$0.00</td></tr>
+                <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000379"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td><td><span class="p">S-000379</span><span class="s">8 nov, 17:58</span></td><td><span class="badge warning">Parcial</span></td><td class="num amt">$1,785.50</td><td class="num">$1,000.00</td><td class="num"><span class="p warn-ink">$785.50</span></td></tr>
+              </tbody>
+            </table>
+            <div style="padding:8px 12px;border-top:1px solid var(--hf-border);display:flex;align-items:center;gap:12px">
+              <button class="btn sm ghost" type="button" style="color:var(--hf-action)"><svg class="icon sm"><use href="#i-chev-d"/></svg>Mostrar las 30 ventas restantes</button>
+              <span class="sub">8 de 38 visibles</span>
+            </div>
+          </div>
+
+          <details class="disc">
+            <summary><svg class="icon sm chev"><use href="#i-chev-r"/></svg><svg class="icon sm" style="color:var(--hf-muted)"><use href="#i-ban"/></svg>Ventas canceladas <span class="c">2 · informativas, no suman a las ventas netas ni a los saldos</span></summary>
+            <div class="tsurf" style="margin-top:8px">
+              <table class="t">
+                <colgroup><col><col style="width:200px"><col style="width:112px"></colgroup>
+                <thead><tr><th>Venta</th><th>Cancelada</th><th class="num">Total</th></tr></thead>
+                <tbody>
+                  <tr class="canceled"><td><span class="p">S-000366</span><span class="s">Confirmada 5 nov, 15:12</span></td><td class="muted">5 nov, 15:40</td><td class="num amt">$520.00</td></tr>
+                  <tr class="canceled"><td><span class="p">S-000381</span><span class="s">Confirmada 9 nov, 10:02</span></td><td class="muted">10 nov, 09:15</td><td class="num amt">$1,310.00</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+
+          <div class="be-zone">
+            <span class="be"><svg class="icon"><use href="#i-server"/></svg>requiere backend</span>
+            <ul class="sub ghost-txt" style="display:grid;gap:4px;list-style:disc;padding-left:16px">
+              <li>Cliente de cada venta en la fila, para cobrar sin abrirla.</li>
+              <li>Productos más vendidos del vendedor en el periodo.</li>
+            </ul>
+          </div>
+        </div>
+
+        <footer class="df">
+          <div class="grow" style="display:grid;gap:2px">
+            <p class="sub">40 de 1,000 filas permitidas por periodo</p>
+            <p class="sub" style="font-size:12px">El PDF se genera con una consulta nueva; puede diferir de lo que ves.</p>
+          </div>
+          <button class="btn primary" type="button"><svg class="icon sm"><use href="#i-download"/></svg>Descargar PDF</button>
+        </footer>
+      </div>
+    </section>
+  </div>
+</main>
+<script>
+(() => {
+// Shared artboard behavior: theme, notes sheet, expandable rows, single-choice chips and segments.
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+
+const themeBtn = $('#t-theme');
+function paintTheme() {
+  const dark = document.documentElement.classList.contains('dark');
+  themeBtn.setAttribute('aria-pressed', String(dark));
+  themeBtn.lastChild.textContent = dark ? 'Tema oscuro' : 'Tema claro';
+}
+themeBtn?.addEventListener('click', () => { document.documentElement.classList.toggle('dark'); paintTheme(); });
+if (themeBtn) paintTheme();
+
+const notesBtn = $('#t-notes');
+const notes = $('#notes');
+notesBtn?.addEventListener('click', () => {
+  const open = notes.hidden;
+  notes.hidden = !open;
+  notesBtn.setAttribute('aria-expanded', String(open));
+  if (open) notes.focus();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && notes && !notes.hidden) { notes.hidden = true; notesBtn.setAttribute('aria-expanded', 'false'); notesBtn.focus(); }
+});
+
+// Expandable rows: the chevron button owns aria-expanded; clicking the row toggles too.
+function toggleRow(row) {
+  const btn = $('.xbtn', row);
+  const panel = document.getElementById(btn.getAttribute('aria-controls'));
+  const open = btn.getAttribute('aria-expanded') !== 'true';
+  btn.setAttribute('aria-expanded', String(open));
+  row.classList.toggle('open', open);
+  if (panel) panel.hidden = !open;
+}
+$$('tr.row').forEach((row) => {
+  row.addEventListener('click', (e) => {
+    if (e.target.closest('a, .btn, .chip')) return;
+    if ($('.xbtn', row)) toggleRow(row);
+  });
+});
+$$('[data-toggle-card]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const panel = document.getElementById(btn.getAttribute('aria-controls'));
+    const open = btn.getAttribute('aria-expanded') !== 'true';
+    btn.setAttribute('aria-expanded', String(open));
+    if (panel) panel.hidden = !open;
+    const lbl = btn.querySelector('[data-lbl]');
+    if (lbl) lbl.textContent = open ? lbl.dataset.open : lbl.dataset.closed;
+  });
+});
+
+// Single-choice chip groups and segmented controls (visual only; the data stays as drawn).
+$$('[data-single]').forEach((group) => {
+  group.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b || !group.contains(b)) return;
+    $$('button', group).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    const target = group.dataset.single && document.getElementById(group.dataset.single);
+    if (target && b.dataset.show) {
+      $$('[data-view]', target).forEach((v) => { v.hidden = v.dataset.view !== b.dataset.show; });
+    }
+  });
+});
+
+})();
+</script>
+</body>
+</html>

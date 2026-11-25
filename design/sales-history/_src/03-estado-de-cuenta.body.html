@@ -1,0 +1,215 @@
+<div class="tools" role="group" aria-label="Opciones del artboard">
+  <span class="lbl">C · Estado de cuenta</span>
+  <span class="grow"></span>
+  <button type="button" id="t-notes" aria-expanded="false" aria-controls="notes"><svg class="icon sm"><use href="#i-notes"/></svg>Notas y datos</button>
+  <button type="button" id="t-theme" aria-pressed="false"><svg class="icon sm"><use href="#i-moon"/></svg><span>Tema claro</span></button>
+</div>
+
+<aside class="notes" id="notes" tabindex="-1" hidden aria-label="Notas del artboard">
+  <h2>C · Estado de cuenta</h2>
+  <p>Primero el dinero: cuánto se debe, qué ventas lo deben y desde cuándo; después el historial completo. El cliente se lee como un estado de cuenta y el vendedor como una liquidación del periodo.</p>
+  <h3>Datos que ya llegan · cliente</h3>
+  <ul>
+    <li>Cabecera: <code>summary.outstandingDebtCents</code>, <code>counts.pendingPayments</code>, <code>counts.notDelivered</code>, <code>summary.totalSoldCents</code>, <code>summary.salesCount</code></li>
+    <li>«Por cobrar»: <code>GET /sales?customerId=…&amp;paymentStatus=PARTIAL,CREDIT&amp;sortBy=debtCents</code>, filas con <code>folio</code>, <code>confirmedAt</code>, <code>dueDate</code>, <code>totalCents</code>, <code>debtCents</code>, <code>paymentStatus</code>. «Vencida» compara <code>dueDate</code> con hoy (hora del centro de México).</li>
+    <li>«Sin entregar»: <code>deliveryStatus=PENDING</code>; «Todas»: la consulta de hoy con <code>q</code> y <code>petId</code>.</li>
+    <li>«Cobrar» abre el <code>DebtPaymentModal</code> existente con <code>saleId</code> y <code>debtCents</code>.</li>
+  </ul>
+  <h3>Datos que ya llegan · vendedor</h3>
+  <ul>
+    <li>Liquidación: <code>confirmed.summary.netSalesCents</code>, <code>collectedCents</code>, <code>outstandingDebtCents</code>, <code>saleCount</code>, <code>averageTicketCents</code>; <code>canceled.saleCount</code></li>
+    <li>Grupos: <code>confirmed.rows[]</code> separadas por su <code>paymentStatus</code> del servidor, en el orden del servidor; no se suma nada en el navegador.</li>
+  </ul>
+  <h3>Ya en la API, no se envía hoy</h3>
+  <ul><li><code>paymentStatus</code>, <code>deliveryStatus</code> y <code>sortBy=debtCents</code> en <code>GET /sales</code> (confirmar que combinan con <code>customerId</code>).</li></ul>
+  <h3>Requiere backend</h3>
+  <ul>
+    <li>«Cobrar todo»: un pago que liquide varias ventas.</li>
+    <li>Exportar el estado de cuenta del cliente (PDF).</li>
+    <li>Cliente de cada venta en el reporte del vendedor.</li>
+    <li>Comparación con el periodo anterior.</li>
+  </ul>
+  <h3>Costo</h3>
+  <ul><li>Tres consultas al abrir el historial del cliente (por cobrar, sin entregar, todas) y un panel largo cuando el cliente no debe nada.</li></ul>
+</aside>
+
+<main class="board">
+  <header class="board-head">
+    <h1>C · Estado de cuenta</h1>
+    <p>Primero el dinero: cuánto se debe, qué ventas lo deben y desde cuándo, con la acción para cobrar ahí mismo. El historial completo queda debajo. El vendedor se lee como una liquidación del periodo con las ventas por cobrar arriba.</p>
+  </header>
+
+  <div class="pair">
+    <!-- ═════════════ CLIENTE ═════════════ -->
+    <section class="frame" aria-labelledby="c-title">
+      <p class="caption"><b>Historial del cliente</b><span class="sep">·</span>cliente con saldo pendiente</p>
+      <div class="drawer" role="dialog" aria-modal="false" aria-labelledby="c-title">
+        <header class="dh">
+          <span class="avatar" aria-hidden="true">AT</span>
+          <div class="who">
+            <p class="meta">Estado de cuenta · cliente desde mar 2025</p>
+            <h2 id="c-title">Ana Sofía Treviño Garza</h2>
+            <p class="meta"><a class="link-inline" href="tel:+528123456789"><svg class="icon xs"><use href="#i-phone"/></svg>81 2345 6789</a></p>
+          </div>
+          <div class="acts"><button class="icon-btn" type="button" aria-label="Cerrar historial de ventas"><svg class="icon"><use href="#i-x"/></svg></button></div>
+        </header>
+
+        <div class="db">
+          <div class="stmt">
+            <div class="due">
+              <span class="lab"><svg class="icon sm"><use href="#i-alert"/></svg>Saldo pendiente</span>
+              <span class="big">$1,284.00</span>
+              <p>2 ventas por cobrar · <b class="warn-ink">1 vencida</b></p>
+            </div>
+            <dl class="rest ledger">
+              <div><dt>Total vendido</dt><dd>$18,460.50</dd></div>
+              <div><dt>Ventas</dt><dd>23</dd></div>
+              <div><dt>Sin entregar</dt><dd>1</dd></div>
+            </dl>
+          </div>
+
+          <section class="sec" aria-labelledby="c-owe">
+            <div class="sh"><h3 id="c-owe">Por cobrar</h3><span class="c">2 · mayor saldo primero</span><span class="grow"></span><span class="api"><svg class="icon"><use href="#i-filter"/></svg>ya en la API</span></div>
+            <div class="tsurf">
+              <table class="t">
+                <caption class="sr">Ventas con saldo pendiente</caption>
+                <colgroup><col><col style="width:156px"><col style="width:100px"><col style="width:100px"><col style="width:104px"></colgroup>
+                <thead><tr><th>Venta</th><th>Vence</th><th class="num">Total</th><th class="num">Saldo</th><th class="act"><span class="sr">Acción</span></th></tr></thead>
+                <tbody>
+                  <tr class="owe-row"><td><span class="p">S-000412</span><span class="s">22 nov · Impaga</span></td><td>6 dic<span class="s">en 12 días</span></td><td class="num amt">$1,486.00</td><td class="num"><span class="p warn-ink">$786.00</span></td><td class="act"><button class="btn sm" type="button" aria-label="Cobrar $786.00 de la venta S-000412">Cobrar</button></td></tr>
+                  <tr class="owe-row"><td><span class="p">S-000398</span><span class="s">15 nov · Deuda</span></td><td><span class="overdue"><svg class="icon"><use href="#i-alert"/></svg>Vencida</span><span class="s">20 nov · hace 4 días</span></td><td class="num amt">$498.00</td><td class="num"><span class="p warn-ink">$498.00</span></td><td class="act"><button class="btn sm" type="button" aria-label="Cobrar $498.00 de la venta S-000398">Cobrar</button></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="be-zone" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <span class="be"><svg class="icon"><use href="#i-server"/></svg>requiere backend</span>
+              <span class="sub ghost-txt" style="flex:1">«Cobrar todo $1,284.00» en un solo pago que liquide las 2 ventas.</span>
+            </div>
+          </section>
+
+          <section class="sec" aria-labelledby="c-del">
+            <div class="sh"><h3 id="c-del">Sin entregar</h3><span class="c">1</span></div>
+            <ul class="list">
+              <li><a href="#venta"><span><span class="f">S-000412</span> <span class="d">· 22 nov, 17:42 · Croquetas y 2 productos más</span></span><span class="badge danger">No entregada</span><span class="m">$1,486.00</span><svg class="icon sm"><use href="#i-chev-r"/></svg></a></li>
+            </ul>
+            <p class="sub"><span class="be"><svg class="icon"><use href="#i-server"/></svg>requiere backend</span> el resumen «Croquetas y 2 productos más» en la fila.</p>
+          </section>
+
+          <section class="sec" aria-labelledby="c-all">
+            <div class="sh"><h3 id="c-all">Todas las ventas</h3><span class="c">23</span><span class="grow"></span><span class="be"><svg class="icon"><use href="#i-server"/></svg>Exportar PDF: requiere backend</span></div>
+            <div class="toolbar">
+              <div class="input"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" placeholder="Buscar por folio" aria-label="Buscar ventas por folio"></div>
+            </div>
+            <div class="chips" role="group" aria-label="Filtrar ventas por mascota" data-single>
+              <span class="chips-label"><svg class="icon sm"><use href="#i-paw"/></svg>Mascota</span>
+              <button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Todas</span></button>
+              <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Bruno</span></button>
+              <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Mishi</span></button>
+              <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Canela</span><small>archivada</small></button>
+            </div>
+            <ul class="list">
+              <li><a href="#venta"><span class="ell"><span class="f">S-000412</span> <span class="d">· 22 nov 2026</span></span><span class="badge warning">Impaga</span><span class="m">$1,486.00</span><svg class="icon sm"><use href="#i-chev-r"/></svg></a></li>
+              <li><a href="#venta"><span class="ell"><span class="f">S-000398</span> <span class="d">· 15 nov 2026</span></span><span class="badge danger">Deuda</span><span class="m">$498.00</span><svg class="icon sm"><use href="#i-chev-r"/></svg></a></li>
+              <li><a href="#venta"><span class="ell"><span class="f">S-000377</span> <span class="d">· 8 nov 2026</span></span><span class="badge success">Pagada</span><span class="m">$642.50</span><svg class="icon sm"><use href="#i-chev-r"/></svg></a></li>
+              <li><a href="#venta"><span class="ell"><span class="f">S-000361</span> <span class="d">· 1 nov 2026 · Chatbot</span></span><span class="badge success">Pagada</span><span class="m">$2,315.00</span><svg class="icon sm"><use href="#i-chev-r"/></svg></a></li>
+              <li class="canceled"><a href="#venta"><span class="ell"><span class="f">S-000344</span> <span class="d">· 26 oct 2026</span></span><span class="badge">Cancelada</span><span class="m">$380.00</span><svg class="icon sm"><use href="#i-chev-r"/></svg></a></li>
+              <li><a href="#venta"><span class="ell"><span class="f">S-000329</span> <span class="d">· 19 oct 2026</span></span><span class="badge success">Pagada</span><span class="m">$1,120.00</span><svg class="icon sm"><use href="#i-chev-r"/></svg></a></li>
+              <li><a href="#venta"><span class="ell"><span class="f">S-000301</span> <span class="d">· 5 oct 2026</span></span><span class="badge success">Pagada</span><span class="m">$864.00</span><svg class="icon sm"><use href="#i-chev-r"/></svg></a></li>
+              <li><a href="#venta"><span class="ell"><span class="f">S-000287</span> <span class="d">· 28 sep 2026</span></span><span class="badge success">Pagada</span><span class="m">$455.00</span><svg class="icon sm"><use href="#i-chev-r"/></svg></a></li>
+              <li><a href="#venta"><span class="ell"><span class="f">S-000263</span> <span class="d">· 14 sep 2026 · Chatbot</span></span><span class="badge success">Pagada</span><span class="m">$1,730.00</span><svg class="icon sm"><use href="#i-chev-r"/></svg></a></li>
+              <li><a href="#venta"><span class="ell"><span class="f">S-000240</span> <span class="d">· 30 ago 2026</span></span><span class="badge success">Pagada</span><span class="m">$598.00</span><svg class="icon sm"><use href="#i-chev-r"/></svg></a></li>
+            </ul>
+          </section>
+        </div>
+
+        <footer class="df">
+          <p class="grow sub"><b class="fig" style="color:var(--hf-ink)">1–10</b> de 23 ventas</p>
+          <nav class="pager" aria-label="Páginas del historial">
+            <button type="button" disabled aria-label="Página anterior"><svg class="icon sm"><use href="#i-chev-l"/></svg></button>
+            <button type="button" aria-current="page">1</button><button type="button">2</button><button type="button">3</button>
+            <button type="button" aria-label="Página siguiente"><svg class="icon sm"><use href="#i-chev-r"/></svg></button>
+          </nav>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ═════════════ VENDEDOR ═════════════ -->
+    <section class="frame" aria-labelledby="s-title">
+      <p class="caption"><b>Reporte del vendedor</b><span class="sep">·</span>liquidación del periodo</p>
+      <div class="drawer" role="dialog" aria-modal="false" aria-labelledby="s-title">
+        <header class="dh">
+          <span class="avatar" aria-hidden="true">LO</span>
+          <div class="who">
+            <p class="meta">Liquidación de ventas · <span class="badge success">Activo</span></p>
+            <h2 id="s-title">Luis Fernando Ortega</h2>
+          </div>
+          <div class="acts"><button class="icon-btn" type="button" aria-label="Cerrar el reporte de ventas"><svg class="icon"><use href="#i-x"/></svg></button></div>
+        </header>
+
+        <div class="db">
+          <div class="toolbar" role="group" aria-label="Periodo del reporte">
+            <div class="seg" data-single>
+              <button type="button" aria-pressed="false">Hoy</button>
+              <button type="button" aria-pressed="false">Últimos 7 días</button>
+              <button type="button" aria-pressed="true">Este mes</button>
+              <button type="button" aria-pressed="false">Mes anterior</button>
+            </div>
+            <button type="button" class="date-btn" aria-label="Periodo personalizado: del 1 al 30 de noviembre de 2026"><svg class="icon sm"><use href="#i-calendar"/></svg>1 – 30 nov 2026</button>
+          </div>
+
+          <section class="sec" aria-labelledby="s-liq">
+            <div class="sh"><h3 id="s-liq">Del 1 al 30 de noviembre de 2026</h3><span class="c">generado hoy 10:14</span></div>
+            <div class="tsurf" style="padding:4px 16px">
+              <dl class="ledger big">
+                <div class="tot"><dt>Ventas netas <small class="muted" style="font-weight:400">· 38 ventas confirmadas</small></dt><dd>$52,318.00</dd></div>
+                <div><dt>Cobrado</dt><dd>$47,902.50</dd></div>
+                <div class="owe"><dt>Saldo pendiente</dt><dd>$4,415.50</dd></div>
+                <div><dt>Ticket promedio</dt><dd>$1,376.79</dd></div>
+                <div><dt>Canceladas <small>· informativas, no suman</small></dt><dd>2</dd></div>
+              </dl>
+            </div>
+            <p class="notice info"><svg class="icon"><use href="#i-info"/></svg><span>Ventas del vendedor asignado hoy; si una venta se reasigna, también cambia en periodos anteriores. Cobros y saldos actuales.</span></p>
+            <div class="be-zone" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+              <span class="be"><svg class="icon"><use href="#i-server"/></svg>requiere backend</span>
+              <span class="sub ghost-txt">Comparación con octubre: «+12% en ventas netas».</span>
+            </div>
+          </section>
+
+          <section class="sec" aria-labelledby="s-owe">
+            <div class="sh"><h3 id="s-owe">Por cobrar</h3><span class="c">6 ventas · $4,415.50 en total</span></div>
+            <div class="tsurf">
+              <table class="t">
+                <caption class="sr">Ventas del periodo con saldo pendiente, en el orden del servidor</caption>
+                <colgroup><col style="width:44px"><col><col style="width:112px"><col style="width:104px"><col style="width:104px"><col style="width:104px"></colgroup>
+                <thead><tr><th class="cx"><span class="sr">Abrir</span></th><th>Venta</th><th>Estado</th><th class="num">Total</th><th class="num">Pagado</th><th class="num">Saldo</th></tr></thead>
+                <tbody>
+                  <tr class="owe-row"><td class="cx"><a class="xbtn" href="#venta" aria-label="Abrir la venta S-000359"><svg class="icon sm"><use href="#i-open"/></svg></a></td><td><span class="p">S-000359</span><span class="s">4 nov, 16:02</span></td><td><span class="badge warning">Parcial</span></td><td class="num amt">$2,980.00</td><td class="num">$1,500.00</td><td class="num"><span class="p warn-ink">$1,480.00</span></td></tr>
+                  <tr class="owe-row"><td class="cx"><a class="xbtn" href="#venta" aria-label="Abrir la venta S-000368"><svg class="icon sm"><use href="#i-open"/></svg></a></td><td><span class="p">S-000368</span><span class="s">6 nov, 18:20</span></td><td><span class="badge info">A crédito</span></td><td class="num amt">$1,150.00</td><td class="num zero">$0.00</td><td class="num"><span class="p warn-ink">$1,150.00</span></td></tr>
+                  <tr class="owe-row"><td class="cx"><a class="xbtn" href="#venta" aria-label="Abrir la venta S-000379"><svg class="icon sm"><use href="#i-open"/></svg></a></td><td><span class="p">S-000379</span><span class="s">8 nov, 17:58</span></td><td><span class="badge warning">Parcial</span></td><td class="num amt">$1,785.50</td><td class="num">$1,000.00</td><td class="num"><span class="p warn-ink">$785.50</span></td></tr>
+                  <tr class="owe-row"><td class="cx"><a class="xbtn" href="#venta" aria-label="Abrir la venta S-000396"><svg class="icon sm"><use href="#i-open"/></svg></a></td><td><span class="p">S-000396</span><span class="s">14 nov, 12:10</span></td><td><span class="badge warning">Parcial</span></td><td class="num amt">$1,620.00</td><td class="num">$1,200.00</td><td class="num"><span class="p warn-ink">$420.00</span></td></tr>
+                  <tr class="owe-row"><td class="cx"><a class="xbtn" href="#venta" aria-label="Abrir la venta S-000405"><svg class="icon sm"><use href="#i-open"/></svg></a></td><td><span class="p">S-000405</span><span class="s">19 nov, 19:05</span></td><td><span class="badge info">A crédito</span></td><td class="num amt">$380.00</td><td class="num zero">$0.00</td><td class="num"><span class="p warn-ink">$380.00</span></td></tr>
+                  <tr class="owe-row"><td class="cx"><a class="xbtn" href="#venta" aria-label="Abrir la venta S-000417"><svg class="icon sm"><use href="#i-open"/></svg></a></td><td><span class="p">S-000417</span><span class="s">23 nov, 10:44</span></td><td><span class="badge warning">Parcial</span></td><td class="num amt">$600.00</td><td class="num">$400.00</td><td class="num"><span class="p warn-ink">$200.00</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="sub"><span class="be"><svg class="icon"><use href="#i-server"/></svg>requiere backend</span> el cliente de cada venta, para saber a quién cobrar sin abrirla.</p>
+          </section>
+
+          <details class="disc">
+            <summary><svg class="icon sm chev"><use href="#i-chev-r"/></svg><svg class="icon sm" style="color:var(--hf-success)"><use href="#i-check"/></svg>Pagadas <span class="c">32 ventas</span></summary>
+            <p class="sub" style="padding:8px 12px">Misma tabla, en el orden del servidor.</p>
+          </details>
+          <details class="disc">
+            <summary><svg class="icon sm chev"><use href="#i-chev-r"/></svg><svg class="icon sm" style="color:var(--hf-muted)"><use href="#i-ban"/></svg>Canceladas <span class="c">2 · no suman a las ventas netas ni a los saldos</span></summary>
+            <p class="sub" style="padding:8px 12px">S-000366 · $520.00 · cancelada 5 nov, 15:40 — S-000381 · $1,310.00 · cancelada 10 nov, 09:15</p>
+          </details>
+        </div>
+
+        <footer class="df">
+          <p class="grow sub">40 de 1,000 filas · el PDF se genera con una consulta nueva</p>
+          <button class="btn primary" type="button"><svg class="icon sm"><use href="#i-download"/></svg>Descargar PDF</button>
+        </footer>
+      </div>
+    </section>
+  </div>
+</main>

@@ -60,6 +60,43 @@ export function formatSellerReportCalendarDate(date: string): string {
   return `${day}/${month}/${parsed.year}`
 }
 
+const SHORT_MONTHS = [
+  'ene',
+  'feb',
+  'mar',
+  'abr',
+  'may',
+  'jun',
+  'jul',
+  'ago',
+  'sep',
+  'oct',
+  'nov',
+  'dic',
+] as const
+
+/**
+ * Sales history redesign T2: the period with its LAST INCLUDED day («1 – 30 nov 2026») for a
+ * `[from, to)` window. Display only: `to` stays the exclusive boundary sent to the server. The day
+ * before `to` comes from calendar arithmetic, never from a JS `Date`. An empty, reversed or
+ * unparseable window returns `null` instead of a made-up label.
+ */
+export function formatSellerReportPeriod(from: string, to: string): string | null {
+  const first = parseMexicoCityCalendarDate(from)
+  const end = parseMexicoCityCalendarDate(to)
+  if (!first || !end || end.compare(first) <= 0) return null
+  const last = end.subtract({ days: 1 })
+  const month = (date: typeof first) => SHORT_MONTHS[date.month - 1]
+  if (last.compare(first) === 0) return `${first.day} ${month(first)} ${first.year}`
+  if (first.year !== last.year) {
+    return `${first.day} ${month(first)} ${first.year} – ${last.day} ${month(last)} ${last.year}`
+  }
+  if (first.month !== last.month) {
+    return `${first.day} ${month(first)} – ${last.day} ${month(last)} ${last.year}`
+  }
+  return `${first.day} – ${last.day} ${month(last)} ${last.year}`
+}
+
 /** Render authoritative integer cents as MXN through the shared formatter. */
 export function formatSellerReportCents(cents: number): string {
   return formatCentsMXN(cents)
