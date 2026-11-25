@@ -16,9 +16,13 @@ import {
 } from '../interfaces/sale.types'
 
 /** Sales history redesign T1: the single-choice status chips of the customer history. */
-export type CustomerHistoryStatusFilter = 'all' | 'with-debt' | 'not-delivered'
+export type CustomerHistoryStatusFilter = 'all' | 'with-debt' | 'not-delivered' | 'overdue'
 
-type StatusParams = { paymentStatus?: SalePaymentStatus[]; deliveryStatus?: SaleDeliveryStatus[] }
+type StatusParams = {
+  paymentStatus?: SalePaymentStatus[]
+  deliveryStatus?: SaleDeliveryStatus[]
+  overdue?: true
+}
 
 // L3 (backend 2026-11-24): both combine with `customerId` (+`petId`) by AND and leave `summary` and
 // `counts` customer-wide. Same values as the Ventas «Cobranza» / «Entregas» views.
@@ -26,6 +30,9 @@ const STATUS_PARAMS: Record<CustomerHistoryStatusFilter, StatusParams> = {
   all: {},
   'with-debt': { paymentStatus: [SALE_PAYMENT_STATUS.PARTIAL, SALE_PAYMENT_STATUS.CREDIT] },
   'not-delivered': { deliveryStatus: [SALE_DELIVERY_STATUS.PENDING as SaleDeliveryStatus] },
+  // Handoff 28 §2.3: an extended filter like the others (AND with customerId/petId; never moves
+  // summary or counts). Sent as "true" by the params serializer.
+  overdue: { overdue: true },
 }
 
 export interface UseCustomerSalesHistoryOptions {
@@ -35,7 +42,7 @@ export interface UseCustomerSalesHistoryOptions {
   q?: MaybeRefOrGetter<string | undefined>
   /** Customer pets §7: sales of one pet of this customer; only ever sent with the single `customerId`. */
   petId?: MaybeRefOrGetter<string | null | undefined>
-  /** «Con saldo» / «Sin entregar»; `'all'` (default) sends neither param. */
+  /** «Con saldo» / «Sin entregar» / «Vencidas»; `'all'` (default) sends none of their params. */
   status?: MaybeRefOrGetter<CustomerHistoryStatusFilter | undefined>
 }
 

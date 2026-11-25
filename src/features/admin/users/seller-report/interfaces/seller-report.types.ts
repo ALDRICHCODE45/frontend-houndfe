@@ -3,6 +3,7 @@ import {
   isValidCalendarDateString,
   isValidMexicoCityDateRange,
   mexicoCityToday,
+  parseMexicoCityCalendarDate,
 } from '@/core/shared/utils/mexicoCityCalendar'
 
 /**
@@ -36,7 +37,12 @@ import {
  *     repaired.
  *   - A payload carrying an unknown key means the contract moved; `.strict()`
  *     on every object turns that into a visible failure instead of silent drift
- *     (and keeps unrequested PII such as customer fields out of the UI).
+ *     (and keeps unrequested PII such as customer contact fields out of the UI).
+ *   - Handoff 28 §5 (sales history backend data T2) adds, additively: `customer`
+ *     (`{id, name} | null`) on every row, and the top-level `topProducts`,
+ *     `dailyTotals` and `previousPeriod`. Each is OPTIONAL so an older backend
+ *     still parses — the UI then hides the matching block, never fills it in —
+ *     but a present addition is strict like the rest of the payload.
  */
 
 /** The only calendar zone this endpoint accepts or emits. */
@@ -47,6 +53,15 @@ export const SELLER_REPORT_ROW_LIMIT = 1000
 
 /** Authoritative payment states a confirmed row can report. */
 export type SellerReportPaymentStatus = 'PAID' | 'PARTIAL' | 'CREDIT'
+
+/**
+ * The sale's customer (handoff 28 §5.1): only id and the customer's CURRENT name,
+ * never contact data. `null` = público en general (or a deleted customer).
+ */
+export interface SellerReportCustomer {
+  id: string
+  name: string
+}
 
 /** One confirmed sale row. Every field is authoritative and rendered as returned. */
 interface SellerReportConfirmedRow {
@@ -64,6 +79,8 @@ interface SellerReportConfirmedRow {
   debtCents: number
   /** Authoritative payment classification of this row. */
   paymentStatus: SellerReportPaymentStatus
+  /** Absent on an older backend (no customer line); `null` = público en general. */
+  customer?: SellerReportCustomer | null
 }
 
 /** One canceled sale row. The amount is informational only. */
@@ -78,6 +95,42 @@ interface SellerReportCanceledRow {
   canceledAt: string
   /** Sale total at cancellation time, in integer cents. */
   totalCents: number
+  /** Absent on an older backend (no customer line); `null` = público en general. */
+  customer?: SellerReportCustomer | null
+}
+
+/**
+ * One best-selling product of the period (handoff 28 §5.2), at most 5, in the
+ * backend order. `netSalesCents` is AFTER line discounts but BEFORE sale-wide
+ * discounts, so it is never part of (and may exceed) the seller's totals.
+ */
+export interface SellerReportTopProduct {
+  productId: string
+  variantId: string | null
+  productName: string
+  variantName: string | null
+  /** Units sold. */
+  quantity: number
+  netSalesCents: number
+}
+
+/** One local day of `[from, to)` (handoff 28 §5.3); zero days included. */
+export interface SellerReportDailyTotal {
+  /** Local `YYYY-MM-DD` day in `America/Mexico_City`. */
+  date: string
+  saleCount: number
+  netSalesCents: number
+}
+
+/**
+ * The period right before the report (handoff 28 §5.4): same number of days,
+ * half-open, ending at the report's `from`. Aggregate only.
+ */
+export interface SellerReportPreviousPeriod {
+  from: string
+  to: string
+  saleCount: number
+  netSalesCents: number
 }
 
 /** Backend-computed confirmed metrics. Never re-derived in the browser. */
@@ -122,6 +175,12 @@ export interface SellerSalesReport {
   rowCount: number
   confirmed: SellerReportConfirmedSection
   canceled: SellerReportCanceledSection
+  /** Absent on an older backend; `[]` when there is no confirmed sale. */
+  topProducts?: SellerReportTopProduct[]
+  /** Absent on an older backend; otherwise one entry per local day of `[from, to)`. */
+  dailyTotals?: SellerReportDailyTotal[]
+  /** Absent on an older backend. */
+  previousPeriod?: SellerReportPreviousPeriod
 }
 
 /** The complete request surface: seller path segment plus both boundaries. */
@@ -175,6 +234,52 @@ const sellerReportSellerIdSchema = z.string().regex(UUID_SHAPE_PATTERN, {
   message: 'Expected a UUID seller identifier',
 })
 
+const calendarDateSchema = z.string().refine(isValidCalendarDateString, {
+  message: 'Expected a YYYY-MM-DD calendar date',
+})
+
+/**
+ * Row customer. The name may be blank (the PDF prints «Público en general» then,
+ * handoff 28 §6), so only the id is required to be non-empty. Optional at the row
+ * level for an older backend.
+ */
+const rowCustomerSchema = z
+  .object({ id: z.string().min(1), name: z.string() })
+  .strict()
+  .nullable()
+  .optional()
+
+/** Handoff 28 §5.2: at most five products. */
+const SELLER_REPORT_TOP_PRODUCTS_LIMIT = 5
+
+const topProductSchema: z.ZodType<SellerReportTopProduct> = z
+  .object({
+    productId: z.string().min(1),
+    variantId: z.string().min(1).nullable(),
+    productName: z.string().min(1),
+    variantName: z.string().min(1).nullable(),
+    quantity: metricSchema,
+    netSalesCents: metricSchema,
+  })
+  .strict()
+
+const dailyTotalSchema: z.ZodType<SellerReportDailyTotal> = z
+  .object({
+    date: calendarDateSchema,
+    saleCount: metricSchema,
+    netSalesCents: metricSchema,
+  })
+  .strict()
+
+const previousPeriodSchema: z.ZodType<SellerReportPreviousPeriod> = z
+  .object({
+    from: calendarDateSchema,
+    to: calendarDateSchema,
+    saleCount: metricSchema,
+    netSalesCents: metricSchema,
+  })
+  .strict()
+
 /**
  * `.strict()` on every object is load-bearing: an unknown key means the backend
  * contract moved, and silently ignoring it would let the UI drift out of sync
@@ -189,6 +294,7 @@ const confirmedRowSchema: z.ZodType<SellerReportConfirmedRow> = z
     paidCents: metricSchema,
     debtCents: metricSchema,
     paymentStatus: z.enum(['PAID', 'PARTIAL', 'CREDIT']),
+    customer: rowCustomerSchema,
   })
   .strict()
 
@@ -199,6 +305,7 @@ const canceledRowSchema: z.ZodType<SellerReportCanceledRow> = z
     confirmedAt: utcInstantSchema.nullable(),
     canceledAt: utcInstantSchema,
     totalCents: metricSchema,
+    customer: rowCustomerSchema,
   })
   .strict()
 
@@ -243,6 +350,9 @@ const sellerSalesReportSchema: z.ZodType<SellerSalesReport> = z
         rows: z.array(canceledRowSchema),
       })
       .strict(),
+    topProducts: z.array(topProductSchema).max(SELLER_REPORT_TOP_PRODUCTS_LIMIT).optional(),
+    dailyTotals: z.array(dailyTotalSchema).optional(),
+    previousPeriod: previousPeriodSchema.optional(),
   })
   .strict()
 
@@ -385,6 +495,50 @@ function responseRefinements(
   const window = { from: response.from, to: response.to }
   addRowIssues(confirmedRows, (row) => row.confirmedAt, window, 'confirmed', ctx)
   addRowIssues(canceledRows, (row) => row.canceledAt, window, 'canceled', ctx)
+  addPeriodIssues(response, ctx)
+}
+
+/**
+ * Handoff 28 §5.3/§5.4 calendar rules, checked only when the block is present:
+ *   - `dailyTotals` is exactly one entry per local day of `[from, to)`, oldest
+ *     first (zero days included): no gap, duplicate, extra or unordered day.
+ *   - `previousPeriod` ends at the report's `from` and spans the same number of
+ *     days. Calendar arithmetic only, never a `Date`.
+ * Sums are not cross-checked, for the same reason as the summary metrics.
+ */
+function addPeriodIssues(response: SellerSalesReport, ctx: z.RefinementCtx): void {
+  const from = parseMexicoCityCalendarDate(response.from)
+  const to = parseMexicoCityCalendarDate(response.to)
+  if (!from || !to) return
+  const days = to.compare(from)
+
+  if (Array.isArray(response.dailyTotals)) {
+    if (response.dailyTotals.length !== days) {
+      addIssue(ctx, ['dailyTotals'], `Expected one daily total per day: ${days} entries`)
+    } else {
+      response.dailyTotals.forEach((entry, index) => {
+        const expected = from.add({ days: index }).toString()
+        if (entry?.date !== expected) {
+          addIssue(ctx, ['dailyTotals', index, 'date'], `Expected the local day "${expected}"`)
+        }
+      })
+    }
+  }
+
+  const previous = response.previousPeriod
+  if (previous && typeof previous === 'object') {
+    if (previous.to !== response.from) {
+      addIssue(ctx, ['previousPeriod', 'to'], 'The previous period must end at the report start')
+    }
+    const expectedFrom = from.subtract({ days }).toString()
+    if (previous.from !== expectedFrom) {
+      addIssue(
+        ctx,
+        ['previousPeriod', 'from'],
+        `The previous period must span the same ${days} days, from "${expectedFrom}"`,
+      )
+    }
+  }
 }
 
 /**

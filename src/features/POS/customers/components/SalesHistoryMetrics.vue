@@ -2,7 +2,8 @@
 /**
  * Sales history redesign T1: the metric strip of the customer history, from the customer-wide
  * `summary` and `counts` (pet, status and search filters never change it, customer pets S6).
- * «Ticket promedio» is not in `summary` (requires backend, S4), so it is not shown.
+ * «Ticket promedio» comes from `summary.averageTicketCents` (handoff 28 §2.2); an older payload
+ * without it keeps the three-cell strip.
  */
 import { computed } from 'vue'
 import { formatCentsMXN } from '@/features/POS/sales/utils/currency.utils'
@@ -11,6 +12,8 @@ import type { SaleListSummary, SalesListCounts } from '@/features/POS/sales/inte
 const props = defineProps<{ summary: SaleListSummary; counts?: SalesListCounts }>()
 
 const hasDebt = computed(() => props.summary.outstandingDebtCents > 0)
+const averageTicketCents = computed(() => props.summary.averageTicketCents)
+const hasAverage = computed(() => typeof averageTicketCents.value === 'number')
 const notDeliveredNote = computed(() => {
   const count = props.counts?.notDelivered ?? 0
   return count > 0 ? `${count} sin entregar` : null
@@ -26,7 +29,8 @@ const debtNote = computed(() => {
 <template>
   <dl
     aria-label="Resumen del cliente"
-    class="grid min-w-0 grid-cols-2 overflow-hidden rounded-xl border border-[var(--hf-border)] bg-[var(--hf-surface)] sm:grid-cols-3"
+    class="grid min-w-0 grid-cols-2 overflow-hidden rounded-xl border border-[var(--hf-border)] bg-[var(--hf-surface)]"
+    :class="hasAverage ? 'sm:grid-cols-4' : 'sm:grid-cols-3'"
   >
     <div class="grid min-w-0 content-start gap-0.5 px-4 py-3">
       <dt class="whitespace-nowrap text-xs font-medium text-[var(--hf-muted)]">Ventas confirmadas</dt>
@@ -46,8 +50,11 @@ const debtNote = computed(() => {
 
     <div
       data-testid="metric-debt"
-      class="col-span-2 grid min-w-0 content-start gap-0.5 border-t border-[var(--hf-border)] px-4 py-3 sm:col-span-1 sm:border-l sm:border-t-0"
-      :class="{ 'bg-[var(--hf-warning-soft)]': hasDebt }"
+      class="grid min-w-0 content-start gap-0.5 border-t border-[var(--hf-border)] px-4 py-3 sm:border-t-0"
+      :class="[
+        hasAverage ? 'sm:border-l' : 'col-span-2 sm:col-span-1 sm:border-l',
+        { 'bg-[var(--hf-warning-soft)]': hasDebt },
+      ]"
     >
       <dt class="whitespace-nowrap text-xs font-medium text-[var(--hf-muted)]">Saldo pendiente</dt>
       <dd
@@ -61,6 +68,18 @@ const debtNote = computed(() => {
           class="block text-xs font-medium"
           :class="hasDebt ? 'text-[var(--hf-warning)]' : 'text-[var(--hf-success)]'"
         >{{ debtNote }}</small>
+      </dd>
+    </div>
+
+    <div
+      v-if="hasAverage"
+      data-testid="metric-average-ticket"
+      class="grid min-w-0 content-start gap-0.5 border-l border-t border-[var(--hf-border)] px-4 py-3 sm:border-t-0"
+    >
+      <dt class="whitespace-nowrap text-xs font-medium text-[var(--hf-muted)]">Ticket promedio</dt>
+      <dd class="min-w-0">
+        <span class="hf-figure block whitespace-nowrap text-base font-semibold text-[var(--hf-heading)]">{{ formatCentsMXN(averageTicketCents ?? 0) }}</span>
+        <small class="block text-xs font-medium text-[var(--hf-muted)]">por venta</small>
       </dd>
     </div>
   </dl>

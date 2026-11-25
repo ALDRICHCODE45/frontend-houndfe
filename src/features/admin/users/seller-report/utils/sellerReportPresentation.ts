@@ -7,8 +7,10 @@ import type { AppBadgeTone } from '@/core/shared/utils/badge.utils'
 import { paymentStatusBadgeMap } from '@/features/POS/sales/utils/saleStatus.utils'
 import {
   SELLER_REPORT_ROW_LIMIT,
+  type SellerReportCustomer,
   type SellerReportFailure,
   type SellerReportPaymentStatus,
+  type SellerReportPreviousPeriod,
 } from '../interfaces/seller-report.types'
 
 /**
@@ -98,6 +100,20 @@ export function formatSellerReportPeriod(from: string, to: string): string | nul
   return `${first.day} – ${last.day} ${month(last)} ${last.year}`
 }
 
+/** Sales history backend data T2 (S7): a calendar day as «3 nov», from its digits. */
+export function formatSellerReportShortDay(date: string): string {
+  const parsed = parseMexicoCityCalendarDate(date)
+  if (!parsed) return date
+  return `${parsed.day} ${SHORT_MONTHS[parsed.month - 1]}`
+}
+
+/** A calendar day as «3 nov 2026», from its digits; an unparseable value is returned untouched. */
+export function formatSellerReportDay(date: string): string {
+  const parsed = parseMexicoCityCalendarDate(date)
+  if (!parsed) return date
+  return `${parsed.day} ${SHORT_MONTHS[parsed.month - 1]} ${parsed.year}`
+}
+
 /** Render authoritative integer cents as MXN through the shared formatter. */
 export function formatSellerReportCents(cents: number): string {
   return formatCentsMXN(cents)
@@ -106,6 +122,77 @@ export function formatSellerReportCents(cents: number): string {
 /** Render an authoritative count with es-MX grouping. */
 export function formatSellerReportCount(count: number): string {
   return countFormatter.format(count)
+}
+
+/** «1 venta» / «3 ventas». */
+export function formatSellerReportSaleCount(count: number): string {
+  return `${countFormatter.format(count)} ${count === 1 ? 'venta' : 'ventas'}`
+}
+
+/** «1 unidad» / «12 unidades». */
+export function formatSellerReportUnits(count: number): string {
+  return `${countFormatter.format(count)} ${count === 1 ? 'unidad' : 'unidades'}`
+}
+
+/** Handoff 28 §5.1: a row without customer is a público-en-general sale. */
+export const SELLER_REPORT_NO_CUSTOMER_LABEL = 'Público en general'
+
+/**
+ * Sales history backend data T2 (S5): the row's customer line. `null` (or a blank
+ * name, as the PDF does) reads «Público en general»; `undefined` means an older
+ * backend sent no customer at all, so there is no line (never a guessed label).
+ */
+export function sellerReportCustomerLabel(
+  customer: SellerReportCustomer | null | undefined,
+): string | null {
+  if (customer === undefined) return null
+  const name = customer?.name.trim() ?? ''
+  return name || SELLER_REPORT_NO_CUSTOMER_LABEL
+}
+
+/** Direction of the net-sales change, for the icon beside the comparison text. */
+export type SellerReportTrend = 'up' | 'down' | 'flat' | 'none'
+
+export interface SellerReportPreviousPeriodComparison {
+  label: string
+  trend: SellerReportTrend
+  /** The previous range (last included day) and its backend figures. */
+  title: string
+}
+
+/**
+ * Sales history backend data T2 (S8): «+12% vs. período anterior» on the net sales
+ * metric. A DISPLAY ratio of two backend figures (`confirmed.summary.netSalesCents`
+ * and `previousPeriod.netSalesCents`), never a sum of rows. A zero previous period
+ * has no percentage (handoff 28 §5.4 guard); a real difference that rounds to 0%
+ * reads «<1%» instead of claiming no change.
+ */
+export function sellerReportPreviousPeriodComparison(
+  currentNetSalesCents: number,
+  previous: SellerReportPreviousPeriod,
+): SellerReportPreviousPeriodComparison {
+  const range =
+    formatSellerReportPeriod(previous.from, previous.to) ?? `${previous.from} – ${previous.to}`
+  const title =
+    `Período anterior: ${range} · ${formatSellerReportSaleCount(previous.saleCount)} · ` +
+    formatSellerReportCents(previous.netSalesCents)
+
+  if (previous.netSalesCents === 0) {
+    return { label: 'Sin ventas en el período anterior', trend: 'none', title }
+  }
+  const difference = currentNetSalesCents - previous.netSalesCents
+  if (difference === 0) {
+    return { label: 'Igual que el período anterior', trend: 'flat', title }
+  }
+
+  const sign = difference > 0 ? '+' : '−'
+  const percent = Math.round((Math.abs(difference) / previous.netSalesCents) * 100)
+  const amount = percent === 0 ? '<1' : countFormatter.format(percent)
+  return {
+    label: `${sign}${amount}% vs. período anterior`,
+    trend: difference > 0 ? 'up' : 'down',
+    title,
+  }
 }
 
 /**

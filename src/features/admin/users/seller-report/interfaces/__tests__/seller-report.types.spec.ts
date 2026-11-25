@@ -638,3 +638,172 @@ describe('parseSellerReportFailure — status + error code mapping', () => {
     expect(parseSellerReportFailure(new ZodError([])).kind).toBe('unknown')
   })
 })
+
+// Sales history backend data T2 (S5-S8, handoff 28 §5): `customer` on rows plus the
+// top-level `topProducts`, `dailyTotals` and `previousPeriod`. Every addition is
+// optional so an older backend still parses (the UI hides the new blocks), but a
+// present addition is held to the same strict, reject-never-repair contract.
+describe('parseSellerSalesReportResponse — handoff 28 additions', () => {
+  /** One entry per local day of [2025-03-01, 2025-04-01): 31 days, zero days included. */
+  function marchDailyTotals(): Array<Record<string, unknown>> {
+    return Array.from({ length: 31 }, (_, index) => {
+      const date = `2025-03-${String(index + 1).padStart(2, '0')}`
+      return date === '2025-03-05'
+        ? { date, saleCount: 1, netSalesCents: 116_000 }
+        : { date, saleCount: 0, netSalesCents: 0 }
+    })
+  }
+
+  function withAdditions(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    const payload = structuredClone(makeReport())
+    confirmedRow(payload).customer = { id: 'c-1', name: 'Ana Pérez' }
+    canceledRow(payload).customer = null
+    payload.topProducts = [
+      {
+        productId: 'p-1',
+        variantId: null,
+        productName: 'Croquetas Adulto 15 kg',
+        variantName: null,
+        quantity: 12,
+        netSalesCents: 345_600,
+      },
+      {
+        productId: 'p-2',
+        variantId: 'v-1',
+        productName: 'Collar ajustable',
+        variantName: 'Chico · Azul',
+        quantity: 7,
+        netSalesCents: 62_300,
+      },
+    ]
+    payload.dailyTotals = marchDailyTotals()
+    // 31-day report → previous period is the 31 days ending at `from`.
+    payload.previousPeriod = {
+      from: '2025-01-29',
+      to: '2025-03-01',
+      saleCount: 21,
+      netSalesCents: 1_520_000,
+    }
+    return { ...payload, ...overrides }
+  }
+
+  function additionsMutated(mutate: (payload: Record<string, unknown>) => void): unknown {
+    const copy = withAdditions()
+    mutate(copy)
+    return copy
+  }
+
+  it('accepts customers, top products, daily totals and the previous period verbatim', () => {
+    const payload = withAdditions()
+
+    const report = parseSellerSalesReportResponse(payload, EXPECTATION)
+
+    expect(report).toEqual(payload)
+    expect(report.confirmed.rows[0]!.customer).toEqual({ id: 'c-1', name: 'Ana Pérez' })
+    expect(report.canceled.rows[0]!.customer).toBeNull()
+    expect(report.topProducts).toHaveLength(2)
+    expect(report.dailyTotals).toHaveLength(31)
+    expect(report.previousPeriod?.netSalesCents).toBe(1_520_000)
+  })
+
+  it('accepts an older backend without any addition and never fills them in', () => {
+    const report = parseSellerSalesReportResponse(makeReport(), EXPECTATION)
+
+    expect('topProducts' in report).toBe(false)
+    expect('dailyTotals' in report).toBe(false)
+    expect('previousPeriod' in report).toBe(false)
+    expect('customer' in report.confirmed.rows[0]!).toBe(false)
+    expect('customer' in report.canceled.rows[0]!).toBe(false)
+  })
+
+  it('keeps the customer to id and name: contact data or a missing id is a contract break', () => {
+    expectRejection(
+      additionsMutated(
+        (p) => (confirmedRow(p).customer = { id: 'c-1', name: 'Ana', phone: '55 1234 5678' }),
+      ),
+    )
+    expectRejection(additionsMutated((p) => (canceledRow(p).customer = { name: 'Ana' })))
+    expectRejection(additionsMutated((p) => (confirmedRow(p).customer = 'Ana Pérez')))
+  })
+
+  it('accepts an empty top-products list and rejects more than five or a malformed product', () => {
+    const product = (index: number) => ({
+      productId: `p-${index}`,
+      variantId: null,
+      productName: `Producto ${index}`,
+      variantName: null,
+      quantity: 1,
+      netSalesCents: 100,
+    })
+
+    expect(() =>
+      parseSellerSalesReportResponse(
+        additionsMutated((p) => (p.topProducts = [])),
+        EXPECTATION,
+      ),
+    ).not.toThrow()
+    expectRejection(additionsMutated((p) => (p.topProducts = [1, 2, 3, 4, 5, 6].map(product))))
+    expectRejection(additionsMutated((p) => (p.topProducts = [{ ...product(1), quantity: 1.5 }])))
+    expectRejection(
+      additionsMutated((p) => (p.topProducts = [{ ...product(1), netSalesCents: -1 }])),
+    )
+    expectRejection(additionsMutated((p) => (p.topProducts = [{ ...product(1), productName: '' }])))
+    expectRejection(additionsMutated((p) => (p.topProducts = [{ ...product(1), costCents: 1 }])))
+  })
+
+  it('rejects daily totals that do not cover every local day of [from,to) exactly once, in order', () => {
+    expectRejection(additionsMutated((p) => (p.dailyTotals = marchDailyTotals().slice(1))))
+    expectRejection(additionsMutated((p) => (p.dailyTotals = marchDailyTotals().slice(0, 30))))
+    expectRejection(
+      additionsMutated(
+        (p) =>
+          (p.dailyTotals = [
+            ...marchDailyTotals(),
+            { date: '2025-04-01', saleCount: 0, netSalesCents: 0 },
+          ]),
+      ),
+    )
+    expectRejection(additionsMutated((p) => (p.dailyTotals = marchDailyTotals().reverse())))
+    expectRejection(
+      additionsMutated((p) => {
+        const days = marchDailyTotals()
+        days[3] = { ...days[3], date: '2025-03-03' }
+        p.dailyTotals = days
+      }),
+    )
+    expectRejection(
+      additionsMutated((p) => {
+        const days = marchDailyTotals()
+        days[0] = { ...days[0], date: '2025-3-01' }
+        p.dailyTotals = days
+      }),
+    )
+  })
+
+  it('rejects a malformed daily entry', () => {
+    const withDay = (day: Record<string, unknown>) =>
+      additionsMutated((p) => {
+        const days = marchDailyTotals()
+        days[0] = { ...days[0], ...day }
+        p.dailyTotals = days
+      })
+
+    expectRejection(withDay({ saleCount: -1 }))
+    expectRejection(withDay({ netSalesCents: 0.5 }))
+    expectRejection(withDay({ collectedCents: 0 }))
+  })
+
+  it('rejects a previous period that does not end at `from` or does not span the same days', () => {
+    const withPrevious = (previous: Record<string, unknown>) =>
+      additionsMutated((p) => {
+        p.previousPeriod = { ...(p.previousPeriod as Record<string, unknown>), ...previous }
+      })
+
+    expectRejection(withPrevious({ to: '2025-02-28' }))
+    expectRejection(withPrevious({ from: '2025-01-30' }))
+    expectRejection(withPrevious({ from: '2025-02-30' }))
+    expectRejection(withPrevious({ saleCount: -1 }))
+    expectRejection(withPrevious({ netSalesCents: '1520000' }))
+    expectRejection(withPrevious({ timeZone: 'America/Mexico_City' }))
+  })
+})

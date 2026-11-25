@@ -88,6 +88,20 @@ vi.mock('@/features/POS/sales/composables/useCustomerSalesHistory', () => ({
   },
 }))
 
+// Handoff 28 §4: the monthly chart has its own specs (…backendData.spec.ts); hidden here.
+vi.mock('@/features/POS/sales/composables/useCustomerSalesMonthly', async () => {
+  const { shallowRef: ref } = await import('vue')
+  return {
+    useCustomerSalesMonthly: () => ({
+      canRead: ref(false),
+      months: ref(undefined),
+      isLoading: ref(false),
+      isError: ref(false),
+      refetch: () => undefined,
+    }),
+  }
+})
+
 const pets = shallowRef<Pet[]>([])
 vi.mock('../../pets/usePets', () => ({
   usePetsList: () => ({ data: pets, refetch: vi.fn(), isLoading: shallowRef(false) }),

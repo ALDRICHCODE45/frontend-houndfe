@@ -80,6 +80,21 @@ function dueLabel(sale: ConfirmedSaleRow): string | null {
   return sale.dueDate && saleOpenDebtCents(sale) > 0 ? formatSaleDueDate(sale.dueDate) : null
 }
 
+/**
+ * Handoff 28 §2.1 (S2): «2 × Croquetas Adulto 15 kg · Collar ajustable (Chico · Azul) +2 más» from the
+ * row's `itemsPreview` / `itemsCount`; `null` on older payloads or a sale without lines.
+ */
+function itemsLabel(sale: ConfirmedSaleRow): string | null {
+  const preview = sale.itemsPreview
+  if (!preview || preview.length === 0) return null
+  const lines = preview.map((item) => {
+    const name = item.variantName ? `${item.productName} (${item.variantName})` : item.productName
+    return item.quantity > 1 ? `${item.quantity} × ${name}` : name
+  })
+  const hidden = (sale.itemsCount ?? preview.length) - preview.length
+  return hidden > 0 ? `${lines.join(' · ')} +${hidden} más` : lines.join(' · ')
+}
+
 function oweLabel(sale: ConfirmedSaleRow): string {
   const due = dueLabel(sale)
   const owe = `Debe ${formatCentsMXN(sale.debtCents)}`
@@ -108,6 +123,12 @@ function oweLabel(sale: ConfirmedSaleRow): string {
           </span>
         </div>
         <span class="text-[13px] text-[var(--hf-muted)]">{{ whenLabel(sale) }}</span>
+        <span
+          v-if="itemsLabel(sale)"
+          data-testid="sale-history-items"
+          class="block min-w-0 truncate text-[13px] text-[var(--hf-ink)]"
+          :title="itemsLabel(sale)!"
+        >{{ itemsLabel(sale) }}</span>
         <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
           <StatusBadge v-bind="salePaymentBadge(sale)" />
           <StatusBadge v-if="saleDeliveryBadge(sale)" v-bind="saleDeliveryBadge(sale)!" />
@@ -187,6 +208,12 @@ function oweLabel(sale: ConfirmedSaleRow): string {
                 :class="{ 'text-[var(--hf-muted)] line-through': isCanceledSale(sale) }"
               >{{ folio(sale) }}</span>
               <span class="block truncate text-[13px] text-[var(--hf-muted)]">{{ whenLabel(sale) }}</span>
+              <span
+                v-if="itemsLabel(sale)"
+                data-testid="sale-history-items"
+                class="block truncate text-[13px] text-[var(--hf-ink)]"
+                :title="itemsLabel(sale)!"
+              >{{ itemsLabel(sale) }}</span>
             </td>
             <td class="min-w-0 px-3 py-2.5">
               <StatusBadge v-bind="salePaymentBadge(sale)" />

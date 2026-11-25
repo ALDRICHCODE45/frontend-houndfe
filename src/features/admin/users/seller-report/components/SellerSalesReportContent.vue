@@ -23,17 +23,27 @@
  * and chips only HIDE backend rows (design 01 notes: no sums, no re-sorting); long
  * periods reveal rows in steps of {@link ROW_STEP}. The seller, period, generation
  * instant and row count live in the drawer header and footer.
+ *
+ * Sales history backend data T2 (S5-S9, handoff 28 §5): the customer under each folio (confirmed
+ * and canceled), «Ventas por día» from `dailyTotals`, «Más vendidos» from `topProducts` (never
+ * part of the totals) and «+12% vs. período anterior» on «Ventas netas», a display ratio of two
+ * backend figures. Each block needs its backend member; an older backend simply hides it.
  */
 import { computed, shallowRef, watch } from 'vue'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import SellerReportSalesList from './SellerReportSalesList.vue'
+import SellerReportDailyChart from './SellerReportDailyChart.vue'
+import SellerReportTopProducts from './SellerReportTopProducts.vue'
 import {
   SELLER_REPORT_PAYMENT_STATUS_LABELS,
   formatSellerReportCents,
   formatSellerReportCount,
   formatSellerReportInstant,
+  sellerReportCustomerLabel,
+  sellerReportPreviousPeriodComparison,
+  type SellerReportTrend,
 } from '../utils/sellerReportPresentation'
 import type {
   SellerReportFailure,
@@ -125,6 +135,32 @@ const hasDebt = computed(() => (props.report?.confirmed.summary.outstandingDebtC
 const listCaption = computed(() =>
   props.report ? `Ventas confirmadas de ${props.report.seller.name}` : 'Ventas confirmadas',
 )
+
+/** S7: only with daily data and at least one confirmed sale (backend count). */
+const dailyTotals = computed(() => {
+  const report = props.report
+  if (!report?.dailyTotals?.length || report.confirmed.summary.saleCount === 0) return null
+  return report.dailyTotals
+})
+/** S6: hidden when empty or absent. */
+const topProducts = computed(() =>
+  props.report?.topProducts?.length ? props.report.topProducts : null,
+)
+/** S8: a display ratio of `confirmed.summary.netSalesCents` and `previousPeriod.netSalesCents`. */
+const previousComparison = computed(() => {
+  const report = props.report
+  if (!report?.previousPeriod) return null
+  return sellerReportPreviousPeriodComparison(
+    report.confirmed.summary.netSalesCents,
+    report.previousPeriod,
+  )
+})
+const TREND_ICONS: Record<SellerReportTrend, string> = {
+  up: 'i-lucide-trending-up',
+  down: 'i-lucide-trending-down',
+  flat: 'i-lucide-equal',
+  none: 'i-lucide-minus',
+}
 
 function clearFilters() {
   search.value = ''
@@ -240,8 +276,25 @@ function showMore() {
           class="grid min-w-0 content-start gap-0.5 border-l border-[var(--hf-border)] px-3 py-3"
         >
           <dt class="truncate text-xs font-medium text-[var(--hf-muted)]">Ventas netas</dt>
-          <dd class="hf-figure truncate text-base font-semibold text-[var(--hf-heading)]">
-            {{ formatSellerReportCents(report.confirmed.summary.netSalesCents) }}
+          <dd class="grid min-w-0 gap-0.5">
+            <span class="hf-figure truncate text-base font-semibold text-[var(--hf-heading)]">
+              {{ formatSellerReportCents(report.confirmed.summary.netSalesCents) }}
+            </span>
+            <span
+              v-if="previousComparison"
+              data-testid="seller-report-previous-period"
+              :data-trend="previousComparison.trend"
+              :title="previousComparison.title"
+              class="flex min-w-0 items-start gap-1 text-xs text-[var(--hf-muted)]"
+            >
+              <UIcon
+                :name="TREND_ICONS[previousComparison.trend]"
+                class="mt-px size-3.5 shrink-0"
+                aria-hidden="true"
+              />
+              <span class="hf-figure min-w-0">{{ previousComparison.label }}</span>
+              <span class="sr-only">. {{ previousComparison.title }}</span>
+            </span>
           </dd>
         </div>
         <div
@@ -336,6 +389,9 @@ function showMore() {
         :aria-busy="isRefreshing || undefined"
         :class="{ 'opacity-60': isRefreshing }"
       >
+        <SellerReportDailyChart v-if="dailyTotals" :days="dailyTotals" :compact="isPhone" />
+        <SellerReportTopProducts v-if="topProducts" :products="topProducts" />
+
         <div
           v-if="allConfirmed.length > 0"
           class="flex min-w-0 flex-col gap-3 md:flex-row md:flex-wrap md:items-center"
@@ -485,6 +541,13 @@ function showMore() {
                   }}</span>
                 </span>
                 <span
+                  v-if="sellerReportCustomerLabel(sale.customer) !== null"
+                  data-testid="seller-report-row-customer"
+                  class="min-w-0 truncate text-[var(--hf-ink)]"
+                  :title="sellerReportCustomerLabel(sale.customer) ?? undefined"
+                  >{{ sellerReportCustomerLabel(sale.customer) }}</span
+                >
+                <span
                   >Confirmada:
                   {{ sale.confirmedAt ? formatSellerReportInstant(sale.confirmedAt) : '—' }}</span
                 >
@@ -527,6 +590,13 @@ function showMore() {
                         }}</span>
                         <StatusBadge label="Cancelada" />
                       </span>
+                      <span
+                        v-if="sellerReportCustomerLabel(sale.customer) !== null"
+                        data-testid="seller-report-row-customer"
+                        class="block truncate text-[13px] text-[var(--hf-ink)]"
+                        :title="sellerReportCustomerLabel(sale.customer) ?? undefined"
+                        >{{ sellerReportCustomerLabel(sale.customer) }}</span
+                      >
                       <span class="block truncate text-[13px]"
                         >Confirmada:
                         {{

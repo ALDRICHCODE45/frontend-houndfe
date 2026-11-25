@@ -7,9 +7,11 @@ import {
   useCustomerSalesHistory,
   type CustomerHistoryStatusFilter,
 } from '@/features/POS/sales/composables/useCustomerSalesHistory'
+import { useCustomerSalesMonthly } from '@/features/POS/sales/composables/useCustomerSalesMonthly'
 import { saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { formatCentsMXN } from '@/features/POS/sales/utils/currency.utils'
+import { formatSaleDueDate } from '@/features/POS/sales/utils/saleDate.utils'
 import type { SaleHistoryChargeRequest } from '@/features/POS/sales/components/history/SaleHistoryRowDetail.vue'
 import DebtPaymentModal from '@/features/POS/sales/components/DebtPaymentModal.vue'
 import { usePetsList } from '../pets/usePets'
@@ -21,6 +23,7 @@ import EmptyState from '@/core/shared/components/EmptyState.vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import SalesHistoryList from './SalesHistoryList.vue'
 import SalesHistoryMetrics from './SalesHistoryMetrics.vue'
+import SalesHistoryMonthlyChart from './SalesHistoryMonthlyChart.vue'
 import SalesHistoryPetFilter from './SalesHistoryPetFilter.vue'
 import SalesHistoryStatusFilter from './SalesHistoryStatusFilter.vue'
 
@@ -40,10 +43,12 @@ const DESKTOP_UI = {
 const STATUS_EMPTY_COPY: Record<Exclude<CustomerHistoryStatusFilter, 'all'>, string> = {
   'with-debt': 'No hay ventas con saldo',
   'not-delivered': 'No hay ventas sin entregar',
+  overdue: 'No hay ventas vencidas',
 }
 const STATUS_LABELS: Record<Exclude<CustomerHistoryStatusFilter, 'all'>, string> = {
   'with-debt': 'Con saldo',
   'not-delivered': 'Sin entregar',
+  overdue: 'Vencidas',
 }
 
 const page = shallowRef(1)
@@ -97,6 +102,15 @@ const history = useCustomerSalesHistory({
 })
 const { response, customerSummary, customerCounts, isLoading, isFetching, isPageTransition, isError, error, refetch } = history
 
+// Handoff 28 §4: the customer's last 12 months (read:Sale; hidden without it or on error).
+const monthly = useCustomerSalesMonthly({
+  customerId: () => props.customer?.id,
+  open: () => props.open,
+  months: 12,
+})
+const { months: monthlyMonths, isError: monthlyFailed } = monthly
+const monthlyCanRead = computed(() => monthly.canRead.value)
+
 const toast = useToast()
 const queryClient = useQueryClient()
 const authStore = useAuthStore()
@@ -143,6 +157,23 @@ const customerHasNoSales = computed(() =>
   (customerSummary.value?.salesCount ?? 0) === 0,
 )
 const hasDebt = computed(() => (customerSummary.value?.outstandingDebtCents ?? 0) > 0)
+/**
+ * Handoff 28 §2.2-§3: «2 vencidas · $610.00 · la más antigua el 10/11/2026» from the customer-wide
+ * counts/summary. The oldest due day is formatted like the row's due date (no time zone shift).
+ */
+const overdueLabel = computed(() => {
+  const count = customerCounts.value?.overdue ?? 0
+  if (count <= 0) return null
+  const summary = customerSummary.value
+  const parts = [`${count} ${count === 1 ? 'vencida' : 'vencidas'}`]
+  if (typeof summary?.overdueDebtCents === 'number') parts.push(formatCentsMXN(summary.overdueDebtCents))
+  if (summary?.oldestOverdueDueDate) {
+    parts.push(`la más antigua el ${formatSaleDueDate(summary.oldestOverdueDueDate)}`)
+  }
+  return parts.join(' · ')
+})
+const showDebtBanner = computed(() => listLayout.value === 'cards' && (hasDebt.value || !!overdueLabel.value))
+const showMonthlyChart = computed(() => monthlyCanRead.value && !customerHasNoSales.value)
 const pendingPaymentsLabel = computed(() => {
   const count = customerCounts.value?.pendingPayments ?? 0
   return count > 0 ? `${count} ${count === 1 ? 'venta' : 'ventas'} por cobrar` : null
@@ -331,7 +362,7 @@ function onChargeSuccess() {
 
         <template v-else-if="response">
           <div
-            v-if="listLayout === 'cards' && hasDebt"
+            v-if="showDebtBanner"
             data-testid="history-debt-banner"
             class="flex min-w-0 items-start gap-3 rounded-xl border border-[color-mix(in_srgb,var(--hf-warning)_35%,var(--hf-warning-soft))] bg-[var(--hf-warning-soft)] px-4 py-3 text-[13px]"
           >
@@ -339,8 +370,25 @@ function onChargeSuccess() {
             <div class="grid min-w-0 flex-1 gap-0.5">
               <b class="hf-figure font-semibold text-[var(--hf-warning)]">Debe {{ formatCentsMXN(customerSummary?.outstandingDebtCents ?? 0) }}</b>
               <span v-if="pendingPaymentsLabel" class="text-[var(--hf-ink)]">{{ pendingPaymentsLabel }}</span>
+              <span
+                v-if="overdueLabel"
+                data-testid="history-debt-banner-overdue"
+                class="hf-figure font-semibold text-[var(--hf-warning)]"
+              >{{ overdueLabel }}</span>
             </div>
             <UButton
+              v-if="overdueLabel && status !== 'overdue'"
+              size="sm"
+              color="neutral"
+              variant="outline"
+              class="min-h-11 shrink-0"
+              aria-label="Ver las ventas vencidas"
+              @click="status = 'overdue'"
+            >
+              Ver vencidas
+            </UButton>
+            <UButton
+              v-else-if="!overdueLabel"
               size="sm"
               color="neutral"
               variant="outline"
@@ -353,6 +401,31 @@ function onChargeSuccess() {
           </div>
 
           <SalesHistoryMetrics v-if="customerSummary" :summary="customerSummary" :counts="customerCounts" />
+
+          <div
+            v-if="listLayout === 'table' && overdueLabel"
+            data-testid="history-overdue-warning"
+            class="flex min-w-0 items-center gap-3 rounded-xl border border-[color-mix(in_srgb,var(--hf-warning)_35%,var(--hf-warning-soft))] bg-[var(--hf-warning-soft)] px-4 py-2 text-[13px]"
+          >
+            <UIcon name="i-lucide-calendar-clock" class="size-4 shrink-0 text-[var(--hf-warning)]" aria-hidden="true" />
+            <span class="hf-figure min-w-0 flex-1 font-semibold text-[var(--hf-warning)]">{{ overdueLabel }}</span>
+            <UButton
+              v-if="status !== 'overdue'"
+              size="sm"
+              color="neutral"
+              variant="outline"
+              class="shrink-0"
+              aria-label="Ver las ventas vencidas"
+              @click="status = 'overdue'"
+            >
+              Ver vencidas
+            </UButton>
+          </div>
+
+          <template v-if="showMonthlyChart">
+            <SalesHistoryMonthlyChart v-if="monthlyMonths" :months="monthlyMonths" />
+            <SalesHistoryMonthlyChart v-else-if="monthlyFailed" failed @retry="monthly.refetch()" />
+          </template>
 
           <template v-if="!customerHasNoSales">
             <div class="flex min-w-0 flex-col gap-3 md:flex-row md:flex-wrap md:items-center">

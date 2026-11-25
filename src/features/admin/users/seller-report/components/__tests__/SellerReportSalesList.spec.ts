@@ -100,3 +100,49 @@ describe('SellerReportSalesList — phone cards', () => {
     expect(wrapper.get('[data-testid="sale-history-detail"]').text()).toContain('Público general')
   })
 })
+
+// Sales history backend data T2 (S5, handoff 28 §5.1): the customer under the folio,
+// without opening the row; «Público en general» for null; no line on an older backend.
+describe('SellerReportSalesList — customer per row', () => {
+  const WITH_CUSTOMERS: Row[] = [
+    { ...ROWS[0]!, customer: { id: 'c-1', name: 'Rodrigo Salinas Cantú' } },
+    { ...ROWS[1]!, customer: null },
+  ]
+
+  function mountList(sales: Row[], layout: 'table' | 'cards') {
+    getByIdMock.mockClear()
+    return mount(SellerReportSalesList, {
+      props: { sales, layout, caption: 'Ventas confirmadas' },
+      global: {
+        plugins: [
+          [
+            VueQueryPlugin,
+            { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+          ],
+        ],
+      },
+    })
+  }
+
+  it.each(['table', 'cards'] as const)('names the customer under the folio (%s)', (layout) => {
+    const wrapper = mountList(WITH_CUSTOMERS, layout)
+    const customers = wrapper.findAll('[data-testid="seller-report-row-customer"]')
+
+    expect(customers.map((node) => node.text())).toEqual([
+      'Rodrigo Salinas Cantú',
+      'Público en general',
+    ])
+    expect(customers[0]!.attributes('title')).toBe('Rodrigo Salinas Cantú')
+    expect(getByIdMock).not.toHaveBeenCalled()
+  })
+
+  it.each(['table', 'cards'] as const)(
+    'shows no customer line when an older backend sends none (%s)',
+    (layout) => {
+      const wrapper = mountList(ROWS, layout)
+
+      expect(wrapper.find('[data-testid="seller-report-row-customer"]').exists()).toBe(false)
+      expect(wrapper.text()).not.toContain('Público en general')
+    },
+  )
+})
