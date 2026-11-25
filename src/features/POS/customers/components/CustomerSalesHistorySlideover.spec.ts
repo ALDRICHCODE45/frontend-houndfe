@@ -43,6 +43,20 @@ vi.mock('@/features/POS/sales/composables/useCustomerSalesHistory', () => ({
   },
 }))
 
+// Handoff 28 §4: the monthly chart has its own specs (…backendData.spec.ts); hidden here.
+vi.mock('@/features/POS/sales/composables/useCustomerSalesMonthly', async () => {
+  const { shallowRef: ref } = await import('vue')
+  return {
+    useCustomerSalesMonthly: () => ({
+      canRead: ref(false),
+      months: ref(undefined),
+      isLoading: ref(false),
+      isError: ref(false),
+      refetch: () => undefined,
+    }),
+  }
+})
+
 // Customer pets T4: a customer without pets — the pet filter stays hidden (see __tests__/…pets.spec.ts).
 vi.mock('../pets/usePets', () => ({
   usePetsList: () => ({ data: shallowRef([]), refetch: vi.fn() }),

@@ -149,6 +149,9 @@ export const saleQueryKeys = {
     ['sales', tenantId, 'customer-history', customerId] as const,
   customerHistory: (tenantId: string, customerId: string, params: CustomerSalesHistoryParams) =>
     ['sales', tenantId, 'customer-history', customerId, params] as const,
+  /** Handoff 28 §4: GET /customers/:customerId/sales-monthly?months=N. */
+  customerMonthly: (tenantId: string, customerId: string, months: number) =>
+    ['sales', tenantId, 'customer-monthly', customerId, months] as const,
 }
 
 // ─── Quotations module query keys (sdd-quotations-crud S1, REQ-QTN-015) ──────

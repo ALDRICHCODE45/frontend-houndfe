@@ -2,6 +2,7 @@
 /**
  * Sales history redesign T1 (L3): «Con saldo» (`paymentStatus=PARTIAL,CREDIT`) and «Sin entregar»
  * (`deliveryStatus=PENDING`) filter the list only; the counts are the customer-wide `counts`.
+ * «Vencidas» (`overdue=true`, handoff 28 §2.3) appears only when `counts.overdue` arrives.
  */
 import { computed } from 'vue'
 import type { SalesListCounts } from '@/features/POS/sales/interfaces/sale.types'
@@ -10,15 +11,18 @@ import type { CustomerHistoryStatusFilter } from '@/features/POS/sales/composabl
 const props = defineProps<{ counts?: SalesListCounts }>()
 const selected = defineModel<CustomerHistoryStatusFilter>({ required: true })
 
-const options = computed(() => [
-  { value: 'all' as const, label: 'Todas', count: 0 },
-  { value: 'with-debt' as const, label: 'Con saldo', count: props.counts?.pendingPayments ?? 0 },
-  {
-    value: 'not-delivered' as const,
-    label: 'Sin entregar',
-    count: props.counts?.notDelivered ?? 0,
-  },
-])
+type Option = { value: CustomerHistoryStatusFilter; label: string; count: number }
+
+const options = computed<Option[]>(() => {
+  const list: Option[] = [
+    { value: 'all', label: 'Todas', count: 0 },
+    { value: 'with-debt', label: 'Con saldo', count: props.counts?.pendingPayments ?? 0 },
+    { value: 'not-delivered', label: 'Sin entregar', count: props.counts?.notDelivered ?? 0 },
+  ]
+  const overdue = props.counts?.overdue
+  if (typeof overdue === 'number') list.push({ value: 'overdue', label: 'Vencidas', count: overdue })
+  return list
+})
 </script>
 
 <template>

@@ -67,6 +67,15 @@ export interface SalesListCounts {
   all: number
   pendingPayments: number
   notDelivered: number
+  /** Handoff 28 §2.2: overdue sales (customer-wide); absent on older payloads → feature hidden. */
+  overdue?: number
+}
+
+/** Handoff 28 §2.1: one line of a GET /sales row's product preview (line snapshot names). */
+export interface SaleRowItemPreview {
+  productName: string
+  variantName: string | null
+  quantity: number
 }
 
 export interface SalesListPagination {
@@ -102,6 +111,13 @@ export interface ConfirmedSaleRow {
   channel?: SaleChannel
   /** BE handoff 24 §1 (T5): `null` unless cancelled; HOLD_EXPIRED is the deadline sweep's cancel. */
   cancelReason?: SaleDetailCancelReason | null
+  /**
+   * Handoff 28 §2.1: at most 3 lines in creation order. Optional so older payloads and fixtures
+   * still type-check; absent → no preview.
+   */
+  itemsPreview?: SaleRowItemPreview[]
+  /** Handoff 28 §2.1: number of lines (not units); «+N más» is `itemsCount - itemsPreview.length`. */
+  itemsCount?: number
 }
 
 /** `POS` rung at the counter, `ONLINE` a chatbot sale. */
@@ -161,6 +177,11 @@ export const SaleListSummarySchema = z.object({
   salesCount: z.number().int(),
   totalSoldCents: z.number().int(),
   outstandingDebtCents: z.number().int(),
+  // Handoff 28 §2.2: optional so an older backend still parses; absent → the feature is hidden.
+  averageTicketCents: z.number().int().optional(),
+  overdueDebtCents: z.number().int().optional(),
+  /** `"YYYY-MM-DD"`, the due day the row shows; format it like the row's due date (§3). */
+  oldestOverdueDueDate: z.string().nullable().optional(),
 })
 
 export type SaleListSummary = z.infer<typeof SaleListSummarySchema>
@@ -188,6 +209,22 @@ export interface ConfirmedSalesListResponse {
 export type CustomerSalesHistoryParams = Required<
   Pick<ListSalesParams, 'page' | 'limit' | 'sortBy' | 'sortOrder'>
 > & { q?: string }
+
+// Handoff 28 §4: GET /customers/:customerId/sales-monthly — exactly `months` entries, oldest first,
+// zero months included; `month` is the local month `"YYYY-MM"`.
+export const CustomerSalesMonthSchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/),
+  saleCount: z.number().int(),
+  totalCents: z.number().int(),
+})
+export type CustomerSalesMonth = z.infer<typeof CustomerSalesMonthSchema>
+
+export const CustomerSalesMonthlyResponseSchema = z.object({
+  customerId: z.string(),
+  timeZone: z.string(),
+  months: z.array(CustomerSalesMonthSchema),
+})
+export type CustomerSalesMonthlyResponse = z.infer<typeof CustomerSalesMonthlyResponseSchema>
 
 export type SaleDetailPaymentMethod =
   (typeof SALE_DETAIL_PAYMENT_METHOD)[keyof typeof SALE_DETAIL_PAYMENT_METHOD] // UPPERCASE — distinct from PaymentMethod (LOWERCASE). Two different backend contracts.
@@ -447,6 +484,8 @@ export interface ListSalesParams {
   paymentMethodIncludeNull?: boolean
   cashierUserId?: string
   customerId?: string[]
+  /** Handoff 28 §2.3: only overdue sales; sent as the string "true" only when set. */
+  overdue?: boolean
 }
 
 export interface LegacyChargePayload {

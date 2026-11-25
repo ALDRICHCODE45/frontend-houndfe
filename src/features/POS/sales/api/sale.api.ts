@@ -36,8 +36,9 @@ import type {
   UpdatedPaymentReference,
   ActivePaymentMethodProjection,
   SetSaleItemPetPayload,
+  CustomerSalesMonthlyResponse,
 } from '../interfaces/sale.types'
-import { SaleCommentError } from '../interfaces/sale.types'
+import { CustomerSalesMonthlyResponseSchema, SaleCommentError } from '../interfaces/sale.types'
 import { parseSaleDetail } from '../interfaces/sale-detail.schema'
 import {
   parsePendingRefundsResponse,
@@ -358,11 +359,31 @@ export const saleApi = {
     params: ListSalesParams,
     options: { signal?: AbortSignal } = {},
   ): Promise<ConfirmedSalesListResponse> {
+    // Handoff 28 §2.3: `overdue` only accepts the exact strings "true"/"false"; it travels only
+    // when set (the serializer writes `true` as "true"), so lists without it stay byte-identical.
+    let wireParams: ListSalesParams = params
+    if ('overdue' in params && params.overdue !== true) {
+      const { overdue: _omitted, ...rest } = params
+      wireParams = rest
+    }
     const { data } = await http.get<ConfirmedSalesListResponse>('/sales', {
-      params,
+      params: wireParams,
       signal: options.signal,
     })
     return data
+  },
+
+  // Handoff 28 §4: monthly totals of one customer (`read:Sale`), validated before the chart.
+  async getCustomerSalesMonthly(
+    customerId: string,
+    months: number,
+    options: { signal?: AbortSignal } = {},
+  ): Promise<CustomerSalesMonthlyResponse> {
+    const { data } = await http.get<unknown>(
+      `/customers/${encodeURIComponent(customerId)}/sales-monthly`,
+      { params: { months }, signal: options.signal },
+    )
+    return CustomerSalesMonthlyResponseSchema.parse(data)
   },
 
   // ODD dashboard-operational-insights OI-5B1: queue of PENDING refund
