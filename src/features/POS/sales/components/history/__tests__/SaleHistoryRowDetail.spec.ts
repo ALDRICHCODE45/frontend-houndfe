@@ -145,6 +145,35 @@ describe('SaleHistoryRowDetail', () => {
     expect(data).toContain('No entregada')
   })
 
+  it('names the customer instead of the seller in the seller report context (party="customer")', async () => {
+    const wrapper = mountDetail({ party: 'customer' })
+    await flushPromises()
+    const data = wrapper.get('[data-testid="sale-history-detail-data"]')
+    const terms = data.findAll('dt').map((term) => term.text())
+    expect(terms[0]).toBe('Cliente')
+    expect(terms).not.toContain('Vendedor')
+    expect(data.text()).toContain('Ana')
+    expect(data.text()).not.toContain('Karla Méndez')
+    expect(data.text()).toContain('Jorge Ríos')
+  })
+
+  it('says «Público general» for a sale without a customer in the seller report context', async () => {
+    getByIdMock.mockResolvedValue(detail({ customer: null }))
+    const wrapper = mountDetail({ party: 'customer', saleId: 'sale-walk-in' })
+    await flushPromises()
+    expect(wrapper.get('[data-testid="sale-history-detail-data"]').text()).toContain(
+      'Público general',
+    )
+  })
+
+  it('keeps «Vendedor» first by default (customer history)', async () => {
+    const wrapper = mountDetail()
+    await flushPromises()
+    const terms = wrapper.get('[data-testid="sale-history-detail-data"]').findAll('dt')
+    expect(terms[0]!.text()).toBe('Vendedor')
+    expect(terms.map((term) => term.text())).not.toContain('Cliente')
+  })
+
   it('lists the products with variant, quantity, subtotal and «Para: <mascota>»', async () => {
     const wrapper = mountDetail()
     await flushPromises()

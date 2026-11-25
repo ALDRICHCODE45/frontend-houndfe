@@ -384,3 +384,56 @@ describe('SellerReportDateRangeFilter — accessibility, targets and states', ()
     expect(mountFilter({ disabled: true }).find(root).attributes('aria-busy')).toBeUndefined()
   })
 })
+
+describe('SellerReportDateRangeFilter — period button (sales history redesign T2)', () => {
+  const TOGGLE = '[data-testid="seller-report-period-toggle"]'
+  const PANEL = '[data-testid="seller-report-filter-boundaries-panel"]'
+  const panelShown = (wrapper: ReturnType<typeof mountFilter>) =>
+    (wrapper.get(PANEL).element as HTMLElement).style.display !== 'none'
+
+  it('shows the last included day while the exclusive `to` prop is untouched', () => {
+    const wrapper = mountFilter({ from: '2026-11-01', to: '2026-12-01' })
+
+    expect(wrapper.get(TOGGLE).text()).toContain('1 – 30 nov 2026')
+    expect(wrapper.get(TOGGLE).attributes('aria-label')).toContain('ambos días incluidos')
+    expect(wrapper.emitted('update:to')).toBeUndefined()
+  })
+
+  it('keeps the date fields folded until the period button opens them, at 44px', async () => {
+    const wrapper = mountFilter()
+    const toggle = wrapper.get(TOGGLE)
+
+    expect(toggle.classes()).toContain('min-h-11')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(toggle.attributes('aria-controls')).toBe(wrapper.get(PANEL).attributes('id'))
+    expect(panelShown(wrapper)).toBe(false)
+
+    await toggle.trigger('click')
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    expect(panelShown(wrapper)).toBe(true)
+
+    await toggle.trigger('click')
+    expect(panelShown(wrapper)).toBe(false)
+  })
+
+  it('opens the date fields by itself while a validation message is shown', () => {
+    const wrapper = mountFilter({ from: '2025-04-01', to: '2025-03-01', validationMessage: 'Mal' })
+
+    expect(panelShown(wrapper)).toBe(true)
+    expect(wrapper.get(TOGGLE).text()).toContain('Periodo no válido')
+  })
+
+  it('opens the date fields from the caller through the exposed openPeriod()', async () => {
+    const wrapper = mountFilter()
+
+    ;(wrapper.vm as unknown as { openPeriod: () => void }).openPeriod()
+    await nextTick()
+
+    expect(panelShown(wrapper)).toBe(true)
+  })
+
+  it('disables the period button while loading or disabled', () => {
+    expect(mountFilter({ loading: true }).get(TOGGLE).attributes('disabled')).toBeDefined()
+    expect(mountFilter({ disabled: true }).get(TOGGLE).attributes('disabled')).toBeDefined()
+  })
+})

@@ -21,9 +21,10 @@ export interface SaleHistoryChargeRequest {
   debtCents: number
 }
 
-const props = withDefaults(defineProps<{ saleId: string; allowCharge?: boolean }>(), {
-  allowCharge: false,
-})
+const props = withDefaults(
+  defineProps<{ saleId: string; allowCharge?: boolean; party?: 'seller' | 'customer' }>(),
+  { allowCharge: false, party: 'seller' },
+)
 const emit = defineEmits<{ charge: [request: SaleHistoryChargeRequest] }>()
 
 const router = useRouter()
@@ -36,6 +37,11 @@ const paymentMethods = computed(() => {
   )
   return labels.length ? [...new Set(labels)].join(' · ') : '—'
 })
+const partyLine = computed(() =>
+  props.party === 'customer'
+    ? { term: 'Cliente', name: sale.value?.customer?.name ?? 'Público general' }
+    : { term: 'Vendedor', name: sale.value?.seller?.name ?? '—' },
+)
 const delivery = computed(() => (sale.value ? saleDeliveryBadge(sale.value)?.label : undefined))
 const canCharge = computed(
   () =>
@@ -94,9 +100,9 @@ function charge() {
             data-testid="sale-history-detail-data"
             class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1"
           >
-            <dt class="text-[var(--hf-muted)]">Vendedor</dt>
+            <dt class="text-[var(--hf-muted)]">{{ partyLine.term }}</dt>
             <dd class="break-words font-medium text-[var(--hf-ink)]">
-              {{ sale.seller?.name ?? '—' }}
+              {{ partyLine.name }}
             </dd>
             <dt class="text-[var(--hf-muted)]">Cajero</dt>
             <dd class="break-words font-medium text-[var(--hf-ink)]">{{ sale.cashier.name }}</dd>
