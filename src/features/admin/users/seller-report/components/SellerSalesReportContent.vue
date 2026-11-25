@@ -27,6 +27,7 @@
 import { computed, shallowRef, watch } from 'vue'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import SellerReportSalesList from './SellerReportSalesList.vue'
 import {
   SELLER_REPORT_PAYMENT_STATUS_LABELS,
@@ -488,6 +489,7 @@ function showMore() {
                   {{ sale.confirmedAt ? formatSellerReportInstant(sale.confirmedAt) : '—' }}</span
                 >
                 <span>Cancelada: {{ formatSellerReportInstant(sale.canceledAt) }}</span>
+                <span class="mt-1 flex"><StatusBadge label="Cancelada" /></span>
               </li>
             </ul>
             <div
@@ -519,7 +521,12 @@ function showMore() {
                     class="text-[var(--hf-muted)]"
                   >
                     <td class="min-w-0 px-3 py-2.5">
-                      <span class="block truncate font-semibold">{{ sale.folio ?? 'Sin folio' }}</span>
+                      <span class="flex min-w-0 items-center gap-2">
+                        <span class="min-w-0 truncate font-semibold">{{
+                          sale.folio ?? 'Sin folio'
+                        }}</span>
+                        <StatusBadge label="Cancelada" />
+                      </span>
                       <span class="block truncate text-[13px]"
                         >Confirmada:
                         {{

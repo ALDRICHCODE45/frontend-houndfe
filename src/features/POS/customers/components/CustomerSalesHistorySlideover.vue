@@ -254,7 +254,7 @@ function onChargeSuccess() {
           </p>
           <p
             data-testid="history-customer-name"
-            class="break-words text-[17px] font-semibold leading-tight tracking-[-0.02em] text-[var(--hf-heading)] sm:text-[22px]"
+            class="break-words text-[17px] font-semibold leading-tight text-[var(--hf-heading)] sm:text-[22px]"
           >
             {{ customer?.fullName }}
           </p>

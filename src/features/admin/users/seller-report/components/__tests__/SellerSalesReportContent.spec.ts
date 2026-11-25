@@ -15,10 +15,19 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import SellerSalesReportContent from '@/features/admin/users/seller-report/components/SellerSalesReportContent.vue'
 import type { SellerSalesReport } from '../../interfaces/seller-report.types'
 
-const { getByIdMock, routerPush } = vi.hoisted(() => ({
+const { getByIdMock, routerPush, phoneWidth } = vi.hoisted(() => ({
   getByIdMock: vi.fn(),
   routerPush: vi.fn(async () => undefined),
+  phoneWidth: { value: false },
 }))
+vi.mock('@vueuse/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@vueuse/core')>()
+  const { computed } = await import('vue')
+  return {
+    ...actual,
+    useBreakpoints: () => ({ smaller: () => computed(() => phoneWidth.value) }),
+  }
+})
 vi.mock('@/features/POS/sales/api/sale.api', () => ({ saleApi: { getById: getByIdMock } }))
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => ({ currentTenantId: 'tenant-1', userCan: () => true }),
@@ -222,6 +231,26 @@ describe('SellerSalesReportContent — loaded report', () => {
     expect(text).toContain('No se suman a las ventas confirmadas')
     // The canceled-only amount must appear ONLY in the canceled section.
     expect(wrapper.find('[data-testid="seller-report-metrics"]').text()).not.toContain('$700.00')
+  })
+
+  it('labels each canceled sale with a neutral «Cancelada» StatusBadge in the table and the cards', () => {
+    const table = canceledRows(mountContent())
+    const tableBadges = table.flatMap((row) => row.findAll('.hf-status-badge'))
+    expect(tableBadges.map((badge) => [badge.text(), badge.attributes('data-tone')])).toEqual([
+      ['Cancelada', 'neutral'],
+    ])
+
+    phoneWidth.value = true
+    try {
+      const cards = mountContent().findAll('[data-testid="seller-report-canceled-card"]')
+      expect(cards).toHaveLength(1)
+      const cardBadges = cards.flatMap((card) => card.findAll('.hf-status-badge'))
+      expect(cardBadges.map((badge) => [badge.text(), badge.attributes('data-tone')])).toEqual([
+        ['Cancelada', 'neutral'],
+      ])
+    } finally {
+      phoneWidth.value = false
+    }
   })
 
   it('renders one period-without-sales state with real zeros and a wider-period shortcut', async () => {
