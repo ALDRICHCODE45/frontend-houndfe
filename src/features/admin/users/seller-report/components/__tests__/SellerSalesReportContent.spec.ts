@@ -202,7 +202,7 @@ describe('SellerSalesReportContent — loaded report', () => {
     expect(rows).toHaveLength(2)
     expect(rows[0]?.attributes('data-row-id')).toBe('a1111111-1111-4111-8111-111111111111')
     expect(rows[0]?.text()).toContain('F-0001')
-    expect(rows[0]?.text()).toContain('Parcial')
+    expect(rows[0]?.text()).toContain('Impaga')
     expect(rows[0]?.text()).toContain('$1,160.00')
     expect(rows[0]?.text()).toContain('$160.00')
     expect(rows[0]?.text()).toContain('$1,000.00')
@@ -335,7 +335,7 @@ describe('SellerSalesReportContent — design system', () => {
       .map((badge) => [badge.text(), badge.attributes('data-tone')])
 
     expect(badges).toEqual([
-      ['Parcial', 'warning'],
+      ['Impaga', 'warning'],
       ['Pagada', 'success'],
     ])
   })
@@ -485,7 +485,7 @@ describe('SellerSalesReportContent — browser filters (no sums, no re-sorting)'
     const wrapper = mountContent()
     const chips = wrapper.findAll('[data-testid="seller-report-status-chip"]')
 
-    expect(chips.map((chip) => chip.text())).toEqual(['Todas', 'Pagada', 'Parcial', 'A crédito'])
+    expect(chips.map((chip) => chip.text())).toEqual(['Todas', 'Pagada', 'Impaga', 'Deuda'])
     expect(chips.every((chip) => chip.classes().includes('min-h-11'))).toBe(true)
 
     await chips[2]!.trigger('click')

@@ -4,6 +4,7 @@ import {
 } from '@/core/shared/utils/mexicoCityCalendar'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import type { AppBadgeTone } from '@/core/shared/utils/badge.utils'
+import { paymentStatusBadgeMap } from '@/features/POS/sales/utils/saleStatus.utils'
 import {
   SELLER_REPORT_ROW_LIMIT,
   type SellerReportFailure,
@@ -107,18 +108,22 @@ export function formatSellerReportCount(count: number): string {
   return countFormatter.format(count)
 }
 
-/** Spanish labels for the authoritative payment states. */
+/**
+ * Spanish labels for the authoritative payment states — the same words and
+ * tones as the rest of the POS (Ventas list, sale detail, customer history),
+ * taken from the shared payment badge map so the screens never drift apart.
+ */
 export const SELLER_REPORT_PAYMENT_STATUS_LABELS: Record<SellerReportPaymentStatus, string> = {
-  PAID: 'Pagada',
-  PARTIAL: 'Parcial',
-  CREDIT: 'A crédito',
+  PAID: paymentStatusBadgeMap.PAID!.label,
+  PARTIAL: paymentStatusBadgeMap.PARTIAL!.label,
+  CREDIT: paymentStatusBadgeMap.CREDIT!.label,
 }
 
-/** Badge tones for the authoritative payment states. */
+/** Badge tones for the authoritative payment states (shared badge map). */
 export const SELLER_REPORT_PAYMENT_STATUS_TONES: Record<SellerReportPaymentStatus, AppBadgeTone> = {
-  PAID: 'success',
-  PARTIAL: 'warning',
-  CREDIT: 'info',
+  PAID: paymentStatusBadgeMap.PAID!.color,
+  PARTIAL: paymentStatusBadgeMap.PARTIAL!.color,
+  CREDIT: paymentStatusBadgeMap.CREDIT!.color,
 }
 
 const ROW_LIMIT_MESSAGE =

@@ -71,8 +71,8 @@ describe('payment status presentation', () => {
   it('labels every authoritative status in Spanish', () => {
     expect(SELLER_REPORT_PAYMENT_STATUS_LABELS).toEqual({
       PAID: 'Pagada',
-      PARTIAL: 'Parcial',
-      CREDIT: 'A crédito',
+      PARTIAL: 'Impaga',
+      CREDIT: 'Deuda',
     })
   })
 
@@ -80,7 +80,7 @@ describe('payment status presentation', () => {
     expect(SELLER_REPORT_PAYMENT_STATUS_TONES).toEqual({
       PAID: 'success',
       PARTIAL: 'warning',
-      CREDIT: 'info',
+      CREDIT: 'error',
     })
   })
 })
