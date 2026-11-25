@@ -26,3 +26,5 @@ Follow-up of `odd/tasks/sales-history-redesign.md`: the items the design tagged 
 - L5 RDD assess: T1 6d607bfc medium (1,527 lines) and T2 032cebf5 medium (1,030 lines), reviewDue false (under_budget). Risk: none (additive read-only fields; no permissions, money writes or shared contracts changed).
 - L6 Full checks: type-check 0, eslint 0, full suite 1106 files / 18533 tests green, build OK. Waiting for the owner's browser check against :3003.
 - L7 Owner (2026-11-25) after the browser check: «perfecto hermano, merge y yo hago push.» Merged to local main (owner pushes).
+- L8 Owner asked (2026-11-25) «preguntale al backend si ya tiene el punto 2» (statement PDF). Backend built it with the owner's decisions and sent handoff 29 (odd/handoff/29-customer-statement-pdf.md); dev :3003 serves it.
+- [ ] T4 S1 Handoff 29: «Descargar estado de cuenta» in the customer history — period picker (default this month, half-open [from, to) with the last included day shown, 1–366 days), read:Sale gating, blob download with the server filename, errors (400 range, 404 CUSTOMER_NOT_FOUND, 500 PDF_GENERATION_FAILED) — worker
