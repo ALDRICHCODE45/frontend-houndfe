@@ -531,3 +531,215 @@ describe('SellerSalesReportContent — browser filters (no sums, no re-sorting)'
     expect(wrapper.find('[data-testid="seller-report-show-more"]').exists()).toBe(false)
   })
 })
+
+// Sales history backend data T2 (S5-S9, handoff 28 §5): customer per canceled row,
+// «Más vendidos», the per-day chart and the previous-period comparison. Every block is
+// backend data rendered as returned; an older backend (no addition) hides the block.
+describe('SellerSalesReportContent — handoff 28 additions', () => {
+  /** 31 local days of [2025-03-01, 2025-04-01), two with sales, the rest zero. */
+  function marchDailyTotals() {
+    return Array.from({ length: 31 }, (_, index) => {
+      const date = `2025-03-${String(index + 1).padStart(2, '0')}`
+      if (date === '2025-03-05') return { date, saleCount: 1, netSalesCents: 116_000 }
+      if (date === '2025-03-06') return { date, saleCount: 1, netSalesCents: 58_000 }
+      return { date, saleCount: 0, netSalesCents: 0 }
+    })
+  }
+
+  const TOP_PRODUCTS = [
+    {
+      productId: 'p-1',
+      variantId: null,
+      productName: 'Croquetas Adulto 15 kg',
+      variantName: null,
+      quantity: 12,
+      netSalesCents: 345_600,
+    },
+    {
+      productId: 'p-2',
+      variantId: 'v-1',
+      productName: 'Collar ajustable',
+      variantName: 'Chico · Azul',
+      quantity: 1,
+      netSalesCents: 62_300,
+    },
+  ]
+
+  function reportWithAdditions(overrides: Partial<SellerSalesReport> = {}): SellerSalesReport {
+    const base = makeReport()
+    return {
+      ...base,
+      canceled: {
+        ...base.canceled,
+        rows: [{ ...base.canceled.rows[0]!, customer: { id: 'c-9', name: 'Lucía Gómez' } }],
+      },
+      topProducts: TOP_PRODUCTS,
+      dailyTotals: marchDailyTotals(),
+      previousPeriod: { from: '2025-01-29', to: '2025-03-01', saleCount: 4, netSalesCents: 892_857 },
+      ...overrides,
+    }
+  }
+
+  function withPhone<T>(run: () => T): T {
+    phoneWidth.value = true
+    try {
+      return run()
+    } finally {
+      phoneWidth.value = false
+    }
+  }
+
+  it('names the customer of each canceled sale in the table and the cards (S5)', () => {
+    const table = mountContent({ report: reportWithAdditions() })
+    expect(canceledRows(table)[0]!.get('[data-testid="seller-report-row-customer"]').text()).toBe(
+      'Lucía Gómez',
+    )
+
+    const nullCustomer = reportWithAdditions()
+    nullCustomer.canceled.rows = [{ ...nullCustomer.canceled.rows[0]!, customer: null }]
+    withPhone(() => {
+      const card = mountContent({ report: nullCustomer }).get(
+        '[data-testid="seller-report-canceled-card"]',
+      )
+      expect(card.get('[data-testid="seller-report-row-customer"]').text()).toBe(
+        'Público en general',
+      )
+    })
+  })
+
+  it('lists «Más vendidos» as returned, with units and the before-sale-discounts caption (S6)', () => {
+    const wrapper = mountContent({ report: reportWithAdditions() })
+    const block = wrapper.get('[data-testid="seller-report-top-products"]')
+    const items = block.findAll('[data-testid="seller-report-top-product"]')
+
+    expect(block.get('h3').text()).toBe('Más vendidos')
+    expect(block.text()).toContain('antes de descuentos de la venta')
+    expect(items).toHaveLength(2)
+    expect(items[0]!.text()).toContain('Croquetas Adulto 15 kg')
+    expect(items[0]!.text()).toContain('12 unidades')
+    expect(items[0]!.text()).toContain('$3,456.00')
+    expect(items[1]!.text()).toContain('Collar ajustable')
+    expect(items[1]!.text()).toContain('Chico · Azul')
+    expect(items[1]!.text()).toContain('1 unidad')
+    expect(items[1]!.text()).toContain('$623.00')
+    // Never part of the seller's totals: the metrics stay the backend summary.
+    expect(metric(wrapper, 'net-sales')).toContain('$9,999.99')
+    expect(block.text()).not.toMatch(/total/i)
+    expect(wrapper.text()).not.toContain('$4,079.00')
+  })
+
+  it('hides «Más vendidos» when the list is empty or absent', () => {
+    expect(
+      mountContent({ report: reportWithAdditions({ topProducts: [] }) })
+        .find('[data-testid="seller-report-top-products"]')
+        .exists(),
+    ).toBe(false)
+    expect(mountContent().find('[data-testid="seller-report-top-products"]').exists()).toBe(false)
+  })
+
+  it('draws one labelled bar per day, zero days included (S7)', () => {
+    const wrapper = mountContent({ report: reportWithAdditions() })
+    const chart = wrapper.get('[data-testid="seller-report-daily-chart"]')
+    const bars = chart.findAll('[data-testid="seller-report-daily-bar"]')
+
+    expect(chart.get('h3').text()).toBe('Ventas por día')
+    expect(bars).toHaveLength(31)
+    expect(bars[0]!.text()).toContain('1 mar 2025: 0 ventas · $0.00')
+    expect(bars[4]!.text()).toContain('5 mar 2025: 1 venta · $1,160.00')
+    expect(bars[4]!.attributes('title')).toBe('5 mar 2025: 1 venta · $1,160.00')
+    // Heights are a display scale against the highest day; a zero day keeps a baseline.
+    expect(bars[4]!.attributes('data-height')).toBe('100')
+    expect(bars[5]!.attributes('data-height')).toBe('50')
+    expect(bars[0]!.attributes('data-height')).toBe('0')
+    expect(chart.text()).toContain('1 mar')
+    expect(chart.text()).toContain('31 mar')
+  })
+
+  it('hides the chart when there is no confirmed sale in the period or no daily data', () => {
+    const noSales = reportWithAdditions({
+      rowCount: 1,
+      confirmed: {
+        dateBasis: 'confirmedAt',
+        summary: {
+          saleCount: 0,
+          netSalesCents: 0,
+          collectedCents: 0,
+          outstandingDebtCents: 0,
+          averageTicketCents: 0,
+        },
+        rows: [],
+      },
+      dailyTotals: marchDailyTotals().map((day) => ({ ...day, saleCount: 0, netSalesCents: 0 })),
+      topProducts: [],
+    })
+
+    expect(
+      mountContent({ report: noSales }).find('[data-testid="seller-report-daily-chart"]').exists(),
+    ).toBe(false)
+    expect(mountContent().find('[data-testid="seller-report-daily-chart"]').exists()).toBe(false)
+  })
+
+  it('compares net sales with the previous period on the metric, with the range in the title (S8)', () => {
+    const wrapper = mountContent({ report: reportWithAdditions() })
+    const comparison = wrapper.get('[data-testid="seller-report-previous-period"]')
+
+    // 999,999 vs 892,857 → +12%: a display ratio of the two backend figures.
+    expect(comparison.text()).toContain('+12% vs. período anterior')
+    expect(comparison.attributes('title')).toBe(
+      'Período anterior: 29 ene – 28 feb 2025 · 4 ventas · $8,928.57',
+    )
+    expect(
+      wrapper.get('[data-testid="seller-report-metric-net-sales"]').find(
+        '[data-testid="seller-report-previous-period"]',
+      ).exists(),
+    ).toBe(true)
+  })
+
+  it('says «Sin ventas en el período anterior» instead of a percentage when it was zero', () => {
+    const wrapper = mountContent({
+      report: reportWithAdditions({
+        previousPeriod: { from: '2025-01-29', to: '2025-03-01', saleCount: 0, netSalesCents: 0 },
+      }),
+    })
+
+    const comparison = wrapper.get('[data-testid="seller-report-previous-period"]')
+    expect(comparison.text()).toContain('Sin ventas en el período anterior')
+    expect(comparison.text()).not.toContain('%')
+  })
+
+  it('keeps the report as before on an older backend: no comparison, chart, list or customer line', () => {
+    const wrapper = mountContent()
+
+    expect(wrapper.find('[data-testid="seller-report-previous-period"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="seller-report-daily-chart"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="seller-report-top-products"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="seller-report-row-customer"]').exists()).toBe(false)
+    expect(confirmedRows(wrapper)).toHaveLength(2)
+  })
+
+  it('keeps the chart in its own box at phone width, with a hint when the days do not fit', () => {
+    const days = Array.from({ length: 92 }, (_, index) => ({
+      date: `2025-${index < 31 ? '03' : index < 61 ? '04' : '05'}-${String(
+        index < 31 ? index + 1 : index < 61 ? index - 30 : index - 60,
+      ).padStart(2, '0')}`,
+      saleCount: index === 4 ? 1 : 0,
+      netSalesCents: index === 4 ? 116_000 : 0,
+    }))
+    const long = reportWithAdditions({ to: '2025-06-01', dailyTotals: days })
+
+    withPhone(() => {
+      const chart = mountContent({ report: long }).get('[data-testid="seller-report-daily-chart"]')
+      const scroller = chart.get('[data-testid="seller-report-daily-scroller"]')
+      expect(scroller.classes()).toContain('overflow-x-auto')
+      expect(scroller.attributes('tabindex')).toBe('0')
+      expect(chart.get('[data-testid="seller-report-daily-hint"]').text()).toContain('Desliza')
+    })
+    // A month fits at 390: no hint.
+    withPhone(() => {
+      const chart = mountContent({ report: reportWithAdditions() }).get(
+        '[data-testid="seller-report-daily-chart"]',
+      )
+      expect(chart.find('[data-testid="seller-report-daily-hint"]').exists()).toBe(false)
+    })
+  })
+})

@@ -7,6 +7,10 @@
  *
  * Every figure and label is the backend row as returned (S4): no sums, no re-sorting; the payment
  * labels are this screen's current ones (S5).
+ *
+ * Sales history backend data T2 (S5, handoff 28 §5.1): the customer sits under the folio, so a
+ * row names its buyer without opening it; «Público en general» for `null`, no line when an older
+ * backend sends no `customer`.
  */
 import { shallowRef, useId } from 'vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
@@ -16,6 +20,7 @@ import {
   SELLER_REPORT_PAYMENT_STATUS_TONES,
   formatSellerReportCents,
   formatSellerReportInstant,
+  sellerReportCustomerLabel,
 } from '../utils/sellerReportPresentation'
 import type { SellerSalesReport } from '../interfaces/seller-report.types'
 
@@ -51,6 +56,10 @@ function folio(sale: ConfirmedRow): string {
   return sale.folio ?? 'Sin folio'
 }
 
+function customer(sale: ConfirmedRow): string | null {
+  return sellerReportCustomerLabel(sale.customer)
+}
+
 function badge(sale: ConfirmedRow) {
   return {
     label: SELLER_REPORT_PAYMENT_STATUS_LABELS[sale.paymentStatus],
@@ -76,6 +85,13 @@ function badge(sale: ConfirmedRow) {
           }}</span>
           <StatusBadge v-bind="badge(sale)" />
         </div>
+        <span
+          v-if="customer(sale) !== null"
+          data-testid="seller-report-row-customer"
+          class="min-w-0 truncate text-sm text-[var(--hf-ink)]"
+          :title="customer(sale) ?? undefined"
+          >{{ customer(sale) }}</span
+        >
         <span class="text-[13px] text-[var(--hf-muted)]">{{
           formatSellerReportInstant(sale.confirmedAt)
         }}</span>
@@ -182,6 +198,13 @@ function badge(sale: ConfirmedRow) {
               <span class="block truncate font-semibold text-[var(--hf-heading)]">{{
                 folio(sale)
               }}</span>
+              <span
+                v-if="customer(sale) !== null"
+                data-testid="seller-report-row-customer"
+                class="block truncate text-[13px] text-[var(--hf-ink)]"
+                :title="customer(sale) ?? undefined"
+                >{{ customer(sale) }}</span
+              >
               <span
                 class="block truncate text-[13px] text-[var(--hf-muted)]"
                 title="Fecha de confirmación"

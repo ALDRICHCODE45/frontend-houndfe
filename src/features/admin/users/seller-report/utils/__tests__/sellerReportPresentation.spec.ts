@@ -177,3 +177,87 @@ describe('formatSellerReportPeriod — last included day (sales history redesign
     expect(formatSellerReportPeriod('2026-02-30', '2026-03-05')).toBeNull()
   })
 })
+
+// Sales history backend data T2 (S5-S8): display helpers for the handoff 28 additions.
+import {
+  SELLER_REPORT_NO_CUSTOMER_LABEL,
+  formatSellerReportDay,
+  formatSellerReportSaleCount,
+  formatSellerReportShortDay,
+  formatSellerReportUnits,
+  sellerReportCustomerLabel,
+  sellerReportPreviousPeriodComparison,
+} from '../sellerReportPresentation'
+
+describe('sellerReportCustomerLabel — S5', () => {
+  it('shows the backend name, «Público en general» for null or blank, and nothing for an older backend', () => {
+    expect(SELLER_REPORT_NO_CUSTOMER_LABEL).toBe('Público en general')
+    expect(sellerReportCustomerLabel({ id: 'c-1', name: 'Ana Pérez' })).toBe('Ana Pérez')
+    expect(sellerReportCustomerLabel(null)).toBe('Público en general')
+    expect(sellerReportCustomerLabel({ id: 'c-1', name: '   ' })).toBe('Público en general')
+    expect(sellerReportCustomerLabel(undefined)).toBeNull()
+  })
+})
+
+describe('day, count and unit labels — S6/S7', () => {
+  it('formats a calendar day from its digits, never through a Date', () => {
+    expect(formatSellerReportShortDay('2026-11-03')).toBe('3 nov')
+    expect(formatSellerReportDay('2026-11-03')).toBe('3 nov 2026')
+    expect(formatSellerReportDay('2026-02-30')).toBe('2026-02-30')
+  })
+
+  it('pluralizes sales and units with es-MX grouping', () => {
+    expect(formatSellerReportSaleCount(0)).toBe('0 ventas')
+    expect(formatSellerReportSaleCount(1)).toBe('1 venta')
+    expect(formatSellerReportSaleCount(1200)).toBe('1,200 ventas')
+    expect(formatSellerReportUnits(1)).toBe('1 unidad')
+    expect(formatSellerReportUnits(12)).toBe('12 unidades')
+  })
+})
+
+describe('sellerReportPreviousPeriodComparison — S8', () => {
+  const previous = { from: '2026-10-02', to: '2026-11-01', saleCount: 21, netSalesCents: 1_000_000 }
+
+  it('shows a rounded signed ratio of the two backend figures', () => {
+    expect(sellerReportPreviousPeriodComparison(1_120_000, previous).label).toBe(
+      '+12% vs. período anterior',
+    )
+    expect(sellerReportPreviousPeriodComparison(920_000, previous).label).toBe(
+      '−8% vs. período anterior',
+    )
+    expect(sellerReportPreviousPeriodComparison(1_120_000, previous).trend).toBe('up')
+    expect(sellerReportPreviousPeriodComparison(920_000, previous).trend).toBe('down')
+    expect(sellerReportPreviousPeriodComparison(0, previous).label).toBe(
+      '−100% vs. período anterior',
+    )
+  })
+
+  it('never claims a zero change for a small but real difference', () => {
+    expect(sellerReportPreviousPeriodComparison(1_000_000, previous).label).toBe(
+      'Igual que el período anterior',
+    )
+    expect(sellerReportPreviousPeriodComparison(1_000_000, previous).trend).toBe('flat')
+    expect(sellerReportPreviousPeriodComparison(1_002_000, previous).label).toBe(
+      '+<1% vs. período anterior',
+    )
+    expect(sellerReportPreviousPeriodComparison(998_000, previous).label).toBe(
+      '−<1% vs. período anterior',
+    )
+  })
+
+  it('guards the percentage when the previous period had no sales', () => {
+    const empty = { ...previous, saleCount: 0, netSalesCents: 0 }
+
+    expect(sellerReportPreviousPeriodComparison(500_000, empty).label).toBe(
+      'Sin ventas en el período anterior',
+    )
+    expect(sellerReportPreviousPeriodComparison(500_000, empty).trend).toBe('none')
+    expect(sellerReportPreviousPeriodComparison(500_000, empty).label).not.toContain('%')
+  })
+
+  it('names the previous range (last included day) and its backend figures in the title', () => {
+    expect(sellerReportPreviousPeriodComparison(1_120_000, previous).title).toBe(
+      'Período anterior: 2 – 31 oct 2026 · 21 ventas · $10,000.00',
+    )
+  })
+})
