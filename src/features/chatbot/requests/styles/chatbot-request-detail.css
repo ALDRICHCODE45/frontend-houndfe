@@ -902,6 +902,19 @@
   overflow-wrap: anywhere;
 }
 
+.chatbot-request-detail .rc-text strong,
+.chatbot-request-detail .rc-text .rc-b {
+  font-weight: 600;
+}
+
+.chatbot-request-detail .rc-text .rc-i {
+  font-style: italic;
+}
+
+.chatbot-request-detail .rc-text .rc-s {
+  text-decoration: line-through;
+}
+
 .chatbot-request-detail .rc-text--unsupported {
   color: var(--hf-muted);
   font-style: italic;

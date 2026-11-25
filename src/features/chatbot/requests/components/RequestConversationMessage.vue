@@ -3,13 +3,14 @@
  * RequestConversationMessage — one bubble of the mirrored chat (handoff 18). Design 01-tabla-agrupada
  * `convoHTML`: the customer on the left, bot and staff on the right, «Autor · hora» under the text.
  *
- * `message.text` is the customer's own words: rendered as text (`white-space: pre-wrap` keeps the
- * line breaks), never as HTML. The file, if any, is `RequestConversationMedia`.
+ * `message.text` is rendered as text (`white-space: pre-wrap` keeps line breaks and leading spaces),
+ * never as HTML; WhatsApp `*bold*`, `_italic_` and `~strike~` become styled text segments. The file, if any, is `RequestConversationMedia`.
  */
 import { computed } from 'vue'
 import type { ChatbotMessage } from '../interfaces/chatbot-request.types'
 import { authorLabel, mediaKind, messageSide, messageTime } from '../utils/conversation-format'
 import { deliveryView } from '../utils/live-delivery'
+import { parseWhatsAppText } from '../utils/whatsapp-format'
 import RequestConversationMedia from './RequestConversationMedia.vue'
 
 const props = defineProps<{
@@ -32,6 +33,7 @@ const delivery = computed(() =>
   deliveryView(props.message, { now: props.now ?? new Date(), canAct: props.canAct, retried: props.retried }),
 )
 const text = computed(() => (props.message.text && props.message.text.length > 0 ? props.message.text : null))
+const segments = computed(() => (text.value ? parseWhatsAppText(text.value) : []))
 const meta = computed(() => [authorLabel(props.message), time.value].filter(Boolean).join(' · '))
 const retryLabel = computed(() => (delivery.value?.action === 'resend' ? 'Enviar como mensaje nuevo' : 'Reintentar'))
 </script>
@@ -57,7 +59,16 @@ const retryLabel = computed(() => (delivery.value?.action === 'resend' ? 'Enviar
         class="rc-text"
         :class="{ 'rc-text--unsupported': message.type === 'UNSUPPORTED' }"
         data-testid="message-text"
-      >{{ text }}</p>
+      ><template v-for="(segment, index) in segments" :key="index"
+          ><strong v-if="segment.bold && !segment.italic && !segment.strike">{{ segment.text }}</strong
+          ><em v-else-if="segment.italic && !segment.bold && !segment.strike">{{ segment.text }}</em
+          ><s v-else-if="segment.strike && !segment.bold && !segment.italic">{{ segment.text }}</s
+          ><span
+            v-else-if="segment.bold || segment.italic || segment.strike"
+            :class="{ 'rc-b': segment.bold, 'rc-i': segment.italic, 'rc-s': segment.strike }"
+            >{{ segment.text }}</span
+          ><template v-else>{{ segment.text }}</template></template
+        ></p>
       <span v-if="message.type === 'UNSUPPORTED'" class="rc-sr" data-testid="message-unsupported">
         Mensaje que el sistema no guarda
       </span>
