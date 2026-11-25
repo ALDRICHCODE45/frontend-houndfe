@@ -1,5 +1,12 @@
 import type { PaginatedResponse, ServerTableParams } from '@/core/shared/types/table.types'
-import { http } from '@/core/shared/api/http'
+import { http, type TenantContextBlobErrorConfig } from '@/core/shared/api/http'
+import {
+  customerStatementFallbackFileName,
+  isCustomerStatementPdfBlob,
+  parseCustomerStatementFileName,
+  readCustomerStatementBlobError,
+} from '../statement/customerStatementFile'
+import type { CustomerStatementRange } from '../statement/customerStatementPeriod'
 import type {
   CreateCustomerAddressPayload,
   CreateCustomerPayload,
@@ -232,4 +239,47 @@ export const customerApi = {
   async removeAddress(customerId: string, addressId: string): Promise<void> {
     await http.delete(`/customers/${customerId}/addresses/${addressId}`)
   },
+
+  /**
+   * Handoff 29: the customer account statement PDF for `[from, to)` (`read:Sale`). Downloaded as
+   * a Blob; only a 200 real PDF is returned (never a half or JSON file). A JSON error inside the
+   * Blob is read so the caller can tell 400 / 404 CUSTOMER_NOT_FOUND / 500 apart.
+   */
+  async getStatementPdf(
+    customerId: string,
+    range: CustomerStatementRange,
+    options: { signal?: AbortSignal } = {},
+  ): Promise<CustomerStatementPdf> {
+    try {
+      const config: TenantContextBlobErrorConfig = {
+        params: { from: range.from, to: range.to },
+        responseType: 'blob',
+        signal: options.signal,
+        tenantContextBlobError: true,
+      }
+      const response = await http.get<Blob>(
+        `/customers/${encodeURIComponent(customerId)}/statement/pdf`,
+        config,
+      )
+      if (response.status !== 200) throw new Error('CUSTOMER_STATEMENT_UNEXPECTED_STATUS')
+      const blob = response.data
+      if (!(blob instanceof Blob) || !(await isCustomerStatementPdfBlob(blob))) {
+        throw new Error('CUSTOMER_STATEMENT_NON_PDF_BODY')
+      }
+      return {
+        blob,
+        fileName: parseCustomerStatementFileName(
+          response.headers?.['content-disposition'] ?? null,
+          customerStatementFallbackFileName(customerId, range),
+        ),
+      }
+    } catch (error) {
+      throw await readCustomerStatementBlobError(error)
+    }
+  },
+}
+
+export interface CustomerStatementPdf {
+  blob: Blob
+  fileName: string
 }

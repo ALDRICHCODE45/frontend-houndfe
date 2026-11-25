@@ -101,6 +101,27 @@ describe('RequestConversationMessage — text', () => {
     expect(text.classes()).toContain('rc-text')
   })
 
+  it('shows WhatsApp *bold*, _italic_ and ~strike~ formatting without HTML from the text', () => {
+    const wrapper = mountMessage({
+      author: 'BOT',
+      direction: 'OUT',
+      text: '🧾 *Tu pedido* _llega hoy_ ~mañana~\n   • Croquetas x2',
+    })
+    const text = wrapper.get('[data-testid="message-text"]')
+    expect(text.get('strong').text()).toBe('Tu pedido')
+    expect(text.get('em').text()).toBe('llega hoy')
+    expect(text.get('s').text()).toBe('mañana')
+    expect(text.element.textContent).toBe('🧾 Tu pedido llega hoy mañana\n   • Croquetas x2')
+  })
+
+  it('keeps literal asterisks and underscores that WhatsApp would not format', () => {
+    const wrapper = mountMessage({ text: '2 * 3 = 6 y archivo_final_v2.pdf' })
+    const text = wrapper.get('[data-testid="message-text"]')
+    expect(text.element.textContent).toBe('2 * 3 = 6 y archivo_final_v2.pdf')
+    expect(text.find('strong').exists()).toBe(false)
+    expect(text.find('em').exists()).toBe(false)
+  })
+
   it('renders no text block for a message without text', () => {
     const wrapper = mountMessage({ type: 'AUDIO', text: null, media: makeMedia({ mimeType: 'audio/ogg' }) })
     expect(wrapper.find('[data-testid="message-text"]').exists()).toBe(false)

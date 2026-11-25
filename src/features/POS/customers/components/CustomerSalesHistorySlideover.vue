@@ -26,6 +26,7 @@ import SalesHistoryMetrics from './SalesHistoryMetrics.vue'
 import SalesHistoryMonthlyChart from './SalesHistoryMonthlyChart.vue'
 import SalesHistoryPetFilter from './SalesHistoryPetFilter.vue'
 import SalesHistoryStatusFilter from './SalesHistoryStatusFilter.vue'
+import CustomerStatementDownload from './CustomerStatementDownload.vue'
 
 declare const useToast: () => { add: (options: { title: string; description?: string; color?: 'error' }) => void }
 
@@ -174,6 +175,8 @@ const overdueLabel = computed(() => {
 })
 const showDebtBanner = computed(() => listLayout.value === 'cards' && (hasDebt.value || !!overdueLabel.value))
 const showMonthlyChart = computed(() => monthlyCanRead.value && !customerHasNoSales.value)
+// Handoff 29: the statement PDF needs read:Sale, the same check as the monthly chart.
+const showStatementDownload = computed(() => monthlyCanRead.value && !!props.customer?.id)
 const pendingPaymentsLabel = computed(() => {
   const count = customerCounts.value?.pendingPayments ?? 0
   return count > 0 ? `${count} ${count === 1 ? 'venta' : 'ventas'} por cobrar` : null
@@ -297,6 +300,9 @@ function onChargeSuccess() {
             <UIcon name="i-lucide-phone" class="size-3.5" aria-hidden="true" />
             <span class="hf-figure">{{ phone.label }}</span>
           </a>
+        </div>
+        <div v-if="showStatementDownload && customer" class="ml-auto shrink-0">
+          <CustomerStatementDownload :key="customer.id" :customer-id="customer.id" />
         </div>
       </div>
     </template>
