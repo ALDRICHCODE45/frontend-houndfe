@@ -284,15 +284,22 @@ describe('QuotationExpiryPicker — shortcut chips (T-UI-17/18/19 / REQ-UI-006)'
   })
 
   it('falls back to no active chip when expiresAt does not match any shortcut', () => {
-    // Random date that doesn't fall on day 7, 15, or 30 from "now"
-    const wrapper = mountPicker({
-      expiresAt: '2026-12-25T00:00:00.000Z',
-      readonly: false,
-    })
-    expect(wrapper.get('[data-testid="expiry-chip-7"]').attributes('data-active')).toBe('false')
-    expect(wrapper.get('[data-testid="expiry-chip-15"]').attributes('data-active')).toBe('false')
-    expect(wrapper.get('[data-testid="expiry-chip-30"]').attributes('data-active')).toBe('false')
-    expect(wrapper.get('[data-testid="expiry-chip-none"]').attributes('data-active')).toBe('false')
+    // Pin "now" so the date never lands on day 7, 15 or 30 from today
+    // (with a real clock it matched the 30-day chip on 2026-11-24).
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-01T12:00:00.000Z'))
+    try {
+      const wrapper = mountPicker({
+        expiresAt: '2026-12-25T00:00:00.000Z',
+        readonly: false,
+      })
+      expect(wrapper.get('[data-testid="expiry-chip-7"]').attributes('data-active')).toBe('false')
+      expect(wrapper.get('[data-testid="expiry-chip-15"]').attributes('data-active')).toBe('false')
+      expect(wrapper.get('[data-testid="expiry-chip-30"]').attributes('data-active')).toBe('false')
+      expect(wrapper.get('[data-testid="expiry-chip-none"]').attributes('data-active')).toBe('false')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 

@@ -63,7 +63,7 @@ describe('SellerReportSalesList — phone cards', () => {
     expect(wrapper.find('table').exists()).toBe(false)
     expect(cards).toHaveLength(2)
     expect(cards[0]!.text()).toContain('S-000359')
-    expect(cards[0]!.text()).toContain('Parcial')
+    expect(cards[0]!.text()).toContain('Impaga')
     expect(cards[0]!.text()).toContain('04/11/2026, 16:02')
     expect(cards[0]!.text()).toContain('$2,980.00')
     expect(cards[0]!.text()).toContain('$1,500.00')
