@@ -16,7 +16,7 @@ Follow-up of `odd/tasks/sales-history-redesign.md`: the items the design tagged 
 ## Tasks
 - [x] T1 S2-S4, S9 Customer history: items preview in rows/cards, «Ticket promedio» metric, overdue warning + «Vencidas» filter (overdue=true), monthly chart from sales-monthly — worker A
 - [x] T2 S5-S9 Seller report: customer per row, top products, daily totals chart, previous period comparison — worker B
-- [ ] T3 Full suite, browser check vs :3003, merge — parent
+- [x] T3 Full suite, browser check vs :3003, merge — parent
 
 ## Log
 - L1 Owner (2026-11-25): «has todo lo que no dependa o espere alguna decision mia …»; Q1/Q2/Q3 answered as above; owner OK relayed to the backend (and given directly in its session).
@@ -25,3 +25,4 @@ Follow-up of `odd/tasks/sales-history-redesign.md`: the items the design tagged 
 - L4 T2 (worker B) S5-S9: seller report parser accepts optional `customer`, `topProducts`, `dailyTotals` (exactly one per local day of [from,to)), `previousPeriod` (ends at from, same length), strict when present; customer line under the folio (confirmed + canceled, «Público en general» for null/blank); «Más vendidos» with «Importes antes de descuentos de la venta; no suman a las ventas netas»; «Ventas por día» CSS chart (scrolls inside its own box past ~60/120 days); «±N% vs. período anterior» on Ventas netas («Sin ventas en el período anterior» when 0). PDF unchanged (backend). seller-report 207/207, related 402/402, guards 57/57; eslint, type-check clean.
 - L5 RDD assess: T1 6d607bfc medium (1,527 lines) and T2 032cebf5 medium (1,030 lines), reviewDue false (under_budget). Risk: none (additive read-only fields; no permissions, money writes or shared contracts changed).
 - L6 Full checks: type-check 0, eslint 0, full suite 1106 files / 18533 tests green, build OK. Waiting for the owner's browser check against :3003.
+- L7 Owner (2026-11-25) after the browser check: «perfecto hermano, merge y yo hago push.» Merged to local main (owner pushes).
