@@ -8,6 +8,10 @@ export interface SalePaymentUxAction {
   message: string
 }
 
+/** charge-change-cap S2: shared by the PaymentModal pre-send block and the 422 mapping. */
+export const CHANGE_EXCEEDS_CASH_MESSAGE =
+  'El cambio no puede ser mayor que el efectivo entregado. Ajusta los montos.'
+
 const ERROR_ACTIONS: Record<ChargeDomainErrorCode, SalePaymentUxAction> = {
   AMBIGUOUS_PAYMENT_SHAPE: {
     type: 'inline',
@@ -99,6 +103,10 @@ const ERROR_ACTIONS: Record<ChargeDomainErrorCode, SalePaymentUxAction> = {
   SALE_STOCK_UNAVAILABLE: {
     type: 'generic',
     message: 'No se pudo cobrar la venta. Avisa a soporte: reintentar no lo resuelve.',
+  },
+  CHANGE_EXCEEDS_CASH_TENDERED: {
+    type: 'inline',
+    message: CHANGE_EXCEEDS_CASH_MESSAGE,
   },
 }
 

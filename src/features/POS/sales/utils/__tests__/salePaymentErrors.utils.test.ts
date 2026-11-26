@@ -29,9 +29,19 @@ const ALL_CHARGE_DOMAIN_ERROR_CODES: ChargeDomainErrorCode[] = [
   'PAYMENT_EXCEEDS_DEBT',
   'SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY',
   'SALE_STOCK_UNAVAILABLE',
+  'CHANGE_EXCEEDS_CASH_TENDERED',
 ]
 
 describe('getSalePaymentErrorAction', () => {
+  // charge-change-cap S1-S2: the backend rejects a charge whose change is larger
+  // than the cash tendered (card 1100 + cash 100 on 1000) with this 422.
+  it('maps CHANGE_EXCEEDS_CASH_TENDERED to an inline action', () => {
+    expect(getSalePaymentErrorAction('CHANGE_EXCEEDS_CASH_TENDERED')).toEqual({
+      type: 'inline',
+      message: 'El cambio no puede ser mayor que el efectivo entregado. Ajusta los montos.',
+    })
+  })
+
   it('maps inline validation errors', () => {
     const amount = getSalePaymentErrorAction('PAYMENT_AMOUNT_INVALID')
     const insufficient = getSalePaymentErrorAction('PAYMENT_AMOUNT_INSUFFICIENT')

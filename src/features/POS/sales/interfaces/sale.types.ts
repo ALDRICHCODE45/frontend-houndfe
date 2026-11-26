@@ -636,6 +636,9 @@ export type ChargeDomainErrorCode =
   // into the sales service (fail closed). Never expected in a deployed build:
   // a generic error with no retry, mapped in `salePaymentErrors.utils.ts`.
   | 'SALE_STOCK_UNAVAILABLE'
+  // charge-change-cap S1: 422 on charge when the change due exceeds the sum of
+  // cash entries (card 1100 + cash 100 on 1000). PaymentModal blocks it first.
+  | 'CHANGE_EXCEEDS_CASH_TENDERED'
 
 /** Restock backorders: advisory notice on the touched line of an add-item / PATCH response only. Never persisted. */
 export interface SaleItemStockWarning {
