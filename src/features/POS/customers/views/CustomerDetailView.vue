@@ -3,11 +3,12 @@
  * CustomerDetailView — `/pos/customers/:id` (customers-module T4, S4 «A · Ficha con pestañas»,
  * artboard 02 + 05 direction A).
  *
- * Header (crumb, meta line, 22px name, contact, one primary + ⋮), a KPI strip from the
- * customer-wide summary of `GET /sales?customerId=`, and URL-synced tabs (`?tab=`) that mount —
- * and so load — only when opened: Resumen · Ventas · Mascotas · Cotizaciones · Datos y direcciones.
- * «Cobros y recibos» waits for the backend contract (T5). Money writes are the existing ones
- * («Cobrar todo» sheet, the row «Cobrar» inside the history), unchanged.
+ * Header (crumb, meta line with «De confianza», 22px name, contact, one primary + ⋮), a KPI strip
+ * from `GET /customers/:id/sales-summary` (T5, handoff 32 §5), and URL-synced tabs (`?tab=`) that
+ * mount — and so load — only when opened: Resumen · Ventas · Cobros y recibos · Mascotas ·
+ * Cotizaciones · Datos y direcciones. Money writes are the existing ones («Cobrar todo» sheet, the
+ * row «Cobrar» inside the history), unchanged; the summary and the payments feed live under the
+ * customer history key, so the refresh those flows already do covers them.
  */
 import { computed, shallowRef, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
@@ -18,6 +19,7 @@ import EmptyState from '@/core/shared/components/EmptyState.vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { productApi } from '@/features/POS/products/api/product.api'
@@ -31,14 +33,16 @@ import CustomerStatementDownload from '../components/CustomerStatementDownload.v
 import CustomerUpsertSlideover from '../components/CustomerUpsertSlideover.vue'
 import CustomerDataTab from '../components/detail/CustomerDataTab.vue'
 import CustomerKpiStrip from '../components/detail/CustomerKpiStrip.vue'
+import CustomerPaymentsTab from '../components/detail/CustomerPaymentsTab.vue'
 import CustomerQuotationsTab from '../components/detail/CustomerQuotationsTab.vue'
 import CustomerSummaryTab from '../components/detail/CustomerSummaryTab.vue'
 import { useCustomerDelete } from '../composables/useCustomerDelete'
 import { useCustomerDetail } from '../composables/useCustomerDetail'
 import { useCustomerEditor } from '../composables/useCustomerEditor'
 import { useCustomerSalesHistoryView } from '../composables/useCustomerSalesHistoryView'
+import { useCustomerSalesSummary } from '../composables/useCustomerSalesSummary'
 import { CUSTOMER_TABS, useCustomerTab, type CustomerTab } from '../composables/useCustomerTab'
-import { buildCustomerKpis, latestPurchase } from '../utils/customerKpis'
+import { buildCustomerKpis } from '../utils/customerKpis'
 import {
   customerPhoneLink,
   customerWhatsAppHref,
@@ -66,13 +70,14 @@ const { canRead, customer, isError, isNotFound, refetch } = useCustomerDetail(cu
 const TAB_LABELS: Record<CustomerTab, string> = {
   resumen: 'Resumen',
   ventas: 'Ventas',
+  cobros: 'Cobros y recibos',
   mascotas: 'Mascotas',
   cotizaciones: 'Cotizaciones',
   datos: 'Datos y direcciones',
 }
 const availableTabs = computed<CustomerTab[]>(() =>
   CUSTOMER_TABS.filter((tab) => {
-    if (tab === 'ventas') return canReadSales.value
+    if (tab === 'ventas' || tab === 'cobros') return canReadSales.value
     if (tab === 'cotizaciones') return canReadQuotations.value
     return true
   }),
@@ -87,12 +92,23 @@ const overview = useCustomerSalesHistory({
   open: () => canReadSales.value && !!customer.value,
 })
 const overviewSales = computed(() => overview.response.value?.data)
-const kpis = computed(() => {
-  const summary = overview.customerSummary.value
-  if (!summary) return null
-  return buildCustomerKpis(summary, overview.customerCounts.value, latestPurchase(overviewSales.value))
+
+// KPI strip: `GET /customers/:id/sales-summary` (handoff 32 §5); 403/404 hide it.
+const salesSummary = useCustomerSalesSummary({
+  customerId,
+  enabled: () => canReadSales.value && !!customer.value,
 })
-const debtCents = computed(() => overview.customerSummary.value?.outstandingDebtCents ?? 0)
+const kpis = computed(() => {
+  const metrics = salesSummary.metrics.value
+  return metrics ? buildCustomerKpis(metrics) : null
+})
+const showKpis = computed(
+  () => canReadSales.value && !salesSummary.isHidden.value &&
+    (!!kpis.value || salesSummary.isLoading.value || salesSummary.isFailed.value),
+)
+const debtCents = computed(
+  () => salesSummary.metrics.value?.openDebtCents ?? overview.customerSummary.value?.outstandingDebtCents ?? 0,
+)
 
 // The «Ventas» tab: the same history the slideover shows, at full width.
 const salesHistory = useCustomerSalesHistoryView({
@@ -202,8 +218,19 @@ const showMobileBar = computed(() => pageState.value === 'content' && isPhone.va
           <div v-if="pageState === 'content' && customer" class="flex min-w-0 items-start gap-3">
             <EntityAvatar :name="customer.fullName" size="lg" class="hidden sm:inline-flex" aria-hidden="true" />
             <div class="grid min-w-0 flex-1 gap-0.5">
-              <p v-if="metaParts.length" class="customer-detail-meta" data-testid="customer-detail-meta">
-                {{ metaParts.join(' · ') }}
+              <p
+                v-if="metaParts.length || customer.isTrusted === true"
+                class="customer-detail-meta flex flex-wrap items-center gap-x-2 gap-y-1"
+                data-testid="customer-detail-meta"
+              >
+                <StatusBadge
+                  v-if="customer.isTrusted === true"
+                  label="De confianza"
+                  tone="info"
+                  aria-prefix="Cliente:"
+                  data-testid="customer-detail-trusted"
+                />
+                <span v-if="metaParts.length">{{ metaParts.join(' · ') }}</span>
               </p>
               <h1 class="customer-detail-title" data-testid="customer-detail-name">{{ customer.fullName }}</h1>
               <p class="customer-detail-contact flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -290,13 +317,15 @@ const showMobileBar = computed(() => pageState.value === 'content' && isPhone.va
 
       <template v-else-if="customer">
         <CustomerKpiStrip
-          v-if="canReadSales && (kpis || overview.isLoading.value)"
+          v-if="showKpis"
           :kpis="kpis"
-          :loading="overview.isLoading.value"
+          :loading="salesSummary.isLoading.value"
+          :failed="salesSummary.isFailed.value"
+          @retry="salesSummary.refetch()"
         />
 
-        <div class="customer-tabs-scroll">
-          <div class="customer-tabs" role="tablist" aria-label="Secciones del cliente">
+        <div class="customer-page-tabs-scroll">
+          <div class="customer-page-tabs" role="tablist" aria-label="Secciones del cliente">
             <button
               v-for="tab in availableTabs"
               :id="`customer-tab-${tab}-trigger`"
@@ -343,6 +372,12 @@ const showMobileBar = computed(() => pageState.value === 'content' && isPhone.va
             />
             <CustomerSalesHistoryPager :history="salesHistory" variant="page" />
           </div>
+
+          <CustomerPaymentsTab
+            v-else-if="activeTab === 'cobros'"
+            :customer-id="customer.id"
+            :phone="isPhone"
+          />
 
           <CustomerPetsSection
             v-else-if="activeTab === 'mascotas'"

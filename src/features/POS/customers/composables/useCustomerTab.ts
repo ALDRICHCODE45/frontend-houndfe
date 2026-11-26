@@ -1,5 +1,5 @@
 /**
- * The open tab of the customer page, kept in `?tab=` (customers-module T4). `resumen` is the
+ * The open tab of the customer page, kept in `?tab=` (customers-module T4; `cobros` from T5). `resumen` is the
  * default and is left out of the URL; a tab the person cannot see, or an unknown one, falls back to
  * it. Changing tab replaces the history entry (tabs are not navigation steps) and keeps the rest of
  * the query.
@@ -7,7 +7,7 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-export const CUSTOMER_TABS = ['resumen', 'ventas', 'mascotas', 'cotizaciones', 'datos'] as const
+export const CUSTOMER_TABS = ['resumen', 'ventas', 'cobros', 'mascotas', 'cotizaciones', 'datos'] as const
 export type CustomerTab = (typeof CUSTOMER_TABS)[number]
 export const DEFAULT_CUSTOMER_TAB: CustomerTab = 'resumen'
 

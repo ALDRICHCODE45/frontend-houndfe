@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * «Datos y direcciones» of the customer page (customers-module T4): contact, fiscal data,
- * addresses, price list and comments («Notas»), read-only. «Editar» opens the customer editor.
+ * addresses, price list, «Cliente de confianza» (T5) and comments («Notas»), read-only. «Editar»
+ * opens the customer editor, where the trust switch is edited.
  */
 import { computed } from 'vue'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
@@ -58,6 +59,10 @@ const addresses = computed(() =>
         <div><dt>Teléfono</dt><dd class="hf-figure">{{ phone }}</dd></div>
         <div><dt>Correo electrónico</dt><dd>{{ show(customer.email) }}</dd></div>
         <div><dt>Lista de precios</dt><dd>{{ show(customer.globalPriceListName) }}</dd></div>
+        <div v-if="typeof customer.isTrusted === 'boolean'" data-testid="customer-data-trusted">
+          <dt>Cliente de confianza</dt>
+          <dd>{{ customer.isTrusted ? 'Sí' : 'No' }}</dd>
+        </div>
       </dl>
     </section>
 

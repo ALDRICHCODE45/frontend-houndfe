@@ -41,6 +41,12 @@ const ALL = ['read:Customer', 'update:Customer', 'delete:Customer', 'read:Sale',
 // ── API ───────────────────────────────────────────────────────────────────────
 const api = vi.hoisted(() => ({ getById: vi.fn(), remove: vi.fn(), update: vi.fn() }))
 vi.mock('../../api/customer.api', () => ({ customerApi: api }))
+// T5: the KPI strip reads GET /customers/:id/sales-summary; «Cobros y recibos» the payments feed.
+const detailApi = vi.hoisted(() => ({ getSalesSummary: vi.fn(), getPayments: vi.fn(), getReceiptPdf: vi.fn() }))
+vi.mock('../../api/customer-detail.api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../api/customer-detail.api')>()
+  return { ...actual, customerDetailApi: detailApi }
+})
 vi.mock('@/features/POS/products/api/product.api', () => ({
   productApi: { getGlobalPriceLists: vi.fn(async () => []) },
 }))
@@ -172,7 +178,21 @@ function sale(overrides: Partial<ConfirmedSaleRow> = {}): ConfirmedSaleRow {
   }
 }
 
+function summaryMetrics(overrides: Record<string, unknown> = {}) {
+  return {
+    customerId: 'c-1',
+    metrics: {
+      openDebtCents: 128_400, overdueDebtCents: 49_800, overdueCount: 1, oldestOverdueDueDate: '2026-11-20',
+      salesCount: 23, totalSoldCents: 1_846_050, averageTicketCents: 80_263, lastPurchaseAt: '2026-11-22T17:42:00.000Z',
+      ...overrides,
+    },
+  }
+}
+
 function withSales(debtCents = 128_400) {
+  detailApi.getSalesSummary.mockResolvedValue(summaryMetrics(
+    debtCents > 0 ? { openDebtCents: debtCents } : { openDebtCents: 0, overdueDebtCents: 0, overdueCount: 0, oldestOverdueDueDate: null },
+  ))
   salesResponse.value = {
     data: [sale()],
     pagination: { page: 1, limit: 10, total: 23, totalPages: 3 },
@@ -211,6 +231,8 @@ beforeEach(() => {
   historyCalls.length = 0
   monthlyOpen.length = 0
   quotationsEnabled.length = 0
+  detailApi.getSalesSummary.mockReset()
+  detailApi.getPayments.mockReset().mockResolvedValue({ data: [], pagination: { page: 1, limit: 50, total: 0, totalPages: 0 } })
   withSales()
 })
 afterEach(() => {
@@ -307,18 +329,44 @@ describe('CustomerDetailView — header', () => {
   })
 })
 
-describe('CustomerDetailView — KPI strip', () => {
-  it('maps Deuda, Vencido, Total comprado, Ticket promedio and Última compra from the summary', async () => {
+describe('CustomerDetailView — KPI strip (T5: GET /customers/:id/sales-summary)', () => {
+  const kpi = (key: string) => q(`[data-testid="customer-kpi-${key}"]`)?.textContent?.replace(/\s+/g, ' ')
+
+  it('maps Deuda, Vencido, Total comprado, Ticket promedio and Última compra from the sales summary', async () => {
     await mountPage()
-    const kpi = (key: string) => q(`[data-testid="customer-kpi-${key}"]`)?.textContent?.replace(/\s+/g, ' ')
+    expect(detailApi.getSalesSummary).toHaveBeenCalledWith('c-1')
     expect(kpi('debt')).toContain('$1,284.00')
-    expect(kpi('debt')).toContain('2 ventas por cobrar')
     expect(kpi('overdue')).toContain('$498.00')
-    expect(kpi('overdue')).toContain('1 vencida')
+    expect(kpi('overdue')).toContain('1 vencida · desde 20/11/2026')
     expect(kpi('total')).toContain('$18,460.50')
+    expect(kpi('total')).toContain('23 ventas')
     expect(kpi('average')).toContain('$802.63')
     expect(kpi('last')).toContain('22 nov 2026')
-    expect(kpi('last')).toContain('S-000412')
+  })
+
+  it('reads the summary, not the sales list: a null average is «—» and no sales is «Sin compras»', async () => {
+    detailApi.getSalesSummary.mockResolvedValue(summaryMetrics({
+      openDebtCents: 0, overdueDebtCents: 0, overdueCount: 0, oldestOverdueDueDate: null,
+      salesCount: 0, totalSoldCents: 0, averageTicketCents: null, lastPurchaseAt: null,
+    }))
+    await mountPage()
+    expect(kpi('average')).toContain('—')
+    expect(kpi('last')).toContain('Sin compras')
+    expect(kpi('total')).toContain('0 ventas')
+  })
+
+  it('«Cobrar todo» uses the summary’s open debt', async () => {
+    detailApi.getSalesSummary.mockResolvedValue(summaryMetrics({ openDebtCents: 50_000 }))
+    await mountPage()
+    expect(q('[data-testid="customer-detail-collect"]')?.textContent).toContain('$500.00')
+  })
+
+  it.each([403, 404])('a %s summary hides the strip without retrying', async (status) => {
+    detailApi.getSalesSummary.mockRejectedValue({ response: { status } })
+    await mountPage()
+    expect(q('[data-testid="customer-kpis"]')).toBeNull()
+    expect(q('[data-testid="customer-kpis-error"]')).toBeNull()
+    expect(detailApi.getSalesSummary).toHaveBeenCalledTimes(1)
   })
 
   it('is hidden without read:Sale (and no sales request is made)', async () => {
@@ -326,13 +374,40 @@ describe('CustomerDetailView — KPI strip', () => {
     await mountPage()
     expect(q('[data-testid="customer-kpis"]')).toBeNull()
     expect(historyCalls.every((call) => !call.open())).toBe(true)
+    expect(detailApi.getSalesSummary).not.toHaveBeenCalled()
+  })
+})
+
+describe('CustomerDetailView — «Cliente de confianza» (T5)', () => {
+  it('shows an info «De confianza» StatusBadge in the header meta for a trusted customer', async () => {
+    api.getById.mockResolvedValue({ ...detail(), isTrusted: true })
+    await mountPage()
+    const badge = q('[data-testid="customer-detail-trusted"]')
+    expect(badge?.textContent?.trim()).toBe('De confianza')
+    expect(badge?.classList.contains('hf-status-badge')).toBe(true)
+    expect(badge?.closest('[data-testid="customer-detail-meta"]')).not.toBeNull()
+  })
+
+  it('no badge when not trusted or unknown', async () => {
+    api.getById.mockResolvedValue({ ...detail(), isTrusted: false })
+    await mountPage()
+    expect(q('[data-testid="customer-detail-trusted"]')).toBeNull()
+  })
+
+  it('«Datos y direcciones» says whether the customer is trusted', async () => {
+    api.getById.mockResolvedValue({ ...detail(), isTrusted: true })
+    route.query = { tab: 'datos' }
+    await mountPage()
+    const row = q('[data-testid="customer-data-trusted"]')?.textContent?.replace(/\s+/g, ' ')
+    expect(row).toContain('Cliente de confianza')
+    expect(row).toContain('Sí')
   })
 })
 
 describe('CustomerDetailView — tabs', () => {
-  it('Resumen · Ventas · Mascotas · Cotizaciones · Datos y direcciones, Resumen by default', async () => {
+  it('Resumen · Ventas · Cobros y recibos · Mascotas · Cotizaciones · Datos y direcciones, Resumen by default', async () => {
     await mountPage()
-    expect(tabLabels()).toEqual(['Resumen', 'Ventas 23', 'Mascotas 2', 'Cotizaciones', 'Datos y direcciones'])
+    expect(tabLabels()).toEqual(['Resumen', 'Ventas 23', 'Cobros y recibos', 'Mascotas 2', 'Cotizaciones', 'Datos y direcciones'])
     expect(q('[role="tab"][aria-selected="true"]')?.textContent).toContain('Resumen')
     expect(q('[data-testid="customer-tab-resumen"]')).not.toBeNull()
   })
@@ -354,6 +429,18 @@ describe('CustomerDetailView — tabs', () => {
     expect(wrapper!.findComponent({ name: 'CustomerSalesHistoryBody' }).props('showMetrics')).toBe(false)
     expect(quotationsEnabled.every((enabled) => !enabled())).toBe(true)
     expect(q('[data-testid="pets-section"]')).toBeNull()
+    expect(detailApi.getPayments).not.toHaveBeenCalled()
+  })
+
+  it('?tab=cobros opens «Cobros y recibos» and only then loads the payments feed', async () => {
+    await mountPage()
+    expect(detailApi.getPayments).not.toHaveBeenCalled()
+    route.query = { tab: 'cobros' }
+    await flushPromises()
+    expect(q('[role="tab"][aria-selected="true"]')?.textContent).toContain('Cobros y recibos')
+    expect(q('[data-testid="customer-tab-cobros"]')).not.toBeNull()
+    expect(detailApi.getPayments).toHaveBeenCalledWith('c-1', 1)
+    expect(q('[data-testid="customer-payments-empty"]')?.textContent).toContain('Sin cobros todavía')
   })
 
   it('reacts to a URL change (back/forward) without remounting', async () => {
@@ -370,15 +457,16 @@ describe('CustomerDetailView — tabs', () => {
   it('without read:Sale or read:Quotation those tabs are absent and their URL falls back to Resumen', async () => {
     grants.set.delete('read:Sale')
     grants.set.delete('read:Quotation')
-    route.query = { tab: 'ventas' }
+    route.query = { tab: 'cobros' }
     await mountPage()
     expect(tabLabels()).toEqual(['Resumen', 'Mascotas 2', 'Datos y direcciones'])
+    expect(detailApi.getPayments).not.toHaveBeenCalled()
     expect(q('[role="tab"][aria-selected="true"]')?.textContent).toContain('Resumen')
     expect(q('[data-testid="sales-body"]')).toBeNull()
   })
 
   it('an unknown ?tab= falls back to Resumen', async () => {
-    route.query = { tab: 'cobros' }
+    route.query = { tab: 'recibos' }
     await mountPage()
     expect(q('[role="tab"][aria-selected="true"]')?.textContent).toContain('Resumen')
   })

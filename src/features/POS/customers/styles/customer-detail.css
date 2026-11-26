@@ -118,18 +118,21 @@
   color: var(--hf-success);
 }
 
-/* ── Tabs: underline strip, scrolls inside its own region on mobile ─────── */
-.customer-tabs-scroll {
+/* ── Tabs: underline strip, scrolls inside its own region on mobile ───────
+ * Page-only names: this sheet is global once the page has loaded, and the customer editor's
+ * UTabs root is `.customer-tabs`. A `min-width: max-content` on that name widened the whole
+ * editor body (its form included) past the slideover — the horizontal scroll the owner saw. */
+.customer-page-tabs-scroll {
   overflow-x: auto;
   border-bottom: 1px solid var(--hf-border);
   scrollbar-width: none;
 }
 
-.customer-tabs-scroll::-webkit-scrollbar {
+.customer-page-tabs-scroll::-webkit-scrollbar {
   display: none;
 }
 
-.customer-tabs {
+.customer-page-tabs {
   display: flex;
   gap: 4px;
   min-width: max-content;
@@ -236,6 +239,11 @@
 
 .customer-list > li {
   padding: 10px 0;
+  overflow-wrap: anywhere;
+}
+
+/* «Cobros y recibos»: the tender line wraps instead of widening the table. */
+.customer-payment-detail {
   overflow-wrap: anywhere;
 }
 
