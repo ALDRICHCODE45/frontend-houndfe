@@ -8,8 +8,9 @@ The backend found that the counter charge accepts card 1100 + cash 100 on a 1000
 
 ## Tasks
 - [x] T1 S1-S2 PaymentModal client-side cap + error code mapping — worker
-- [ ] T2 Full suite, merge — parent
+- [x] T2 Full suite, merge — parent
 
 ## Log
 - L1 Owner: «Bien hermano, ya pushee, adelante con los siguientes pasos recomendados por favor.» Backend message 9485e1d5 quoted in S1.
 - L2 T1 (worker): PaymentModal computes the cash tendered; when the change due exceeds it, shows «El cambio no puede ser mayor que el efectivo entregado. Ajusta los montos.» under «Cambio:», disables confirm and sends nothing. 422 CHANGE_EXCEEDS_CASH_TENDERED added to ChargeDomainErrorCode and mapped `inline` with the shared CHANGE_EXCEEDS_CASH_MESSAGE. RED 3 → GREEN 125/125; related 143 files / 2707 tests; eslint, type-check clean. Card-only overpay unchanged (no cash entry → no change due).
+- L3 Full suite 1113 files / 18609 tests green; merged to local main (owner pushes). Waiting for the backend fix to reach :3003 for a live check.
