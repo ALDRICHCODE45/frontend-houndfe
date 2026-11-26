@@ -105,6 +105,26 @@ describe('SaleItemRow — line pet', () => {
     expect(onSetPet).toHaveBeenCalledWith('item-1', 'p1')
   })
 
+  it('does not duplicate the line pet when it is already among the active pets', () => {
+    const item = { ...line, pet: { id: 'p1', name: 'Bruno', species: 'DOG', status: 'ACTIVE' } }
+    const wrapper = mountRow({ item, pets, onSetPet: vi.fn() })
+
+    const labels = wrapper
+      .get('[data-testid="sale-line-pet-select"]')
+      .findAll('option')
+      .map((option) => option.text())
+    expect(labels).toEqual(['Sin mascota', 'Bruno', 'Luna'])
+  })
+
+  it('shows a missing line pet without a known status by its plain name, disabled', () => {
+    const item = { ...line, pet: { id: 'p8', name: 'Toby', species: 'CAT', status: null } }
+    const wrapper = mountRow({ item, pets, onSetPet: vi.fn() })
+
+    const options = wrapper.get('[data-testid="sale-line-pet-select"]').findAll('option')
+    expect(options.map((option) => option.text())).toEqual(['Sin mascota', 'Bruno', 'Luna', 'Toby'])
+    expect(options[3]!.attributes('disabled')).toBeDefined()
+  })
+
   it('hides the picker when the customer has no active pets', () => {
     const wrapper = mountRow({ pets: [], onSetPet: vi.fn() })
 
