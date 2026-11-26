@@ -1,0 +1,884 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HoundFe · Clientes · 02-pagina-pestanas</title>
+<style>
+/* Copied from design/sales-history/shared.css (direction A, implemented): shared tokens and components.
+   Source only: build.sh inlines this file into every artboard (the canvas serves only .html).
+   Every value comes from design/system.md (src/core/shared/design-system/*). */
+:root{
+--hf-page:#f5f6f8;--hf-surface:#ffffff;--hf-surface-muted:#e7eef7;--hf-field:#ffffff;--hf-field-border:#8593a3;
+--hf-ink:#24313d;--hf-heading:#173968;--hf-muted:#576574;--hf-border:#dce2e8;
+--hf-action:#2442f6;--hf-on-action:#ffffff;--hf-active:#2442f6;--hf-active-soft:#edf0ff;--hf-focus:#2442f6;
+--hf-gold:#f6bb13;--hf-gold-soft:#fff5d6;--hf-gold-ink:#443218;
+--hf-warning:#805511;--hf-warning-soft:#fff5d6;--hf-success:#236044;
+--hf-danger:#b42318;--hf-danger-soft:#fef3f2;--hf-danger-border:#f4b8b2;
+--hf-font:'Geist',ui-sans-serif,system-ui,sans-serif;
+--hf-radius-card:12px;--hf-radius-control:6px;--hf-control-height:44px;
+--table-head:color-mix(in srgb,var(--hf-ink) 4%,var(--hf-surface));
+--row-hover:color-mix(in srgb,var(--hf-surface-muted) 45%,var(--hf-surface));
+--skel:color-mix(in srgb,var(--hf-ink) 16%,var(--hf-surface));
+--shadow-soft:0 1px 2px color-mix(in srgb,var(--hf-ink) 5%,transparent);
+--shadow-pop:0 12px 32px -12px color-mix(in srgb,var(--hf-ink) 24%,transparent),0 2px 6px color-mix(in srgb,var(--hf-ink) 8%,transparent);
+color-scheme:light;
+}
+html.dark{
+--hf-page:#0e1520;--hf-surface:#192332;--hf-surface-muted:#202e43;--hf-field:#121d2c;--hf-field-border:#64758d;
+--hf-ink:#edf2fa;--hf-heading:#edf2fa;--hf-muted:#adbcd0;--hf-border:#354459;
+--hf-action:#91b0ff;--hf-on-action:#132344;--hf-active:#b3caff;--hf-active-soft:#223555;--hf-focus:#a6c1ff;
+--hf-gold:#f2c456;--hf-gold-soft:#3b311d;--hf-gold-ink:#f2cb71;
+--hf-warning:#f2cb71;--hf-warning-soft:#3b311d;--hf-success:#a2d9b9;
+--hf-danger:#ffb4ab;--hf-danger-soft:#3d2220;--hf-danger-border:#7a3f3b;
+--shadow-soft:0 1px 2px color-mix(in srgb,var(--hf-page) 40%,transparent);
+--shadow-pop:0 12px 32px -12px color-mix(in srgb,var(--hf-page) 90%,transparent),0 2px 6px color-mix(in srgb,var(--hf-page) 60%,transparent);
+color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0}
+body{background:var(--hf-page);color:var(--hf-ink);font:400 14px/1.5 var(--hf-font);font-feature-settings:"cv11","ss01"}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3,h4,p,ul,ol,dl,dd,figure{margin:0}
+ul,ol{padding:0;list-style:none}
+h1,h2,h3,h4{color:var(--hf-heading);font-weight:600}
+a{color:var(--hf-action)}
+:focus-visible{outline:2px solid var(--hf-focus);outline-offset:2px}
+.icon{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.icon.sm{width:16px;height:16px}.icon.xs{width:14px;height:14px}.icon.lg{width:24px;height:24px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.fig{font-variant-numeric:tabular-nums}
+.muted{color:var(--hf-muted)}
+.ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.warn-ink{color:var(--hf-warning)}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* ── artboard tools (outside the mock) ───────────────────────────── */
+.tools{position:sticky;top:0;z-index:200;display:flex;flex-wrap:wrap;align-items:center;gap:4px;min-height:44px;padding:4px 16px;background:var(--hf-surface-muted);border-bottom:1px solid var(--hf-border)}
+.tools .grow{flex:1}
+.tools .lbl{font-size:12px;font-weight:600;color:var(--hf-muted);padding:0 8px}
+.tools button{height:32px;padding:0 10px;border:0;border-radius:8px;background:transparent;font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap}
+.tools button:hover{background:var(--hf-surface)}
+.tools [aria-pressed="true"]{background:var(--hf-active-soft);color:var(--hf-active)}
+.notes{position:fixed;z-index:210;top:52px;right:16px;width:min(480px,calc(100vw - 32px));max-height:calc(100vh - 72px);overflow:auto;padding:16px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:12px;box-shadow:var(--shadow-pop);font-size:13px}
+.notes h2{font-size:15px;margin-bottom:8px}.notes h3{font-size:13px;margin:16px 0 4px}
+.notes ul{display:grid;gap:4px;padding-left:16px;list-style:disc;color:var(--hf-muted)}
+.notes code{font-size:12px;color:var(--hf-ink)}
+.notes p{color:var(--hf-muted)}
+
+/* ── board frame ──────────────────────────────────────────────────── */
+.board{padding:24px 24px 48px;display:grid;gap:20px}
+.board-head{display:grid;gap:4px;max-width:1100px}
+.board-head h1{font-size:clamp(1.75rem,1.55rem + 0.6vw,2rem);line-height:1.25;letter-spacing:-0.045em}
+.board-head p{color:var(--hf-muted);max-width:90ch}
+.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:start}
+.frame{display:grid;gap:8px;min-width:0}
+.caption{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--hf-muted)}
+.caption b{color:var(--hf-ink);font-weight:600}
+.caption .sep{color:var(--hf-border)}
+
+/* drawer (slideover) */
+.drawer{display:flex;flex-direction:column;min-width:0;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:var(--shadow-pop);overflow:hidden}
+.dh{display:flex;align-items:flex-start;gap:12px;padding:16px 16px 16px 20px;border-bottom:1px solid var(--hf-border)}
+.dh .who{flex:1;min-width:0;display:grid;gap:2px}
+.dh .meta{font-size:13px;color:var(--hf-muted);display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.dh h2{font-size:22px;line-height:1.25;letter-spacing:-0.02em;overflow-wrap:anywhere}
+.dh .acts{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.db{display:grid;gap:16px;padding:16px 20px 20px;min-width:0}
+.df{display:flex;align-items:center;gap:12px;padding:12px 20px;border-top:1px solid var(--hf-border);background:var(--hf-surface)}
+.df .grow{flex:1;min-width:0}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--hf-surface-muted);color:var(--hf-heading);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;flex-shrink:0}
+.icon-btn{width:44px;height:44px;border:0;border-radius:6px;background:transparent;color:var(--hf-muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.icon-btn:hover{background:var(--hf-surface-muted);color:var(--hf-ink)}
+.link-inline{display:inline-flex;align-items:center;gap:4px;color:var(--hf-action);font-weight:500;text-decoration:none;border-radius:4px}
+.link-inline:hover{text-decoration:underline}
+
+/* buttons */
+.btn{min-height:44px;padding:0 16px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-surface);color:var(--hf-ink);font-size:14px;font-weight:600;line-height:1.2;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;text-decoration:none}
+.btn:hover:not(:disabled){background:var(--hf-surface-muted)}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.primary{background:var(--hf-action);border-color:var(--hf-action);color:var(--hf-on-action)}
+.btn.primary:hover:not(:disabled){background:color-mix(in srgb,var(--hf-action) 88%,var(--hf-ink))}
+.btn.sm{min-height:36px;padding:0 12px;font-size:13px}
+.btn:disabled{cursor:not-allowed;background:var(--hf-page);border-color:var(--hf-border);color:var(--hf-muted)}
+html.dark .btn:disabled{color:color-mix(in srgb,var(--hf-muted) 60%,var(--hf-page))}
+.btn.block{width:100%}
+
+/* fields */
+.field{display:grid;gap:4px;min-width:0}
+.field label,.field .lab{font-size:13px;font-weight:500;color:var(--hf-ink)}
+.input{position:relative;display:flex;align-items:center;min-height:44px;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-field);min-width:0}
+.input:hover{border-color:var(--hf-field-border)}
+.input:focus-within{outline:2px solid var(--hf-focus);outline-offset:0;border-color:transparent}
+.input .icon{margin-left:12px;color:var(--hf-muted)}
+.input input{flex:1;min-width:0;height:42px;border:0;background:transparent;padding:0 12px;outline:0}
+.input input::placeholder{color:var(--hf-muted);opacity:1}
+.input.disabled{background:var(--hf-page)}
+
+/* toolbar row inside a drawer */
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;min-width:0}
+.toolbar .input{flex:1 1 220px;max-width:320px}
+
+/* toggle chips (HfToggleChips) */
+.chips{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.chip{min-height:36px;max-width:100%;padding:0 12px;border:1px solid var(--hf-muted);border-radius:999px;background:var(--hf-surface);color:var(--hf-ink);font-size:13px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.chip .icon{width:14px;height:14px}
+.chip .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip small{color:var(--hf-muted);font-size:12px;font-weight:400}
+.chip:hover{background:var(--hf-surface-muted)}
+.chip[aria-pressed="true"]{background:var(--hf-active-soft);border-color:var(--hf-active);color:var(--hf-active);font-weight:600}
+.chip[aria-pressed="true"] small{color:var(--hf-active)}
+.chip .ck{display:none}
+.chip[aria-pressed="true"] .ck{display:inline}
+.chips-label{font-size:13px;font-weight:500;color:var(--hf-muted);display:inline-flex;align-items:center;gap:6px;min-height:36px}
+
+/* segmented control (HfSegmented) */
+.seg{display:inline-flex;flex-wrap:wrap;padding:2px;gap:2px;background:var(--hf-surface-muted);border-radius:8px;min-width:0}
+.seg button{min-height:40px;padding:0 12px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--hf-muted);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.seg button:hover{color:var(--hf-ink)}
+.seg button[aria-pressed="true"]{background:var(--hf-surface);border-color:var(--hf-border);color:var(--hf-heading);font-weight:600}
+.date-btn{min-height:44px;padding:0 12px;border:1px solid var(--hf-border);border-radius:6px;background:var(--hf-field);display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.date-btn:hover{border-color:var(--hf-field-border)}
+.date-btn .icon{color:var(--hf-muted)}
+
+/* badges (StatusBadge) */
+.badge{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;background:var(--hf-surface-muted);color:var(--hf-muted);max-width:100%}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+.badge.nodot::before{display:none}
+.badge.warning{background:var(--hf-warning-soft);color:var(--hf-warning)}
+.badge.info{background:var(--hf-active-soft);color:var(--hf-active)}
+.badge.success{background:color-mix(in srgb,var(--hf-success) 12%,var(--hf-surface));color:var(--hf-success)}
+.badge.danger{background:var(--hf-danger-soft);color:var(--hf-danger)}
+
+/* «requiere backend» annotation: gold accent, dashed, with a server icon. Never a real control. */
+.be{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border:1px dashed var(--hf-gold-ink);border-radius:6px;background:var(--hf-gold-soft);color:var(--hf-gold-ink);font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;vertical-align:middle}
+.be .icon{width:12px;height:12px}
+.be-zone{position:relative;border:1px dashed var(--hf-gold-ink);border-radius:8px;background:color-mix(in srgb,var(--hf-gold-soft) 45%,var(--hf-surface));padding:12px}
+.be-zone > .be{position:absolute;top:-11px;right:12px}
+.be-zone .ghost-txt{color:var(--hf-muted)}
+/* «ya en la API, no se usa hoy»: neutral annotation for params the endpoint already accepts */
+.api{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 8px;border:1px dashed var(--hf-muted);border-radius:6px;color:var(--hf-muted);font-size:12px;font-weight:500;white-space:nowrap;flex-shrink:0;vertical-align:middle}
+.api .icon{width:12px;height:12px}
+
+/* KPI strip: one aligned row of metrics, no nested cards */
+.kpis{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);background:var(--hf-surface);min-width:0}
+.kpis > div{display:grid;gap:2px;padding:12px 16px;min-width:0;border-left:1px solid var(--hf-border)}
+.kpis > div:first-child{border-left:0}
+.kpis dt{font-size:12px;color:var(--hf-muted);font-weight:500;white-space:nowrap}
+.kpis dd{font-size:16px;font-weight:600;color:var(--hf-heading);font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:-0.01em}
+.kpis dd small{display:block;font-size:12px;font-weight:500;color:var(--hf-muted);letter-spacing:0}
+.kpis .hot{background:var(--hf-warning-soft)}
+.kpis .hot dd{color:var(--hf-warning)}
+.kpis .hot:first-child{border-radius:12px 0 0 12px}
+.kpis .hot:last-child{border-radius:0 12px 12px 0}
+
+/* inline notice (12px, icon on first line) */
+.notice{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.45;min-width:0}
+.notice .icon{width:16px;height:16px;margin-top:1px}
+.notice.warn{color:var(--hf-warning);font-weight:600}
+.notice.info{color:var(--hf-muted)}
+.banner{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-radius:var(--hf-radius-card);border:1px solid var(--hf-border);background:var(--hf-surface-muted);font-size:13px;min-width:0}
+.banner.warn{background:var(--hf-warning-soft);border-color:color-mix(in srgb,var(--hf-warning) 35%,var(--hf-warning-soft))}
+.banner .icon{margin-top:1px}
+.banner .txt{flex:1;min-width:0;display:grid;gap:2px}
+.banner b{color:var(--hf-heading);font-weight:600}
+.banner.warn b,.banner.warn .icon{color:var(--hf-warning)}
+
+/* table (hf-data-table look) */
+.tsurf{border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);background:var(--hf-surface);box-shadow:var(--shadow-soft);overflow:hidden;min-width:0}
+table.t{width:100%;border-collapse:collapse;table-layout:fixed}
+
+.t th{height:40px;padding:0 12px;background:var(--table-head);color:var(--hf-muted);font-size:13px;font-weight:600;text-align:left;border-bottom:1px solid var(--hf-border);white-space:nowrap}
+.t th.num{text-align:right}
+.t td{padding:10px 12px;border-bottom:1px solid var(--hf-border);vertical-align:middle;min-width:0}
+.t tbody tr:last-child td{border-bottom:0}
+.t tr.row{cursor:pointer}
+.t tr.row:hover td{background:var(--row-hover)}
+.t tr.row.open td{background:var(--hf-active-soft);border-bottom-color:transparent}
+.t .p{display:block;font-weight:600;color:var(--hf-heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t .s{display:block;font-size:13px;color:var(--hf-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t .s.warn{color:var(--hf-warning);font-weight:600}
+.t .p.warn-ink{color:var(--hf-warning)}
+.t .amt{font-weight:600;color:var(--hf-heading)}
+.t .zero{color:var(--hf-muted);font-weight:400}
+.t .cx{width:44px;padding:0 0 0 4px}
+.xbtn{width:36px;height:36px;border:0;border-radius:6px;background:transparent;color:var(--hf-muted);display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.xbtn:hover{background:var(--hf-surface-muted);color:var(--hf-ink)}
+.xbtn .icon{transition:transform 150ms}
+tr.open .xbtn .icon,.xbtn[aria-expanded="true"] .icon{transform:rotate(90deg)}
+.t tr.canceled .p{color:var(--hf-muted);text-decoration:line-through;text-decoration-thickness:1px}
+.t tr.canceled .amt{color:var(--hf-muted);font-weight:500;text-decoration:line-through;text-decoration-thickness:1px}
+.t tr.expand td{background:var(--hf-active-soft);padding:0 12px 16px 56px}
+.t tfoot td{height:40px;padding:0 12px;background:var(--table-head);font-size:13px;font-weight:600;border-top:1px solid var(--hf-border);border-bottom:0}
+
+/* expanded sale detail */
+.xpanel{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:16px;padding:12px 16px;border-radius:8px;background:var(--hf-surface);border:1px solid var(--hf-border)}
+.xpanel h4{font-size:13px;margin-bottom:6px}
+.kv{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;font-size:13px}
+.kv dt{color:var(--hf-muted)}
+.kv dd{color:var(--hf-ink);font-weight:500;overflow-wrap:anywhere}
+.items{display:grid;gap:6px;font-size:13px}
+.items li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px}
+.items .n{font-weight:500;color:var(--hf-ink)}
+.items .v{grid-column:1;font-size:12px;color:var(--hf-muted);display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.items .m{grid-row:1;grid-column:2;text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+.pet{display:inline-flex;align-items:center;gap:4px;color:var(--hf-muted)}
+.pet .icon{width:12px;height:12px}
+.xacts{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding-top:12px;border-top:1px solid var(--hf-border)}
+.xacts .grow{flex:1}
+.loadnote{font-size:12px;color:var(--hf-muted);display:inline-flex;align-items:center;gap:4px}
+.loadnote .icon{width:12px;height:12px}
+
+/* pagination */
+.pager{display:flex;align-items:center;gap:4px}
+.pager button{min-width:36px;height:36px;padding:0 8px;border:1px solid var(--hf-border);border-radius:6px;background:var(--hf-surface);font-size:13px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.pager button[aria-current="page"]{background:var(--hf-active-soft);border-color:var(--hf-active);color:var(--hf-active);font-weight:600}
+.pager button:disabled{color:var(--hf-muted);background:var(--hf-page);cursor:not-allowed}
+
+/* section heading inside a drawer */
+.sh{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;min-width:0}
+.sh h3{font-size:16px}
+.sh .c{font-size:13px;color:var(--hf-muted)}
+.sh .grow{flex:1}
+.sub{font-size:13px;color:var(--hf-muted)}
+
+/* disclosure */
+details.disc > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;min-height:44px;padding:0 12px;border-radius:8px;font-weight:600;color:var(--hf-heading)}
+details.disc > summary::-webkit-details-marker{display:none}
+details.disc > summary:hover{background:var(--hf-surface-muted)}
+details.disc > summary .icon.chev{transition:transform 150ms;color:var(--hf-muted)}
+details.disc[open] > summary .icon.chev{transform:rotate(90deg)}
+details.disc > summary .c{font-weight:400;color:var(--hf-muted);font-size:13px}
+
+/* empty / error / skeleton */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;padding:40px 16px;min-height:8rem}
+.empty .icon{width:24px;height:24px;color:var(--hf-muted)}
+.empty h3{font-size:15px}
+.empty p{font-size:13px;color:var(--hf-muted);max-width:28rem}
+.empty .btn{margin-top:8px}
+.empty.error{background:var(--hf-danger-soft);border:1px solid var(--hf-danger-border);border-radius:12px}
+.empty.error .icon,.empty.error h3{color:var(--hf-danger)}
+.sk{display:block;background:var(--skel);border-radius:6px}
+
+/* data-source legend chip used in notes */
+.legend{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px;color:var(--hf-muted)}
+@media (max-width:1100px){.pair{grid-template-columns:minmax(0,1fr)}}
+
+/* ── Customers module additions (app shell, list page, filter sheet, detail page frame). Tokens only from design/system.md ── */
+:root{--hf-radius-sheet:16px;--scrim:color-mix(in srgb,var(--hf-ink) 34%,transparent)}
+html.dark{--scrim:color-mix(in srgb,var(--hf-page) 72%,transparent)}
+
+/* app shell */
+.app{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:900px;position:relative}
+.side{display:flex;flex-direction:column;gap:4px;background:var(--hf-surface);border-right:1px solid var(--hf-border);padding:16px 12px}
+.brand{display:flex;align-items:center;gap:10px;height:48px;padding:0 4px;margin-bottom:8px;font-weight:600;color:var(--hf-heading);font-size:14px;line-height:1.2}
+.brand small{display:block;font-size:12px;font-weight:500;color:var(--hf-muted)}
+.navgroup{height:32px;display:flex;align-items:center;padding:0 8px;margin-top:8px;font-size:12px;font-weight:600;color:var(--hf-muted)}
+.nav a{display:flex;align-items:center;gap:10px;min-height:40px;padding:0 10px;border-radius:6px;color:var(--hf-ink);text-decoration:none;font-weight:500}
+.nav a:hover{background:var(--hf-surface-muted)}
+.nav a[aria-current="page"]{background:var(--hf-active-soft);color:var(--hf-active);font-weight:600}
+.nav a .icon{color:var(--hf-muted)}
+.nav a[aria-current="page"] .icon{color:var(--hf-active)}
+.sidefoot{margin-top:auto;display:flex;align-items:center;gap:10px;padding:12px 4px 0;border-top:1px solid var(--hf-border);font-weight:600;color:var(--hf-heading);font-size:13px}
+.mainarea{display:flex;flex-direction:column;min-width:0}
+.top{display:flex;align-items:center;gap:12px;height:56px;padding:0 24px;background:var(--hf-surface);border-bottom:1px solid var(--hf-border);flex:none}
+.crumbs{display:flex;align-items:center;gap:8px;color:var(--hf-muted);font-size:13px}
+.crumbs a{color:var(--hf-muted);text-decoration:none}
+.crumbs a:hover{color:var(--hf-ink);text-decoration:underline}
+.crumbs b{color:var(--hf-ink);font-weight:600}
+.top .grow{flex:1}
+.page{padding:24px;display:grid;gap:24px;align-content:start;min-width:0}
+.page-head{display:grid;gap:6px}
+.page-head h1{font-size:clamp(1.75rem,1.55rem + 0.6vw,2rem);line-height:1.25;letter-spacing:-0.045em}
+.page-head p{font-size:14px;color:var(--hf-muted);max-width:62ch}
+
+/* subtle «needs backend» tag (proposal marker, never a control) */
+.bk{display:inline-flex;align-items:center;gap:4px;height:20px;padding:0 6px;border:1px dashed color-mix(in srgb,var(--hf-muted) 55%,var(--hf-surface));border-radius:4px;color:var(--hf-muted);font-size:12px;font-weight:500;white-space:nowrap;flex-shrink:0;vertical-align:middle;line-height:1}
+.bk .icon{width:12px;height:12px}
+.bk.new{border-style:solid;border-color:var(--hf-border)}
+
+/* table surface with views + toolbar */
+.surf{border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);background:var(--hf-surface);box-shadow:var(--shadow-soft);min-width:0;position:relative}
+.views{display:flex;align-items:stretch;gap:4px;padding:0 12px 0 8px;border-bottom:1px solid var(--hf-border);min-height:44px}
+.views [role="tab"]{position:relative;min-height:44px;padding:0 12px;border:0;background:transparent;color:var(--hf-muted);font-size:14px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap}
+.views [role="tab"]:hover{color:var(--hf-ink)}
+.views [role="tab"][aria-selected="true"]{color:var(--hf-heading);font-weight:600}
+.views [role="tab"][aria-selected="true"]::after{content:"";position:absolute;left:8px;right:8px;bottom:-1px;height:2px;background:var(--hf-action);border-radius:2px}
+.views [role="tab"] small{font-size:12px;font-weight:500;color:var(--hf-muted)}
+.views .grow{flex:1}
+.views .vstate{display:flex;align-items:center;gap:4px;font-size:13px}
+.dirty{display:inline-flex;align-items:center;gap:6px;color:var(--hf-warning);font-weight:600;font-size:13px;padding-right:4px}
+.dirty::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--hf-warning)}
+.tb{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--hf-border);min-width:0}
+.tb .input{flex:1 1 320px;max-width:384px;min-width:12rem}
+.tb .grow{flex:1}
+.tb .btn{flex-shrink:0}
+.count{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--hf-action);color:var(--hf-on-action);font-size:12px;font-weight:600}
+.sel{position:relative;display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 36px 0 12px;border:1px solid var(--hf-border);border-radius:6px;background:var(--hf-field);font-size:14px;font-weight:500;white-space:nowrap;flex-shrink:0;cursor:pointer}
+.sel:hover{border-color:var(--hf-field-border)}
+.sel .pre{color:var(--hf-muted);font-weight:500}
+.sel > .icon:last-child{position:absolute;right:10px;color:var(--hf-muted)}
+.sel select{position:absolute;inset:0;opacity:0;cursor:pointer}
+
+/* active filter chips above the table */
+.fbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--hf-border);min-width:0}
+.fbar .lab{font-size:13px;color:var(--hf-muted);font-weight:500;margin-right:4px}
+.fchip{display:inline-flex;align-items:center;gap:2px;min-height:32px;padding:0 2px 0 12px;border:1px solid var(--hf-active);border-radius:999px;background:var(--hf-active-soft);color:var(--hf-active);font-size:13px;font-weight:600;max-width:100%}
+.fchip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fchip b{font-weight:500}
+.fchip button{width:28px;height:28px;border:0;border-radius:999px;background:transparent;color:inherit;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.fchip button:hover{background:color-mix(in srgb,var(--hf-active) 14%,transparent)}
+.linkbtn{border:0;background:transparent;color:var(--hf-action);font-weight:600;font-size:13px;min-height:32px;padding:0 8px;border-radius:6px;cursor:pointer}
+.linkbtn:hover{text-decoration:underline}
+
+/* data table (hf-data-table, Cómoda 64px) */
+.dt{width:100%;border-collapse:collapse;table-layout:fixed}
+.dt th{height:40px;padding:0 12px;background:var(--table-head);color:var(--hf-muted);font-size:13px;font-weight:600;text-align:left;border-bottom:1px solid var(--hf-border);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dt th.num{text-align:right}
+.dt th .sorted{display:inline-flex;align-items:center;gap:4px;color:var(--hf-active)}
+.dt td{height:64px;padding:10px 12px;border-bottom:1px solid var(--hf-border);vertical-align:middle;overflow:hidden}
+.dt tbody tr{cursor:pointer}
+.dt tbody tr:hover td{background:var(--row-hover)}
+.dt tbody tr.selected td{background:var(--hf-active-soft)}
+.dt .p{display:block;font-weight:600;color:var(--hf-heading);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dt .s{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--hf-muted);overflow:hidden;white-space:nowrap;min-width:0}
+.dt .s > span{overflow:hidden;text-overflow:ellipsis}
+.dt td.num .s{justify-content:flex-end}
+.dt .s.warn{color:var(--hf-warning);font-weight:600}
+.dt .amt{font-weight:600;color:var(--hf-heading);font-variant-numeric:tabular-nums}
+.dt .amt.owe{color:var(--hf-warning)}
+.dt .none{color:var(--hf-muted);font-weight:400}
+.dt .cx{width:48px;padding:0 0 0 2px}
+.dt .ac{width:64px;padding:0 10px;text-align:right}
+.dt tfoot td{height:40px;padding:0 12px;background:var(--table-head);font-size:13px;font-weight:600;border-top:1px solid var(--hf-border);border-bottom:0;cursor:default}
+.dt tfoot .scope{font-weight:500;color:var(--hf-muted)}
+.mark{width:44px;height:44px;border:0;background:transparent;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;border-radius:6px}
+.mark i{width:24px;height:24px;border-radius:50%;box-shadow:inset 0 0 0 1.5px var(--hf-muted);display:inline-flex;align-items:center;justify-content:center;color:var(--hf-on-action)}
+.mark[aria-checked="true"] i{background:var(--hf-active);box-shadow:none}
+.mark i .icon{width:14px;height:14px;stroke-width:2.5;visibility:hidden}
+.mark[aria-checked="true"] i .icon{visibility:visible}
+.species{display:inline-flex;align-items:center;gap:6px;color:var(--hf-ink);font-weight:600;font-variant-numeric:tabular-nums}
+.species .icon{width:16px;height:16px;color:var(--hf-muted)}
+.trust{display:inline-flex;align-items:center;gap:3px;color:var(--hf-success);font-weight:600}
+.trust .icon{width:13px;height:13px}
+.pgbar{display:flex;align-items:center;gap:12px;padding:8px 16px;border-top:1px solid var(--hf-border);font-size:13px;color:var(--hf-muted)}
+.pgbar .grow{flex:1}
+
+/* overlays: scrim, right sheet (DataTableFilters), popover menu, columns panel, bulk bar */
+.scrim{position:absolute;inset:0;background:var(--scrim);z-index:40}
+.sheet{position:absolute;z-index:50;top:16px;right:16px;bottom:16px;width:456px;display:flex;flex-direction:column;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:var(--shadow-pop);overflow:hidden}
+.sheet-h{display:grid;gap:8px;padding:16px 16px 12px 24px;border-bottom:1px solid var(--hf-border)}
+.sheet-h .row{display:flex;align-items:center;gap:8px}
+.sheet-h h2{font-size:18px;line-height:1.3}
+.sheet-h .grow{flex:1}
+.sheet-h .legend{font-size:12px;color:var(--hf-muted);display:flex;align-items:flex-start;gap:6px;line-height:1.45}
+.sheet-b{flex:1;min-height:0;overflow:auto;padding:4px 16px 16px}
+.sheet-f{display:flex;align-items:center;gap:12px;padding:12px 16px 12px 24px;border-top:1px solid var(--hf-border)}
+.sheet-f .grow{flex:1}
+.sheet-f p{font-size:13px;color:var(--hf-muted)}
+.sheet-f p b{color:var(--hf-ink);font-weight:600}
+.fsec{border-bottom:1px solid var(--hf-border)}
+.fsec:last-child{border-bottom:0}
+.fsec > summary{list-style:none;display:flex;align-items:center;gap:8px;min-height:48px;padding:0 8px;cursor:pointer;font-weight:600;color:var(--hf-heading);border-radius:6px}
+.fsec > summary::-webkit-details-marker{display:none}
+.fsec > summary:hover{background:var(--hf-surface-muted)}
+.fsec > summary .chev{color:var(--hf-muted);transition:transform 150ms}
+.fsec[open] > summary .chev{transform:rotate(90deg)}
+.fsec > summary .n{font-size:12px;font-weight:600;color:var(--hf-active);background:var(--hf-active-soft);border-radius:999px;padding:1px 8px}
+.fsec > summary .grow{flex:1}
+.fsec > summary .hint{font-size:12px;font-weight:400;color:var(--hf-muted)}
+.fbody{display:grid;gap:16px;padding:4px 8px 20px}
+.ff{display:grid;gap:6px;min-width:0}
+.ff .fl{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--hf-ink);min-height:20px}
+.ff .fl .grow{flex:1}
+.ff .help{font-size:12px;color:var(--hf-muted)}
+.ff.is-active > .ctl,.ff.is-active .range .input,.ff.is-active .date-btn,.ff.is-active .combo{border-color:var(--hf-active);box-shadow:0 0 0 1px var(--hf-active)}
+.range{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px}
+.range > span{color:var(--hf-muted);font-size:13px}
+.range .input .pre{padding-left:12px;color:var(--hf-muted);font-size:13px}
+.range .input input{padding-left:6px;font-variant-numeric:tabular-nums}
+.combo{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-height:44px;padding:6px 36px 6px 8px;border:1px solid var(--hf-border);border-radius:6px;background:var(--hf-field);position:relative;cursor:pointer}
+.combo:hover{border-color:var(--hf-field-border)}
+.combo .ph{color:var(--hf-muted);padding-left:4px;font-size:14px}
+.combo > .icon{position:absolute;right:10px;top:12px;color:var(--hf-muted)}
+.tag{display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 4px 0 8px;border-radius:6px;background:var(--hf-surface-muted);color:var(--hf-ink);font-size:12px;font-weight:600}
+.tag .icon{width:12px;height:12px;color:var(--hf-muted)}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.presets .chip{min-height:32px;font-size:12px;padding:0 10px}
+.ff .date-btn{width:100%;justify-content:flex-start}
+.ff .date-btn .grow{flex:1}
+.ff .seg{width:100%}
+.ff .seg button{flex:1}
+.or{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--hf-muted)}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--hf-border)}
+.switchrow{display:flex;align-items:center;gap:12px;min-height:48px;padding:0 4px;cursor:pointer}
+.switchrow .txt{flex:1;display:grid;gap:1px;min-width:0}
+.switchrow .txt b{font-size:14px;font-weight:500;color:var(--hf-ink)}
+.switchrow .txt small{font-size:12px;color:var(--hf-muted)}
+.sw{position:relative;width:44px;height:24px;border-radius:999px;background:var(--hf-surface-muted);box-shadow:inset 0 0 0 1px var(--hf-muted);flex-shrink:0;border:0;cursor:pointer}
+.sw::after{content:"";position:absolute;top:4px;left:4px;width:16px;height:16px;border-radius:50%;background:var(--hf-muted);transition:transform 150ms}
+.sw[aria-checked="true"]{background:var(--hf-action);box-shadow:none}
+.sw[aria-checked="true"]::after{transform:translateX(20px);background:var(--hf-on-action)}
+
+.pop{position:absolute;z-index:60;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:var(--shadow-pop);padding:6px;min-width:240px}
+.pop [role="menuitem"]{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:6px;background:transparent;font-size:14px;font-weight:500;text-align:left;cursor:pointer;color:var(--hf-ink)}
+.pop [role="menuitem"] .icon{color:var(--hf-muted)}
+.pop [role="menuitem"]:hover{background:var(--hf-surface-muted)}
+.pop [role="menuitem"].danger{color:var(--hf-danger)}
+.pop [role="menuitem"].danger .icon{color:var(--hf-danger)}
+.pop [role="menuitem"].danger:hover{background:color-mix(in srgb,var(--hf-danger) 10%,var(--hf-surface))}
+.pop hr{border:0;border-top:1px solid var(--hf-border);margin:6px 0}
+.pop .ph{padding:8px 12px 4px;font-size:12px;font-weight:600;color:var(--hf-muted)}
+.colpanel{width:372px;padding:0}
+.colpanel .ch{padding:12px 16px;border-bottom:1px solid var(--hf-border);display:grid;gap:8px}
+.colpanel .ch .lab{font-size:12px;font-weight:600;color:var(--hf-muted)}
+.colpanel .cg{padding:6px 8px;border-bottom:1px solid var(--hf-border)}
+.colpanel .cg .ph{padding:6px 8px}
+.colrow{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 8px;border-radius:6px;font-size:14px;font-weight:500}
+.colrow:hover{background:var(--hf-surface-muted)}
+.colrow .grip{color:var(--hf-muted);width:16px;height:16px}
+.colrow .nm{flex:1;min-width:0;display:flex;align-items:center;gap:6px}
+.colrow .lock{font-size:12px;color:var(--hf-muted);font-weight:500}
+.colpanel .cf{padding:8px 16px;display:flex;justify-content:flex-end}
+.bulk{position:absolute;z-index:45;left:50%;bottom:24px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:8px 8px 8px 12px;background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);box-shadow:0 12px 32px color-mix(in srgb,var(--hf-ink) 16%,transparent);white-space:nowrap}
+.bulk .cnt{display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:6px;background:var(--hf-active-soft);color:var(--hf-active);font-size:13px;font-weight:600}
+.bulk .sum{font-size:13px;color:var(--hf-muted);padding:0 8px}
+.bulk .sum b{color:var(--hf-ink);font-weight:600}
+
+/* detail page frame */
+.dpf{display:flex;flex-direction:column;min-width:0}
+.dph{background:var(--hf-surface);border-bottom:1px solid var(--hf-border);padding:12px 24px 0;position:relative}
+.dph .back{display:inline-flex;align-items:center;gap:6px;min-height:32px;font-size:13px;font-weight:500;color:var(--hf-muted);text-decoration:none;border-radius:6px;padding-right:6px}
+.dph .back:hover{color:var(--hf-ink)}
+.dph .hrow{display:flex;align-items:flex-start;gap:16px;padding:4px 0 16px}
+.dph .who{flex:1;min-width:0;display:grid;gap:4px}
+.dph .meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:13px;color:var(--hf-muted)}
+.dph .meta .sep{color:var(--hf-border)}
+.dph h1{font-size:22px;line-height:1.25;letter-spacing:-0.02em}
+.dph .acts{display:flex;align-items:center;gap:8px;flex-shrink:0;position:relative}
+.dph .avatar{width:48px;height:48px;font-size:16px}
+.tabs{display:flex;gap:4px;margin:0 -8px;overflow-x:auto}
+.tabs [role="tab"]{position:relative;min-height:44px;padding:0 12px;border:0;background:transparent;color:var(--hf-muted);font-size:14px;font-weight:500;display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap}
+.tabs [role="tab"]:hover{color:var(--hf-ink)}
+.tabs [role="tab"][aria-selected="true"]{color:var(--hf-heading);font-weight:600}
+.tabs [role="tab"][aria-selected="true"]::after{content:"";position:absolute;left:8px;right:8px;bottom:0;height:2px;background:var(--hf-action);border-radius:2px}
+.tabs [role="tab"] small{font-size:12px;color:var(--hf-muted);font-weight:500}
+.tabs [role="tab"] small.warn{color:var(--hf-warning);font-weight:600}
+.dps{padding:24px;display:grid;gap:16px;align-content:start;min-width:0}
+.kpis .due{background:var(--hf-danger-soft)}
+.kpis .due dd{color:var(--hf-danger)}
+.kpis .due small{color:var(--hf-danger)!important}
+.panel{border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);background:var(--hf-surface);min-width:0}
+.panel-h{display:flex;align-items:center;gap:8px;min-height:52px;padding:8px 12px 8px 16px;border-bottom:1px solid var(--hf-border)}
+.panel-h h2,.panel-h h3{font-size:16px}
+.panel-h .c{font-size:13px;color:var(--hf-muted)}
+.panel-h .grow{flex:1}
+.panel-b{padding:16px;display:grid;gap:12px;min-width:0}
+
+/* monthly chart (SalesHistoryMonthlyChart look) */
+.chart{display:grid;gap:8px;min-width:0}
+.chart-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;font-size:13px}
+.chart-h b{font-weight:600;color:var(--hf-heading)}
+.chart-h span{color:var(--hf-muted)}
+.bars{display:flex;align-items:stretch;gap:6px;height:112px}
+.bars li{flex:1;min-width:0;display:grid;grid-template-rows:1fr auto;gap:4px}
+.bars .col{display:flex;flex-direction:column;justify-content:flex-end;gap:1px}
+.bars .b{display:block;width:100%;border-radius:4px 4px 0 0;background:color-mix(in srgb,var(--hf-action) 70%,var(--hf-surface))}
+.bars .b.zero{height:2px!important;background:var(--hf-border)}
+.bars .b.cur{background:var(--hf-action)}
+.bars .m{font-size:12px;color:var(--hf-muted);text-align:center}
+.bars .v{font-size:12px;color:var(--hf-muted);text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}
+
+/* definition lists for profile */
+.kv2{display:grid;grid-template-columns:112px minmax(0,1fr);gap:6px 12px;font-size:13px}
+.kv2 dt{color:var(--hf-muted)}
+.kv2 dd{color:var(--hf-ink);font-weight:500;overflow-wrap:anywhere}
+.petrow{display:flex;align-items:center;gap:12px;min-height:52px}
+.petrow .pi{width:36px;height:36px;border-radius:50%;background:var(--hf-surface-muted);color:var(--hf-heading);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.petrow .pi .icon{width:18px;height:18px}
+.petrow .txt{flex:1;min-width:0;display:grid}
+.petrow .txt b{font-weight:600;color:var(--hf-heading)}
+.petrow .txt small{font-size:13px;color:var(--hf-muted)}
+.petrow.archived b{color:var(--hf-muted)}
+.list-div > * + *{border-top:1px solid var(--hf-border)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-search-x" viewBox="0 0 24 24"><path d="m13.5 8.5-5 5"/><path d="m8.5 8.5 5 5"/><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+<symbol id="i-chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+<symbol id="i-arrow-l" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></symbol>
+<symbol id="i-arrow-down" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+<symbol id="i-calendar" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></symbol>
+<symbol id="i-cal-clock" viewBox="0 0 24 24"><path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h5"/><path d="M17.5 17.5 16 16.3V14"/><circle cx="16" cy="16" r="6"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+<symbol id="i-triangle" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+<symbol id="i-inbox" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+<symbol id="i-paw" viewBox="0 0 24 24"><circle cx="11" cy="4" r="2"/><circle cx="18" cy="8" r="2"/><circle cx="20" cy="16" r="2"/><path d="M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z"/></symbol>
+<symbol id="i-dog" viewBox="0 0 24 24"><path d="M11.25 16.25h1.5L12 17z"/><path d="M16 14v.5"/><path d="M4.42 11.247A13.152 13.152 0 0 0 4 14.556C4 18.728 7.582 21 12 21s8-2.272 8-6.444a11.702 11.702 0 0 0-.493-3.309"/><path d="M8 14v.5"/><path d="M8.5 8.5c-.384 1.05-1.083 2.028-2.344 2.5-1.931.722-3.576-.297-3.656-1-.113-.994 1.177-6.53 4-7 1.923-.321 3.651.845 3.651 2.235A7.497 7.497 0 0 1 14 5.277c0-1.39 1.844-2.598 3.767-2.277 2.823.47 4.113 6.006 4 7-.08.703-1.725 1.722-3.656 1-1.261-.472-1.855-1.45-2.239-2.5"/></symbol>
+<symbol id="i-cat" viewBox="0 0 24 24"><path d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"/><path d="M8 14v.5"/><path d="M16 14v.5"/><path d="M11.25 16.25h1.5L12 17l-.75-.75Z"/></symbol>
+<symbol id="i-server" viewBox="0 0 24 24"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/></symbol>
+<symbol id="i-wallet" viewBox="0 0 24 24"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></symbol>
+<symbol id="i-coins" viewBox="0 0 24 24"><path d="M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17"/><path d="m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9"/><path d="m2 16 6 6"/><circle cx="16" cy="9" r="2.9"/><circle cx="6" cy="5" r="3"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+<symbol id="i-mail" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></symbol>
+<symbol id="i-msg" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></symbol>
+<symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></symbol>
+<symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+<symbol id="i-quote" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></symbol>
+<symbol id="i-pencil" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+<symbol id="i-cart" viewBox="0 0 24 24"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></symbol>
+<symbol id="i-receipt" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M14 8H8"/><path d="M16 12H8"/><path d="M13 16H8"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+<symbol id="i-package" viewBox="0 0 24 24"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/></symbol>
+<symbol id="i-truck" viewBox="0 0 24 24"><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></symbol>
+<symbol id="i-store" viewBox="0 0 24 24"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></symbol>
+<symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+<symbol id="i-notes" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+<symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+<symbol id="i-open" viewBox="0 0 24 24"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></symbol>
+<symbol id="i-sliders" viewBox="0 0 24 24"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></symbol>
+<symbol id="i-columns" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></symbol>
+<symbol id="i-sort" viewBox="0 0 24 24"><path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/></symbol>
+<symbol id="i-grip" viewBox="0 0 24 24"><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></symbol>
+<symbol id="i-pinmark" viewBox="0 0 24 24"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></symbol>
+<symbol id="i-rotate" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
+<symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+<symbol id="i-cash" viewBox="0 0 24 24"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></symbol>
+<symbol id="i-tag" viewBox="0 0 24 24"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5"/></symbol>
+<symbol id="i-building" viewBox="0 0 24 24"><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01M16 6h.01M12 6h.01M12 10h.01M12 14h.01M16 10h.01M16 14h.01M8 10h.01M8 14h.01"/></symbol>
+<symbol id="i-sticky" viewBox="0 0 24 24"><path d="M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8Z"/><path d="M15 3v4a2 2 0 0 0 2 2h4"/></symbol>
+<symbol id="i-loader" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></symbol>
+</svg>
+<div class="tools" role="group" aria-label="Opciones del artboard">
+  <span class="lbl">02 · A · Ficha con pestañas</span>
+  <span class="lbl">Menú ⋮</span>
+  <button type="button" data-state="menu:cerrado" aria-pressed="true">Cerrado</button>
+  <button type="button" data-state="menu:abierto" aria-pressed="false">Abierto</button>
+  <span class="lbl">Lista</span>
+  <button type="button" data-state="lista:datos" aria-pressed="true">Datos</button>
+  <button type="button" data-state="lista:cargando" aria-pressed="false">Cargando</button>
+  <button type="button" data-state="lista:vacio" aria-pressed="false">Sin resultados</button>
+  <span class="grow"></span>
+  <button type="button" id="t-notes" aria-expanded="false" aria-controls="notes"><svg class="icon sm"><use href="#i-notes"/></svg>Notas y datos</button>
+  <button type="button" id="t-theme" aria-pressed="false"><svg class="icon sm"><use href="#i-moon"/></svg><span>Tema claro</span></button>
+</div>
+
+<aside class="notes" id="notes" tabindex="-1" hidden aria-label="Notas del artboard">
+  <h2>A · Ficha con pestañas</h2>
+  <p>La página del cliente como un registro con secciones: cabecera fija (<code>DetailPageFrame</code>), métricas y pestañas. Cada pestaña es una consulta propia, así que abrir la página es barato y el historial queda a lo ancho, sin la sensación de encierro del panel lateral.</p>
+  <h3>Qué hay en cada pestaña</h3>
+  <ul>
+    <li><b>Resumen</b>: ventas por mes (12 meses, <code>sales-monthly</code>), por cobrar, mascotas, dirección principal, notas.</li>
+    <li><b>Ventas</b>: el historial de la dirección A ya implementado (<code>SalesHistoryList</code> + filtros de estado y mascota), a lo ancho; suma las columnas Vendedor y Método, que ya llegan en la fila.</li>
+    <li><b>Cobros y recibos</b>: abonos del cliente con recibo. <span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span> no hay lista de cobros por cliente (el índice existe, es barato).</li>
+    <li><b>Mascotas</b>: <code>CustomerPetsSection</code> actual en página completa.</li>
+    <li><b>Cotizaciones</b>: <code>GET /quotations?customerId=</code> (ya existe).</li>
+    <li><b>Datos y direcciones</b>: el formulario del cliente (contacto, fiscal, direcciones) en la página, no en un slideover.</li>
+  </ul>
+  <h3>Datos que ya llegan</h3>
+  <ul>
+    <li><code>GET /sales?customerId=</code>: paginación, orden, vencidas, <code>petId</code>, <code>summary</code> y <code>counts</code>; <code>GET /sales/:id</code> al abrir la fila.</li>
+    <li>Estado de cuenta PDF (<code>CustomerStatementDownload</code>) y «Cobrar todo» (<code>CustomerCollectionSlideover</code>).</li>
+  </ul>
+  <h3>Requiere backend</h3>
+  <ul>
+    <li>Vencido del cliente (monto y día más viejo) en la cabecera, sin pedir todas las ventas: viene del nuevo endpoint de clientes o de <code>summary</code>.</li>
+    <li>Ruta nueva <code>/pos/clientes/:id</code>: solo frontend.</li>
+  </ul>
+</aside>
+
+<div class="app" style="min-height:1500px">
+  <aside class="side" aria-label="Navegación principal">
+    <div class="brand"><svg viewBox="0 0 48 48" width="36" height="36" aria-hidden="true"><rect width="48" height="48" rx="12" fill="var(--hf-heading)"/><g fill="var(--hf-gold)"><ellipse cx="24" cy="31" rx="8" ry="6.5"/><ellipse cx="14" cy="22" rx="3.6" ry="4.6"/><ellipse cx="22" cy="15" rx="3.6" ry="4.6"/><ellipse cx="30" cy="15" rx="3.6" ry="4.6"/><ellipse cx="38" cy="22" rx="3.6" ry="4.6"/></g></svg><span>Mascotas El Roble<small>Sucursal Mitras</small></span></div>
+    <nav class="nav" aria-label="Módulos">
+      <p class="navgroup">POS</p>
+      <a href="#venta"><svg class="icon sm"><use href="#i-cart"/></svg>Venta</a>
+      <a href="#ventas"><svg class="icon sm"><use href="#i-receipt"/></svg>Ventas</a>
+      <a href="#clientes" aria-current="page"><svg class="icon sm"><use href="#i-users"/></svg>Clientes</a>
+      <a href="#cotizaciones"><svg class="icon sm"><use href="#i-quote"/></svg>Cotizaciones</a>
+      <a href="#caja"><svg class="icon sm"><use href="#i-cash"/></svg>Caja</a>
+      <a href="#productos"><svg class="icon sm"><use href="#i-package"/></svg>Productos</a>
+      <p class="navgroup">Operación</p>
+      <a href="#entregas"><svg class="icon sm"><use href="#i-truck"/></svg>Entregas</a>
+      <a href="#chatbot"><svg class="icon sm"><use href="#i-bot"/></svg>Chatbot</a>
+    </nav>
+    <div class="sidefoot"><span class="avatar" style="width:32px;height:32px;font-size:12px" aria-hidden="true">KM</span>Karla Méndez</div>
+  </aside>
+  <div class="mainarea">
+    <header class="top">
+      <nav class="crumbs" aria-label="Ruta"><a href="#pos">POS</a><svg class="icon xs"><use href="#i-chev-r"/></svg><a href="#clientes">Clientes</a><svg class="icon xs"><use href="#i-chev-r"/></svg><b aria-current="page">Ana Sofía Treviño Garza</b></nav>
+    </header>
+    <div class="dpf">
+      <header class="dph">
+        <a class="back" href="#clientes"><svg class="icon sm"><use href="#i-arrow-l"/></svg>Clientes</a>
+        <div class="hrow">
+          <span class="avatar" aria-hidden="true">AT</span>
+          <div class="who">
+            <p class="meta"><span class="badge success">De confianza</span><span>Cliente desde mar 2025</span><span class="sep">·</span><span>Mitras Centro, Monterrey</span><span class="sep">·</span><span>Lista Público</span></p>
+            <h1>Ana Sofía Treviño Garza</h1>
+            <p class="meta"><a class="link-inline" href="tel:+528123456789"><svg class="icon xs"><use href="#i-phone"/></svg><span class="fig">81 2345 6789</span></a><span class="sep">·</span><span>ana.trevino@outlook.com</span><span class="sep">·</span><span><svg class="icon xs" style="vertical-align:-2px"><use href="#i-dog"/></svg> Bruno · <svg class="icon xs" style="vertical-align:-2px"><use href="#i-cat"/></svg> Mishi</span></p>
+          </div>
+          <div class="acts">
+            <button type="button" class="btn"><svg class="icon sm"><use href="#i-coins"/></svg>Cobrar todo <span class="fig">$1,284.00</span></button>
+            <button type="button" class="btn primary"><svg class="icon sm"><use href="#i-cart"/></svg>Nueva venta</button>
+            <button type="button" class="icon-btn" aria-label="Más acciones de Ana Sofía Treviño Garza" aria-haspopup="menu" aria-controls="pmenu" data-toggle="pmenu" aria-expanded="false"><svg class="icon"><use href="#i-more"/></svg></button>
+            <div class="pop" id="pmenu" role="menu" aria-label="Más acciones" data-when="menu:abierto" hidden style="right:0;top:52px">
+              <button type="button" role="menuitem"><svg class="icon sm"><use href="#i-download"/></svg>Estado de cuenta (PDF)</button>
+              <button type="button" role="menuitem"><svg class="icon sm"><use href="#i-pencil"/></svg>Editar datos</button>
+              <button type="button" role="menuitem"><svg class="icon sm"><use href="#i-msg"/></svg>Escribir por WhatsApp</button>
+              <hr>
+              <button type="button" role="menuitem" class="danger"><svg class="icon sm"><use href="#i-trash"/></svg>Eliminar cliente…</button>
+            </div>
+          </div>
+        </div>
+        <div class="tabs" role="tablist" aria-label="Secciones del cliente" data-single>
+          <button type="button" role="tab" aria-selected="false">Resumen</button>
+          <button type="button" role="tab" aria-selected="true">Ventas <small>23</small></button>
+          <button type="button" role="tab" aria-selected="false">Cobros y recibos</button>
+          <button type="button" role="tab" aria-selected="false">Mascotas <small>2</small></button>
+          <button type="button" role="tab" aria-selected="false">Cotizaciones <small>1</small></button>
+          <button type="button" role="tab" aria-selected="false">Datos y direcciones</button>
+        </div>
+      </header>
+
+      <main class="dps" role="tabpanel" aria-label="Ventas">
+        <dl class="kpis" aria-label="Resumen del cliente">
+          <div class="hot"><dt>Deuda</dt><dd>$1,284.00<small class="warn-ink">2 ventas por cobrar</small></dd></div>
+          <div class="due"><dt>Vencido</dt><dd>$498.00<small>desde 20 nov · 6 días</small></dd></div>
+          <div><dt>Total comprado</dt><dd>$18,460.50<small>23 ventas</small></dd></div>
+          <div><dt>Ticket promedio</dt><dd>$802.63<small>por venta</small></dd></div>
+          <div><dt>Última compra</dt><dd>22 nov<small>hace 4 días · S-000412</small></dd></div>
+        </dl>
+
+        <div class="toolbar">
+          <div class="input" style="max-width:280px"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" placeholder="Buscar por folio" aria-label="Buscar ventas por folio"></div>
+          <div class="chips" role="group" aria-label="Filtrar por estado" data-single>
+            <button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Todas</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Con saldo</span><small>2</small></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Vencidas</span><small>1</small></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Sin entregar</span><small>1</small></button>
+          </div>
+          <span style="width:1px;height:28px;background:var(--hf-border)" aria-hidden="true"></span>
+          <div class="chips" role="group" aria-label="Filtrar ventas por mascota" data-single>
+            <span class="chips-label"><svg class="icon sm"><use href="#i-paw"/></svg>Mascota</span>
+            <button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Todas</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Bruno</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Mishi</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Canela</span><small>archivada</small></button>
+          </div>
+        </div>
+
+        <div class="banner warn" data-when="lista:datos lista:cargando">
+          <svg class="icon sm"><use href="#i-cal-clock"/></svg>
+          <div class="txt"><b class="fig">1 venta vencida · $498.00 desde el 20 nov</b><span>S-000398, a crédito. La otra venta con saldo vence el 6 dic.</span></div>
+          <button type="button" class="btn sm">Ver vencidas</button>
+        </div>
+
+        <div class="tsurf">
+          <table class="t">
+            <caption class="sr">Ventas de Ana Sofía Treviño Garza, más recientes primero</caption>
+            <colgroup><col style="width:44px"><col><col style="width:180px"><col style="width:170px"><col style="width:170px"><col style="width:128px"><col style="width:140px"></colgroup>
+            <thead><tr><th class="cx"><span class="sr">Abrir</span></th><th>Venta</th><th>Pago</th><th>Vendedor</th><th>Método</th><th class="num">Total</th><th class="num">Saldo</th></tr></thead>
+            <tbody data-when="lista:datos">
+              <tr class="row open">
+                <td class="cx"><button class="xbtn" type="button" aria-expanded="true" aria-controls="x1" aria-label="Detalle de la venta S-000412"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000412</span><span class="s">22 nov 2026, 17:42 · Mostrador</span></td>
+                <td><span class="badge warning">Impaga</span><span class="s">No entregada</span></td>
+                <td>Karla Méndez</td><td>Efectivo · Crédito</td>
+                <td class="num amt">$1,486.00</td>
+                <td class="num"><span class="p warn-ink">$786.00</span><span class="s">Vence 6 dic</span></td>
+              </tr>
+              <tr class="expand" id="x1"><td colspan="7">
+                <div class="xpanel">
+                  <div><h4>Datos de la venta</h4>
+                    <dl class="kv"><dt>Cajero</dt><dd>Jorge Ríos</dd><dt>Pagado</dt><dd>$700.00 en efectivo</dd><dt>Vence</dt><dd>6 dic 2026</dd><dt>Entrega</dt><dd>No entregada · Padre Mier 1450, Mitras Centro</dd></dl></div>
+                  <div><h4>Productos · 3</h4>
+                    <ul class="items">
+                      <li><span class="n">Croquetas Adulto Raza Mediana</span><span class="m">$1,089.00</span><span class="v">15 kg · 1 pza <span class="pet"><svg class="icon"><use href="#i-paw"/></svg>Bruno</span></span></li>
+                      <li><span class="n">Arena aglomerante sin aroma</span><span class="m">$289.00</span><span class="v">10 kg · 1 pza <span class="pet"><svg class="icon"><use href="#i-paw"/></svg>Mishi</span></span></li>
+                      <li><span class="n">Premios dentales</span><span class="m">$108.00</span><span class="v">Mediano · 2 pzas <span class="pet"><svg class="icon"><use href="#i-paw"/></svg>Bruno</span></span></li>
+                    </ul></div>
+                  <div class="xacts"><span class="loadnote"><svg class="icon"><use href="#i-info"/></svg>Productos cargados al abrir la fila</span><span class="grow"></span>
+                    <a class="btn sm" href="#venta"><svg class="icon sm"><use href="#i-open"/></svg>Abrir venta</a>
+                    <button class="btn sm" type="button"><svg class="icon sm"><use href="#i-wallet"/></svg>Cobrar $786.00</button></div>
+                </div>
+              </td></tr>
+              <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000398"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000398</span><span class="s">15 nov 2026, 11:08 · Mostrador</span></td>
+                <td><span class="badge danger">Vencida</span><span class="s">Entregada</span></td>
+                <td>Karla Méndez</td><td>Crédito</td>
+                <td class="num amt">$498.00</td>
+                <td class="num"><span class="p warn-ink">$498.00</span><span class="s warn">Venció 20 nov</span></td></tr>
+              <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000377"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000377</span><span class="s">8 nov 2026, 13:25 · Mostrador</span></td>
+                <td><span class="badge success">Pagada</span><span class="s">Sin envío</span></td>
+                <td>Luis Fernando Ortega</td><td>Efectivo</td>
+                <td class="num amt">$642.50</td><td class="num zero">$0.00</td></tr>
+              <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000361"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000361</span><span class="s">1 nov 2026, 10:51 · Chatbot</span></td>
+                <td><span class="badge success">Pagada</span><span class="s">Entregada</span></td>
+                <td>Karla Méndez</td><td>Tarjeta</td>
+                <td class="num amt">$2,315.00</td><td class="num zero">$0.00</td></tr>
+              <tr class="row canceled"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000344, cancelada"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000344</span><span class="s">26 oct 2026, 18:03 · Mostrador</span></td>
+                <td><span class="badge">Cancelada</span><span class="s">Solicitud del cliente</span></td>
+                <td>Jorge Ríos</td><td>—</td>
+                <td class="num amt">$380.00</td><td class="num zero">—</td></tr>
+              <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000329"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000329</span><span class="s">19 oct 2026, 12:40 · Mostrador</span></td>
+                <td><span class="badge success">Pagada</span><span class="s">Sin envío</span></td>
+                <td>Luis Fernando Ortega</td><td>Efectivo</td>
+                <td class="num amt">$1,120.00</td><td class="num zero">$0.00</td></tr>
+              <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000301"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000301</span><span class="s">5 oct 2026, 09:58 · Mostrador</span></td>
+                <td><span class="badge success">Pagada</span><span class="s">Entregada</span></td>
+                <td>Karla Méndez</td><td>Transferencia</td>
+                <td class="num amt">$864.00</td><td class="num zero">$0.00</td></tr>
+              <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000287"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000287</span><span class="s">28 sep 2026, 16:15 · Mostrador</span></td>
+                <td><span class="badge success">Pagada</span><span class="s">Sin envío</span></td>
+                <td>Jorge Ríos</td><td>Efectivo</td>
+                <td class="num amt">$455.00</td><td class="num zero">$0.00</td></tr>
+              <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000263"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000263</span><span class="s">14 sep 2026, 11:32 · Chatbot</span></td>
+                <td><span class="badge success">Pagada</span><span class="s">Entregada</span></td>
+                <td>Karla Méndez</td><td>Tarjeta</td>
+                <td class="num amt">$1,730.00</td><td class="num zero">$0.00</td></tr>
+              <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000240"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000240</span><span class="s">30 ago 2026, 17:20 · Mostrador</span></td>
+                <td><span class="badge success">Pagada</span><span class="s">Sin envío</span></td>
+                <td>Luis Fernando Ortega</td><td>Efectivo</td>
+                <td class="num amt">$598.00</td><td class="num zero">$0.00</td></tr>
+            </tbody>
+            <tbody data-when="lista:cargando" hidden aria-busy="true">
+              <tr><td colspan="7" style="padding:0;border:0"><span class="sr" role="status">Cargando las ventas…</span></td></tr>
+              <tr><td class="cx"></td><td><span class="sk" style="width:90px;height:14px"></span><span class="sk" style="width:180px;height:12px;margin-top:8px"></span></td><td><span class="sk" style="width:70px;height:20px"></span></td><td><span class="sk" style="width:110px;height:14px"></span></td><td><span class="sk" style="width:80px;height:14px"></span></td><td><span class="sk" style="width:80px;height:14px;margin-left:auto"></span></td><td><span class="sk" style="width:70px;height:14px;margin-left:auto"></span></td></tr>
+              <tr><td class="cx"></td><td><span class="sk" style="width:90px;height:14px"></span><span class="sk" style="width:160px;height:12px;margin-top:8px"></span></td><td><span class="sk" style="width:70px;height:20px"></span></td><td><span class="sk" style="width:100px;height:14px"></span></td><td><span class="sk" style="width:70px;height:14px"></span></td><td><span class="sk" style="width:70px;height:14px;margin-left:auto"></span></td><td><span class="sk" style="width:60px;height:14px;margin-left:auto"></span></td></tr>
+              <tr><td class="cx"></td><td><span class="sk" style="width:90px;height:14px"></span><span class="sk" style="width:170px;height:12px;margin-top:8px"></span></td><td><span class="sk" style="width:70px;height:20px"></span></td><td><span class="sk" style="width:120px;height:14px"></span></td><td><span class="sk" style="width:90px;height:14px"></span></td><td><span class="sk" style="width:80px;height:14px;margin-left:auto"></span></td><td><span class="sk" style="width:60px;height:14px;margin-left:auto"></span></td></tr>
+            </tbody>
+            <tbody data-when="lista:vacio" hidden>
+              <tr><td colspan="7"><div class="empty"><svg class="icon"><use href="#i-search-x"/></svg><h3>Ningún resultado para «S-0005»</h3><p>Ninguna venta de Ana Sofía tiene ese folio con los filtros «Vencidas» y «Bruno».</p><button type="button" class="btn">Limpiar filtros</button></div></td></tr>
+            </tbody>
+          </table>
+          <div class="pgbar" data-when="lista:datos lista:cargando">
+            <span><b class="fig" style="color:var(--hf-ink)">1–10</b> de 23 ventas · más recientes primero</span>
+            <span class="grow"></span>
+            <nav class="pager" aria-label="Páginas de ventas"><button type="button" disabled aria-label="Página anterior"><svg class="icon sm"><use href="#i-chev-l"/></svg></button><button type="button" aria-current="page">1</button><button type="button">2</button><button type="button">3</button><button type="button" aria-label="Página siguiente"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></nav>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+<script>
+(() => {
+// Shared artboard behavior: theme, notes, single-choice groups, state switches, overlays, row marks.
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+
+const themeBtn = $('#t-theme');
+function paintTheme() {
+  const dark = document.documentElement.classList.contains('dark');
+  themeBtn.setAttribute('aria-pressed', String(dark));
+  themeBtn.lastChild.textContent = dark ? 'Tema oscuro' : 'Tema claro';
+}
+themeBtn?.addEventListener('click', () => { document.documentElement.classList.toggle('dark'); paintTheme(); });
+if (themeBtn) paintTheme();
+
+const notesBtn = $('#t-notes');
+const notes = $('#notes');
+notesBtn?.addEventListener('click', () => {
+  const open = notes.hidden;
+  notes.hidden = !open;
+  notesBtn.setAttribute('aria-expanded', String(open));
+  if (open) notes.focus();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (notes && !notes.hidden) { notes.hidden = true; notesBtn.setAttribute('aria-expanded', 'false'); notesBtn.focus(); return; }
+  $$('[data-overlay]:not([hidden])').forEach((o) => { o.hidden = true; });
+});
+
+// Expandable sale rows (same behavior as the implemented history): the chevron owns aria-expanded.
+$$('tr.row').forEach((row) => {
+  row.addEventListener('click', (e) => {
+    if (e.target.closest('a, .btn, .chip')) return;
+    const btn = $('.xbtn', row);
+    if (!btn) return;
+    const open = btn.getAttribute('aria-expanded') !== 'true';
+    btn.setAttribute('aria-expanded', String(open));
+    row.classList.toggle('open', open);
+    const panel = btn.getAttribute('aria-controls') && document.getElementById(btn.getAttribute('aria-controls'));
+    if (panel) panel.hidden = !open;
+  });
+});
+
+// Single-choice chip groups, segmented controls and tab lists (visual only).
+$$('[data-single]').forEach((group) => {
+  group.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b || !group.contains(b)) return;
+    const attr = b.getAttribute('role') === 'tab' ? 'aria-selected' : 'aria-pressed';
+    $$('button', group).forEach((x) => x.setAttribute(attr, String(x === b)));
+  });
+});
+// Multi-select toggle chips.
+$$('[data-multi]').forEach((group) => {
+  group.addEventListener('click', (e) => {
+    const b = e.target.closest('button.chip');
+    if (!b) return;
+    b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true'));
+  });
+});
+// Switches.
+$$('.sw').forEach((s) => s.addEventListener('click', (e) => { e.stopPropagation(); s.setAttribute('aria-checked', String(s.getAttribute('aria-checked') !== 'true')); }));
+// Row marks (selection).
+$$('.mark').forEach((m) => m.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const on = m.getAttribute('aria-checked') !== 'true';
+  m.setAttribute('aria-checked', String(on));
+  m.closest('tr')?.classList.toggle('selected', on);
+}));
+
+// Artboard state switcher: buttons with data-state="group:value" show [data-when~="group:value"].
+$$('[data-state]').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const [group] = btn.dataset.state.split(':');
+    $$(`[data-state^="${group}:"]`).forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+    $$(`[data-when*="${group}:"]`).forEach((el) => {
+      el.hidden = !el.dataset.when.split(' ').includes(btn.dataset.state);
+    });
+  });
+});
+// Overlay toggles: [data-toggle="id"].
+$$('[data-toggle]').forEach((btn) => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const el = document.getElementById(btn.dataset.toggle);
+    if (!el) return;
+    el.hidden = !el.hidden;
+    btn.setAttribute('aria-expanded', String(!el.hidden));
+  });
+});
+
+})();
+</script>
+</body>
+</html>
