@@ -37,6 +37,8 @@ const TenantSelectionView = () =>
 const ProductsView = () => import('@/features/POS/products/views/ProductsView.vue')
 const ProductDetailView = () => import('@/features/POS/products/views/ProductDetailView.vue')
 const CustomersView = () => import('@/features/POS/customers/views/CustomersView.vue')
+const CustomerDetailView = () =>
+  import('@/features/POS/customers/views/CustomerDetailView.vue')
 // ─── Cash register / Caja (cash-register-ui T2–T4, S1 subset) ────────────────
 // Single "Caja" route guarded by read:CashRegister: registers, session opening,
 // manual movements, blind freeze/count, append-only notes, independent
@@ -203,6 +205,22 @@ const router = createRouter({
         rememberAsLanding: true,
         permission: ['read', 'Customer'] as RoutePermission,
       },
+    },
+    // customers-module T4 (S4): the customer page sits under the list (like products and sales), so
+    // the shell breadcrumb and the sidebar keep «Clientes» active. The Spanish link of the spec
+    // redirects to it with its query (`?tab=`). Sales data inside it also needs read:Sale.
+    {
+      path: '/pos/customers/:id',
+      name: 'pos-customer-detail',
+      component: CustomerDetailView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'Customer'] as RoutePermission,
+      },
+    },
+    {
+      path: '/pos/clientes/:id',
+      redirect: (to) => ({ name: 'pos-customer-detail', params: to.params, query: to.query }),
     },
     // ─── Cash register / Caja (cash-register-ui T2, S1 subset) ───────────────
 

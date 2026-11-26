@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, shallowRef } from 'vue'
+import { useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import type { AxiosError } from 'axios'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { customerQueryKeys, productQueryKeys } from '@/core/shared/constants/query-keys'
@@ -9,24 +9,19 @@ import '../styles/clients-visual.css'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
-import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { productApi } from '@/features/POS/products/api/product.api'
 import { customerApi } from '../api/customer.api'
 import CustomerMobileCard from '../components/CustomerMobileCard.vue'
 import CustomerPetsSlideover from '../components/CustomerPetsSlideover.vue'
-import CustomerSalesHistorySlideover from '../components/CustomerSalesHistorySlideover.vue'
 import CustomerUpsertSlideover from '../components/CustomerUpsertSlideover.vue'
 import { formatPetMatchHint, useCustomerColumns } from '../composables/useCustomerColumns'
-import {
-  CUSTOMER_HAS_ACTIVE_BACKORDERS_MESSAGE,
-  isCustomerHasActiveBackordersError,
-} from '../utils/customerDeleteError'
+import { useCustomerEditor } from '../composables/useCustomerEditor'
+import { useCustomerDelete } from '../composables/useCustomerDelete'
+import { mapCustomerDomainError } from '../utils/customerFormError'
 import { formatCustomerPhone } from '../utils/customerPhone.utils'
 import type {
-  CreateCustomerAddressPayload,
   CreateCustomerPayload,
   Customer,
-  CustomerDetail,
   UpdateCustomerPayload,
 } from '../interfaces/customer.types'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -41,6 +36,7 @@ declare const useToast: () => {
 
 const queryClient = useQueryClient()
 const toast = useToast()
+const router = useRouter()
 const authStore = useAuthStore()
 const tenantId = computed(() => authStore.currentTenantId)
 const { columns } = useCustomerColumns()
@@ -90,61 +86,14 @@ const { data: globalPriceLists = [] } = useQuery({
   refetchOnWindowFocus: false,
 })
 
+// customers-module T4: the edit session and the delete flow are shared with the customer page.
+const editor = useCustomerEditor()
+const { isEditOpen, selectedCustomer, selectedCustomerId, formErrors } = editor
+const customerDelete = useCustomerDelete()
+const { confirmState } = customerDelete
+const isDeleting = customerDelete.isDeleting
+
 const isCreateOpen = ref(false)
-const isEditOpen = ref(false)
-const selectedCustomer = ref<CustomerDetail | null>(null)
-const selectedCustomerId = ref<string | null>(null)
-let editSession = 0
-let loadingEdit = false
-const formErrors = ref<Partial<Record<string, string>>>({})
-
-const confirmState = ref({
-  open: false,
-  description: '',
-  onConfirm: () => {},
-})
-
-function openConfirm(description: string, onConfirm: () => void) {
-  confirmState.value = { open: true, description, onConfirm }
-}
-
-function handleConfirm() {
-  confirmState.value.onConfirm()
-  confirmState.value.open = false
-}
-
-function clearFormContext() {
-  editSession++
-  selectedCustomer.value = null
-  selectedCustomerId.value = null
-  formErrors.value = {}
-}
-
-function mapDomainError(error: AxiosError<DomainApiError>): {
-  message: string
-  fields: Partial<Record<string, string>>
-} {
-  const response = error.response?.data
-  const fallback = 'No pudimos guardar el cliente. Reintenta en unos segundos.'
-
-  if (!response) {
-    return { message: fallback, fields: {} }
-  }
-
-  const message = response.message ?? fallback
-  const fields: Partial<Record<string, string>> = {}
-  const normalized = (message ?? '').toLowerCase()
-
-  if (normalized.includes('email')) {
-    fields.email = 'Ya existe un cliente con ese correo electrónico.'
-  }
-
-  if (normalized.includes('rfc')) {
-    fields.rfc = 'Ya existe un cliente con ese RFC.'
-  }
-
-  return { message, fields }
-}
 
 function customerMatchesFilter(customer: Customer, filter: string): boolean {
   const normalizedFilter = filter.toLowerCase().trim()
@@ -176,9 +125,9 @@ const createMutation = useMutation({
   mutationFn: ({ values }: { values: CreateCustomerPayload; session: number }) =>
     customerApi.create(values),
   onSuccess: async (created: Customer, { session }) => {
-    if (session === editSession && isCreateOpen.value) {
+    if (editor.isSession(session) && isCreateOpen.value) {
       isCreateOpen.value = false
-      clearFormContext()
+      editor.clearFormContext()
     }
     resetVisibilityContextAfterCreate(created)
     toast.add({
@@ -194,288 +143,61 @@ const createMutation = useMutation({
     })
   },
   onError: (error, { session }) => {
-    if (session !== editSession || !isCreateOpen.value) return
-    const { message, fields } = mapDomainError(error as AxiosError<DomainApiError>)
+    if (!editor.isSession(session) || !isCreateOpen.value) return
+    const { message, fields } = mapCustomerDomainError(error)
     formErrors.value = fields
     toast.add({ title: 'Error al crear cliente', description: message, color: 'error' })
   },
 })
 
-const updateMutation = useMutation({
-  mutationFn: (payload: { customerId: string; values: UpdateCustomerPayload; session: number }) =>
-    customerApi.update(payload.customerId, payload.values),
-  onSuccess: async (_, variables) => {
-    if (isCurrentEdit(variables.customerId, variables.session)) {
-      isEditOpen.value = false
-      clearFormContext()
-    }
-    toast.add({
-      title: 'Cliente actualizado',
-      description: 'Los cambios se guardaron correctamente.',
-      color: 'success',
-    })
-
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) }),
-      queryClient.invalidateQueries({
-        queryKey: customerQueryKeys.detail(tenantId.value, variables.customerId),
-      }),
-    ])
-  },
-  onError: (error, { customerId, session }) => {
-    if (!isCurrentEdit(customerId, session)) return
-    const { message, fields } = mapDomainError(error as AxiosError<DomainApiError>)
-    formErrors.value = fields
-    toast.add({ title: 'Error al actualizar cliente', description: message, color: 'error' })
-  },
-})
-
-const deleteMutation = useMutation({
-  mutationFn: (customerId: string) => customerApi.remove(customerId),
-  onSuccess: async () => {
-    toast.add({
-      title: 'Cliente eliminado',
-      description: 'El cliente fue eliminado correctamente.',
-      color: 'success',
-    })
-
-    await queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) })
-  },
-  onError: (error) => {
-    // S10: the customer has a backorder WAITING or RESERVED; say what to do and keep it in the list.
-    if (isCustomerHasActiveBackordersError(error)) {
-      toast.add({
-        title: 'Cliente con pedido por reposición',
-        description: CUSTOMER_HAS_ACTIVE_BACKORDERS_MESSAGE,
-        color: 'warning',
-      })
-      return
-    }
-    const { message } = mapDomainError(error as AxiosError<DomainApiError>)
-    toast.add({ title: 'Error al eliminar cliente', description: message, color: 'error' })
-  },
-})
-
-async function refreshAddressSelection(customerId: string, session: number) {
-  if (!isCurrentEdit(customerId, session)) return
-  try {
-    const refreshed = await customerApi.getById(customerId)
-    if (isCurrentEdit(customerId, session)) selectedCustomer.value = refreshed
-  } catch {
-    toast.add({
-      title: 'Dirección guardada',
-      description:
-        'La dirección se guardó, pero no se pudo actualizar la vista. Reabre el cliente para verla.',
-      color: 'warning',
-    })
-  }
-}
-
-async function invalidateAddressList() {
-  try {
-    await queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) })
-  } catch {
-    toast.add({
-      title: 'Dirección guardada',
-      description: 'La lista no se pudo actualizar. Recarga para ver los cambios.',
-      color: 'warning',
-    })
-  }
-}
-
-function isCurrentEdit(customerId: string, session: number) {
-  return session === editSession && isEditOpen.value && selectedCustomerId.value === customerId
-}
-
-const createAddressMutation = useMutation({
-  mutationFn: ({
-    customerId,
-    payload,
-  }: {
-    customerId: string
-    payload: CreateCustomerAddressPayload
-    session: number
-  }) => customerApi.createAddress(customerId, payload),
-  onSuccess: async (_, { customerId, session }) => {
-    toast.add({
-      title: 'Dirección añadida',
-      description: 'La dirección se añadió correctamente.',
-      color: 'success',
-    })
-
-    await refreshAddressSelection(customerId, session)
-    await invalidateAddressList()
-  },
-  onError: (error) => {
-    const { message } = mapDomainError(error as AxiosError<DomainApiError>)
-    toast.add({ title: 'Error al añadir dirección', description: message, color: 'error' })
-  },
-})
-
-const updateAddressMutation = useMutation({
-  mutationFn: ({
-    customerId,
-    addressId,
-    payload,
-  }: {
-    customerId: string
-    addressId: string
-    payload: CreateCustomerAddressPayload
-    session: number
-  }) => customerApi.updateAddress(customerId, addressId, payload),
-  onSuccess: async (_, { customerId, session }) => {
-    toast.add({
-      title: 'Dirección actualizada',
-      description: 'La dirección se actualizó correctamente.',
-      color: 'success',
-    })
-
-    await refreshAddressSelection(customerId, session)
-    await invalidateAddressList()
-  },
-  onError: (error) => {
-    const { message } = mapDomainError(error as AxiosError<DomainApiError>)
-    toast.add({ title: 'Error al actualizar dirección', description: message, color: 'error' })
-  },
-})
-
-const removeAddressMutation = useMutation({
-  mutationFn: ({
-    customerId,
-    addressId,
-  }: {
-    customerId: string
-    addressId: string
-    session: number
-  }) => customerApi.removeAddress(customerId, addressId),
-  onSuccess: async (_, { customerId, session }) => {
-    toast.add({
-      title: 'Dirección eliminada',
-      description: 'La dirección se eliminó correctamente.',
-      color: 'success',
-    })
-
-    await refreshAddressSelection(customerId, session)
-    await invalidateAddressList()
-  },
-  onError: (error) => {
-    const { message } = mapDomainError(error as AxiosError<DomainApiError>)
-    toast.add({ title: 'Error al eliminar dirección', description: message, color: 'error' })
-  },
-})
-
 const isSubmitting = computed(
-  () =>
-    createMutation.isPending.value ||
-    updateMutation.isPending.value ||
-    deleteMutation.isPending.value ||
-    createAddressMutation.isPending.value ||
-    updateAddressMutation.isPending.value ||
-    removeAddressMutation.isPending.value,
+  () => createMutation.isPending.value || isDeleting.value || editor.isPending.value,
 )
 
 function handleAdd() {
   if (!canCreate.value) return
-  editSession++
-  loadingEdit = false
-  isEditOpen.value = false
-  selectedCustomer.value = null
-  selectedCustomerId.value = null
-  formErrors.value = {}
+  editor.beginSession()
   isCreateOpen.value = true
 }
 
 function handleSlideoverClose() {
-  if (!loadingEdit && !isCreateOpen.value && !isEditOpen.value) clearFormContext()
+  editor.onClosed(isCreateOpen.value)
 }
 
 async function handleOpenEdit(customer: Customer) {
   if (!canUpdate.value) return
-  const session = ++editSession
-  loadingEdit = true
-  isEditOpen.value = false
   isCreateOpen.value = false
-  selectedCustomer.value = null
-  selectedCustomerId.value = null
-  try {
-    formErrors.value = {}
-    const detail = await customerApi.getById(customer.id)
-    if (session !== editSession) return
-    loadingEdit = false
-    selectedCustomer.value = detail
-    selectedCustomerId.value = customer.id
-    isEditOpen.value = true
-  } catch {
-    if (session !== editSession) return
-    loadingEdit = false
-    toast.add({
-      title: 'No se pudo abrir el editor',
-      description: 'No pudimos cargar el detalle del cliente.',
-      color: 'error',
-    })
-  }
+  await editor.openEdit(customer.id)
 }
 
-async function handleDelete(customer: Customer) {
-  if (!canDelete.value) return
-  openConfirm(`¿Quieres eliminar al cliente ${customer.fullName}?`, () => {
-    deleteMutation.mutate(customer.id)
-  })
+function handleDelete(customer: Customer) {
+  customerDelete.requestDelete(customer)
 }
 
-function handleCreateSubmit(values: CreateCustomerPayload) {
-  if (!isCreateOpen.value) return
-  createMutation.mutate({ values, session: editSession })
+function handleConfirm() {
+  customerDelete.confirm()
 }
 
 function handleEditSubmit(values: UpdateCustomerPayload) {
   if (!selectedCustomerId.value || !isEditOpen.value) return
-  updateMutation.mutate({ customerId: selectedCustomerId.value, values, session: editSession })
+  editor.submitEdit(values)
+}
+const handleCreateAddress = editor.createAddress
+const handleUpdateAddress = editor.updateAddress
+const handleRemoveAddress = editor.removeAddress
+
+function handleCreateSubmit(values: CreateCustomerPayload) {
+  if (!isCreateOpen.value) return
+  createMutation.mutate({ values, session: editor.currentSession() })
 }
 
-async function handleCreateAddress(
-  customerId: string,
-  payload: CreateCustomerAddressPayload,
-  acknowledge?: (saved: boolean) => void,
-) {
-  if (!isCurrentEdit(customerId, editSession)) return
-  const session = editSession
-  try {
-    await createAddressMutation.mutateAsync({ customerId, payload, session })
-    acknowledge?.(true)
-  } catch {
-    acknowledge?.(false)
-  }
-}
-
-async function handleUpdateAddress(
-  customerId: string,
-  addressId: string,
-  payload: CreateCustomerAddressPayload,
-  acknowledge?: (saved: boolean) => void,
-) {
-  if (!isCurrentEdit(customerId, editSession)) return
-  const session = editSession
-  try {
-    await updateAddressMutation.mutateAsync({ customerId, addressId, payload, session })
-    acknowledge?.(true)
-  } catch {
-    acknowledge?.(false)
-  }
-}
-
-function handleRemoveAddress(customerId: string, addressId: string) {
-  if (!isCurrentEdit(customerId, editSession)) return
-  removeAddressMutation.mutate({ customerId, addressId, session: editSession })
-}
-
-// ── S4: Sales history entry ──────────────────────────────────────────────────
-const historyCustomer = shallowRef<Customer | null>(null)
-const isHistoryOpen = shallowRef(false)
-
-function handleOpenHistory(customer: Customer) {
-  historyCustomer.value = customer
-  isHistoryOpen.value = true
+// ── customers-module T4: the customer page (row click, name, «Ver historial de ventas») ──
+function openCustomer(customer: Customer, tab?: 'ventas') {
+  void router.push({
+    name: 'pos-customer-detail',
+    params: { id: customer.id },
+    ...(tab ? { query: { tab } } : {}),
+  })
 }
 
 // ── Pets entry (handoff 27): listing needs read:Customer ────────────────────────
@@ -507,16 +229,16 @@ function actionsFor(): RowAction[] {
 function handleRowAction(key: string, customer: Customer) {
   if (key === 'edit') void handleOpenEdit(customer)
   else if (key === 'pets') handleOpenPets(customer)
-  else if (key === 'history') handleOpenHistory(customer)
-  else if (key === 'delete') void handleDelete(customer)
+  else if (key === 'history') openCustomer(customer, 'ventas')
+  else if (key === 'delete') handleDelete(customer)
 }
 
-// The whole row (or card) opens the editor for roles that can update; the name
-// button stays the single tab stop.
+// S3 (owner): the whole row (or card) opens the customer page, like Ventas and Productos; the
+// name button stays the single tab stop. «Editar» lives in the ⋮ menu and on the page.
 function openRow(customer: Customer) {
-  if (canUpdate.value) void handleOpenEdit(customer)
+  openCustomer(customer)
 }
-const rowOpen = computed(() => (canUpdate.value ? openRow : undefined))
+const rowOpen = openRow
 
 // ── List states ───────────────────────────────────────────────────────────────
 const searchTerm = computed(() => globalFilter.value.trim())
@@ -567,13 +289,11 @@ function clearFilters() {
       :description="confirmState.description"
       confirm-label="Eliminar"
       confirm-color="error"
-      :loading="deleteMutation.isPending.value"
+      :loading="isDeleting"
       :ui="{ content: 'hf-theme hf-ui hf-form-overlay clients-form-portal' }"
-      @update:open="confirmState.open = $event"
+      @update:open="customerDelete.setConfirmOpen"
       @confirm="handleConfirm"
     />
-
-    <CustomerSalesHistorySlideover v-model:open="isHistoryOpen" :customer="historyCustomer" />
 
     <CustomerPetsSlideover v-model:open="isPetsOpen" :customer="petsCustomer" />
 
@@ -642,17 +362,13 @@ function clearFilters() {
                 />
                 <div class="flex min-w-0 flex-col items-start">
                   <button
-                    v-if="canUpdate"
                     type="button"
                     class="hf-row-primary text-left"
                     data-testid="customer-name"
-                    @click="handleOpenEdit(row.original)"
+                    @click="openCustomer(row.original)"
                   >
                     {{ row.original.fullName }}
                   </button>
-                  <span v-else class="hf-row-primary" data-testid="customer-name">{{
-                    row.original.fullName
-                  }}</span>
                   <span
                     v-if="formatPetMatchHint(row.original)"
                     class="text-[13px] text-muted"
@@ -706,7 +422,7 @@ function clearFilters() {
               <CustomerMobileCard
                 :customer="row"
                 :actions="actionsFor()"
-                :openable="canUpdate"
+                openable
                 portal-class="clients-list-portal"
                 @open="openRow"
                 @action="handleRowAction"

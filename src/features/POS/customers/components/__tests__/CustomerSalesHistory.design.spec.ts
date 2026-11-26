@@ -6,7 +6,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-const drawer = readFileSync('src/features/POS/customers/components/CustomerSalesHistorySlideover.vue', 'utf8')
+// customers-module T4: the drawer's body moved to CustomerSalesHistoryBody (shared with the customer page).
+const drawer = readFileSync('src/features/POS/customers/components/CustomerSalesHistoryBody.vue', 'utf8')
 
 function openingTag(src: string, marker: string): string {
   const at = src.indexOf(marker)

@@ -188,11 +188,12 @@ describe('CustomersView states — data', () => {
     expect(wrapper.get('tbody tr').classes()).toContain('hf-clickable-row')
   })
 
-  it('does not make rows clickable for read-only roles', () => {
+  // customers-module T4 (S3): the row opens the customer page, which every reader may see.
+  it('makes rows clickable for read-only roles too (they open the customer page)', () => {
     authMock.userCan.mockReturnValue(false)
     state.data.value = [makeCustomer('c1')]
     const wrapper = mountView()
-    expect(wrapper.get('tbody tr').classes()).not.toContain('hf-clickable-row')
+    expect(wrapper.get('tbody tr').classes()).toContain('hf-clickable-row')
   })
 })
 

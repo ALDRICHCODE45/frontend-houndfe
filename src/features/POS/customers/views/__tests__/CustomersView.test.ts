@@ -80,13 +80,11 @@ vi.mock('@tanstack/vue-query', () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn(), refetchQueries: vi.fn() }),
 }))
 
-vi.mock('../../components/CustomerSalesHistorySlideover.vue', () => ({
-  default: {
-    name: 'CustomerSalesHistorySlideover',
-    template: '<div data-testid="history-slideover" :data-open="String(open)" :data-customer="customer?.id ?? \'null\'" @click="$emit(\'update:open\', false)" />',
-    props: ['open', 'customer'],
-    emits: ['update:open'],
-  },
+// customers-module T4: the row, the name and «Ver historial de ventas» open the customer page.
+const routerPush = vi.hoisted(() => vi.fn(async () => undefined))
+vi.mock('vue-router', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useRouter: () => ({ push: routerPush }),
 }))
 
 vi.mock('../../components/CustomerPetsSlideover.vue', () => ({
@@ -241,6 +239,7 @@ beforeEach(() => {
   customerAuthMock.userCan.mockReset()
   customerAuthMock.userCan.mockReturnValue(true)
   toastMock.add.mockClear()
+  routerPush.mockClear()
 })
 
 // ── S3: mobile density containment ─────────────────────────────────────────
@@ -292,14 +291,17 @@ describe('CustomersView — mobile density containment (S3)', () => {
     expect(wrapper.element.classList.contains('overflow-x-auto')).toBe(false)
   })
 
-  it('opens the editor from the whole row only for roles that can update', () => {
-    customerAuthMock.userCan.mockImplementation((action: string, subject: string) => action === 'update' && subject === 'Customer')
-    const editor = mount(CustomersView)
-    expect(typeof editor.getComponent({ name: 'AppDataTable' }).props('rowOpen')).toBe('function')
-
+  // S3 (owner): the whole row opens the customer page for every reader, like Ventas and Productos.
+  it('opens the customer page from the whole row, also for read-only roles, never the editor', async () => {
     customerAuthMock.userCan.mockReturnValue(false)
-    const reader = mount(CustomersView)
-    expect(reader.getComponent({ name: 'AppDataTable' }).props('rowOpen')).toBeUndefined()
+    const wrapper = mount(CustomersView)
+    const rowOpen = wrapper.getComponent({ name: 'AppDataTable' }).props('rowOpen') as (c: Customer) => void
+    expect(typeof rowOpen).toBe('function')
+    rowOpen(makeCustomer({ id: 'cust-9' }))
+    await flushPromises()
+    expect(routerPush).toHaveBeenCalledWith({ name: 'pos-customer-detail', params: { id: 'cust-9' } })
+    const editSlideover = wrapper.findAllComponents({ name: 'CustomerUpsertSlideover' })[1]!
+    expect(editSlideover.props('open')).toBe(false)
   })
 })
 
@@ -385,14 +387,26 @@ describe('CustomersView — row identity and mobile card', () => {
     expect(wrapper.text()).not.toContain('cust-secret-id')
   })
 
-  it('renders the name as plain text, not a button, when the role cannot update', async () => {
+  it('the name button opens the customer page, also when the role cannot update', async () => {
     customerAuthMock.userCan.mockReturnValue(false)
     mockState.data.value = [makeCustomer()]
     const wrapper = mount(CustomersView)
     await flushPromises()
     const cell = wrapper.get('[data-testid="name-cell"]')
-    expect(cell.find('button').exists()).toBe(false)
-    expect(cell.get('.hf-row-primary').text()).toBe('Juan Pérez')
+    await cell.get('button.hf-row-primary').trigger('click')
+    expect(routerPush).toHaveBeenCalledWith({ name: 'pos-customer-detail', params: { id: 'cust-1' } })
+  })
+
+  it('the mobile card opens the customer page', async () => {
+    customerAuthMock.userCan.mockReturnValue(false)
+    mockState.data.value = [makeCustomer()]
+    const wrapper = mount(CustomersView)
+    await flushPromises()
+    const card = wrapper.getComponent({ name: 'CustomerMobileCard' })
+    expect(card.props('openable')).toBe(true)
+    card.vm.$emit('open', makeCustomer({ id: 'cust-7' }))
+    await flushPromises()
+    expect(routerPush).toHaveBeenCalledWith({ name: 'pos-customer-detail', params: { id: 'cust-7' } })
   })
 
   it('shows the price list as plain text and an em dash when absent (no legacy badge)', async () => {
@@ -498,16 +512,13 @@ describe('CustomersView — sales history entry (S4)', () => {
     expect((card.props('actions') as RowActionItem[]).map((a) => a.label)).toEqual(['Ver historial de ventas'])
   })
 
-  it('history slideover is closed by default', async () => {
+  it('no history slideover is mounted: the history lives on the customer page', async () => {
     const wrapper = mount(CustomersView)
     await flushPromises()
-    const slideover = wrapper.findComponent({ name: 'CustomerSalesHistorySlideover' })
-    expect(slideover.exists()).toBe(true)
-    expect(slideover.props('open')).toBe(false)
-    expect(slideover.props('customer')).toBeNull()
+    expect(wrapper.findComponent({ name: 'CustomerSalesHistorySlideover' }).exists()).toBe(false)
   })
 
-  it('table history action opens the slideover with the selected customer (identity preserved)', async () => {
+  it('table history action opens the customer page on the «Ventas» tab', async () => {
     customerAuthMock.userCan.mockImplementation(
       (action: string, subject: string) => action === 'read' && subject === 'Sale',
     )
@@ -518,50 +529,14 @@ describe('CustomersView — sales history entry (S4)', () => {
     expect(rowActions(wrapper).map((i) => i.key)).toEqual(['history'])
     selectRowAction(wrapper, 'history')
     await flushPromises()
-    const slideover = wrapper.findComponent({ name: 'CustomerSalesHistorySlideover' })
-    expect(slideover.props('open')).toBe(true)
-    expect(slideover.props('customer')).toEqual(customerB)
-  })
-
-  it('closes history via update:open without opening edit/detail and preserves selected-customer identity across reopen', async () => {
-    customerAuthMock.userCan.mockImplementation((action, subject) =>
-      action === 'read' && subject === 'Sale',
-    )
-    const customerA = makeCustomer({ id: 'cust-A', fullName: 'Ana Álvarez' })
-    const customerB = makeCustomer({ id: 'cust-B', fullName: 'Bruno Beto' })
-    mockState.data.value = [customerA, customerB]
-
-    const wrapper = mount(CustomersView)
-    await flushPromises()
-
-    const upsertSlideoverWrappers = wrapper.findAllComponents({ name: 'CustomerUpsertSlideover' })
-    expect(upsertSlideoverWrappers).toHaveLength(2)
-    const createSlideover = upsertSlideoverWrappers[0]!
-    const editSlideover = upsertSlideoverWrappers[1]!
-    const historySlideover = () => wrapper.findComponent({ name: 'CustomerSalesHistorySlideover' })
-
-    selectRowAction(wrapper, 'history', 0)
-    await flushPromises()
-
-    expect(historySlideover().props('open')).toBe(true)
-    expect(historySlideover().props('customer')).toEqual(customerA)
-    expect(editSlideover.props('open')).toBe(false)
-    expect(createSlideover.props('open')).toBe(false)
-
-    historySlideover().vm.$emit('update:open', false)
-    await flushPromises()
-
-    expect(historySlideover().props('open')).toBe(false)
-    expect(editSlideover.props('open')).toBe(false)
-    expect(createSlideover.props('open')).toBe(false)
-
-    selectRowAction(wrapper, 'history', 1)
-    await flushPromises()
-
-    expect(historySlideover().props('open')).toBe(true)
-    expect(historySlideover().props('customer')).toEqual(customerB)
-    expect(editSlideover.props('open')).toBe(false)
-    expect(createSlideover.props('open')).toBe(false)
+    expect(routerPush).toHaveBeenCalledWith({
+      name: 'pos-customer-detail',
+      params: { id: 'cust-B' },
+      query: { tab: 'ventas' },
+    })
+    const [createSlideover, editSlideover] = wrapper.findAllComponents({ name: 'CustomerUpsertSlideover' })
+    expect(editSlideover!.props('open')).toBe(false)
+    expect(createSlideover!.props('open')).toBe(false)
   })
 
   it('the mobile card history action forwards the card identity unchanged', async () => {
@@ -574,9 +549,11 @@ describe('CustomersView — sales history entry (S4)', () => {
     await flushPromises()
     wrapper.getComponent({ name: 'CustomerMobileCard' }).vm.$emit('action', 'history', customerB)
     await flushPromises()
-    const slideover = wrapper.findComponent({ name: 'CustomerSalesHistorySlideover' })
-    expect(slideover.props('open')).toBe(true)
-    expect(slideover.props('customer')).toEqual(customerB)
+    expect(routerPush).toHaveBeenCalledWith({
+      name: 'pos-customer-detail',
+      params: { id: 'cust-B' },
+      query: { tab: 'ventas' },
+    })
   })
 })
 
