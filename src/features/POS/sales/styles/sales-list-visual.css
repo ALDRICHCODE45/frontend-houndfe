@@ -15,16 +15,14 @@
  * `--hf-on-action` in both themes, so no on-action literal lives here.
  */
 
-/* Compatibility aliases: inside the opted-in boundary the legacy utility radii
- * resolve to the shared control/card corners. The full-radius alias is
- * deliberately left untouched so avatars, dots and rings keep their circles. */
+/* Small corners inside the opted-in boundary resolve to the shared control/card
+ * radius (xl/2xl/3xl already resolve to the card token at the root). The
+ * full-radius alias is untouched so avatars, dots and rings keep their circles. */
 .sales-list-visual,
 .hf-theme.sales-list-portal {
   --radius-sm: var(--hf-radius-control);
   --radius-md: var(--hf-radius-control);
   --radius-lg: var(--hf-radius-card);
-  --radius-xl: var(--hf-radius-card);
-  --radius-2xl: var(--hf-radius-card);
 }
 
 /* ── Toolbar ─────────────────────────────────────────────────────────────── */

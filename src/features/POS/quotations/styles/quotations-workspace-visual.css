@@ -14,12 +14,11 @@
  */
 
 .quotations-workspace-visual {
-  /* Restrained geometry: section cards land on the foundation card radius and
-   * buttons/chips on the control radius. Circles and the shared Coco stylesheet
-   * stay untouched. */
+  /* Restrained geometry: section cards land on the foundation card radius
+   * (xl/2xl/3xl resolve to it at the root) and buttons/chips on the control
+   * radius. Circles and the shared Coco stylesheet stay untouched. */
   --radius-md: var(--hf-radius-control);
   --radius-lg: var(--hf-radius-control);
-  --radius-xl: var(--hf-radius-card);
 }
 
 /* Teleported feature surfaces repeat the foundation boundary on their own

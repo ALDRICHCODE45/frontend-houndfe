@@ -18,10 +18,10 @@
  */
 
 /*
- * Geometry compatibility aliases.
+ * Geometry.
  *
- * Panels land on the foundation card radius and controls on the control
- * radius. `--radius-full` is deliberately untouched so the timeline icon and
+ * Panels land on the foundation card radius (xl/2xl/3xl already resolve to it
+ * at the root) and controls on the control radius. `--radius-full` is deliberately untouched so the timeline icon and
  * other circles keep their shape. Colors come straight from the `--hf-*`
  * roles used in the markup; no legacy palette is remapped here.
  */
@@ -29,8 +29,6 @@
 .hf-theme.sales-detail-portal {
   --radius-md: var(--hf-radius-control);
   --radius-lg: var(--hf-radius-card);
-  --radius-xl: var(--hf-radius-card);
-  --radius-2xl: var(--hf-radius-card);
 }
 
 /* ── Teleported boundary ─────────────────────────────────────────────────── */

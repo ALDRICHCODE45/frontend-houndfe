@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import type { SalePaymentStatus } from '../interfaces/sale.types'
 import { SALE_PAYMENT_STATUS } from '../constants/sale.constants' // sdd/magic-string-constants slice 3
 import { formatCentsMXN } from '../utils/currency.utils'
-import { hasSalesEntryToken } from '../utils/salesEntryPortal'
 
 const props = withDefaults(defineProps<{
   open: boolean
@@ -14,11 +13,7 @@ const props = withDefaults(defineProps<{
   debtCents?: number
   paymentStatus?: SalePaymentStatus
   confirmedAt: string
-  /**
-   * Optional teleport boundary marker forwarded to the installed Modal's
-   * `ui.content`. Absent by default, so the dialog keeps `sm:max-w-md` and
-   * every native default.
-   */
+  /** Teleport boundary marker forwarded to the Modal's `ui.content` (Venta passes the sales entry portal). */
   portalClass?: string
 }>(), {
   debtCents: 0,
@@ -45,22 +40,11 @@ const debtStatus = computed(() => {
   return { label: 'Pagado', color: 'success' as const }
 })
 
-// T3: only the caller's opt-in swaps the forced legacy gold utility; omission
-// keeps the previous class string exactly. The owned checkout marker is
-// appended only for the sales opt-in, so other consumers keep their `ui` value
-// byte-identical.
-const modalUi = computed(() => {
-  if (!props.portalClass) return { content: 'sm:max-w-md' }
-  const content = hasSalesEntryToken(props.portalClass)
-    ? `sm:max-w-md ${props.portalClass} sales-pos-checkout`
-    : `sm:max-w-md ${props.portalClass}`
-  return { content }
-})
-const closeButtonClass = computed(() =>
-  props.portalClass
-    ? 'sales-entry-primary-action rounded-xl font-semibold shadow-sm'
-    : 'hf-primary-control',
-)
+// The content root carries the caller's portal marker (Venta passes the sales
+// entry portal) plus the owned checkout composition marker.
+const modalUi = computed(() => ({
+  content: ['sm:max-w-md', props.portalClass, 'sales-pos-checkout'].filter(Boolean).join(' '),
+}))
 </script>
 
 <template>
@@ -110,7 +94,7 @@ const closeButtonClass = computed(() =>
 
     <template #footer>
       <div class="flex w-full justify-end">
-        <UButton color="primary" :class="closeButtonClass" @click="emit('update:open', false)">Cerrar</UButton>
+        <UButton color="primary" class="sales-entry-primary-action rounded-xl font-semibold shadow-sm" @click="emit('update:open', false)">Cerrar</UButton>
       </div>
     </template>
   </UModal>

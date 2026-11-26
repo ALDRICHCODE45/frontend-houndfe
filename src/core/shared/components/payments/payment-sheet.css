@@ -1,0 +1,214 @@
+/*
+ * Payment sheet (style-cleanup U2, owner S3 «una sola pieza»).
+ *
+ * The one look shared by the counter checkout, the debt payment («Cobrar deuda») and «Cobrar
+ * todo»: a neutral total panel, one-line method tiles (muted icon · label · count) with a blue
+ * selection, muted payment entries, plain summary rows and warning/neutral panels.
+ *
+ * Marker-free on purpose: every rule hangs on its own `hf-pay-*` class, so the sheet looks the
+ * same whatever portal class the caller puts on the teleported root (customer history, sale
+ * detail, Venta). Cards and panels take `--hf-radius-card` (12px), controls
+ * `--hf-radius-control` (6px); nothing here nests a decorative card (design/system.md:130).
+ * Tokens only: no palette literal, no `:root`, no `!important`.
+ *
+ * These rules are unlayered, so they win over Tailwind utilities on the same element: do not
+ * mix utilities that set the same property on an `hf-pay-*` element.
+ */
+
+/* ── Total: one money figure on the neutral page tone ───────────────────── */
+
+.hf-pay-total {
+  padding: 1rem 1.25rem;
+  text-align: center;
+  background-color: var(--hf-page);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+}
+
+.hf-pay-total-label {
+  color: var(--hf-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.hf-pay-total-value {
+  margin-top: 0.25rem;
+  color: var(--hf-heading);
+  font-size: 2.25rem;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Method tiles: one horizontal line, blue selection ──────────────────── */
+
+.hf-pay-methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.hf-pay-tile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.5rem;
+  min-width: 0;
+  min-height: var(--hf-control-height);
+  padding: 1rem 0.75rem;
+  text-align: left;
+  color: var(--hf-ink);
+  background-color: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+
+.hf-pay-tile:is(:hover, :focus-visible):not(:disabled) {
+  background-color: color-mix(in srgb, var(--hf-action) 4%, var(--hf-surface));
+  border-color: color-mix(in srgb, var(--hf-action) 40%, var(--hf-border));
+}
+
+.hf-pay-tile:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+.hf-pay-tile[aria-pressed='true'] {
+  background-color: var(--hf-active-soft);
+  border-color: var(--hf-action);
+}
+
+.hf-pay-tile:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.hf-pay-tile-icon {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--hf-muted);
+}
+
+.hf-pay-tile-label {
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+/* The count sits at the end of the line, never in an absolute corner. */
+.hf-pay-tile-count {
+  order: 3;
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--hf-active);
+}
+
+/* Custom-method subtitle wraps under the label instead of squeezing it. */
+.hf-pay-tile-subtitle {
+  flex-basis: 100%;
+  order: 4;
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+}
+
+/* ── Payment entries: muted rows, readable fields ───────────────────────── */
+
+.hf-pay-entries {
+  display: grid;
+  gap: 0.75rem;
+}
+
+/* Nothing selected yet: a dashed hint, not a filled card. */
+.hf-pay-empty {
+  padding: 1.5rem 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--hf-muted);
+  border: 1px dashed var(--hf-border);
+  border-radius: var(--hf-radius-card);
+}
+
+.hf-pay-entry {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background-color: var(--hf-surface-muted);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+}
+
+.hf-pay-entry input {
+  font-size: 0.9375rem;
+}
+
+.hf-pay-entry-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.hf-pay-entry-icon {
+  flex-shrink: 0;
+  width: 1rem;
+  height: 1rem;
+  color: var(--hf-muted);
+}
+
+.hf-pay-entry-label {
+  flex: 1 1 0%;
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+/* ── Summary: plain tabular rows, no box ────────────────────────────────── */
+
+.hf-pay-summary {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--hf-ink);
+}
+
+.hf-pay-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.hf-pay-summary :is(dt, .hf-pay-summary-label) {
+  color: var(--hf-muted);
+}
+
+.hf-pay-summary dd {
+  margin: 0;
+}
+
+.hf-pay-summary-value {
+  font-weight: 600;
+}
+
+/* ── Panels: neutral by default, warning tone for what needs attention ──── */
+
+.hf-pay-panel {
+  padding: 0.75rem 1rem;
+  background-color: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+}
+
+.hf-pay-panel[data-tone='warning'] {
+  background-color: var(--hf-warning-soft);
+  border-color: color-mix(in srgb, var(--hf-warning) 40%, var(--hf-border));
+}

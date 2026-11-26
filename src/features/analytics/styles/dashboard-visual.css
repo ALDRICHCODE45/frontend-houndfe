@@ -17,7 +17,6 @@
   --radius-sm: var(--hf-radius-control);
   --radius-md: var(--hf-radius-control);
   --radius-lg: var(--hf-radius-card);
-  --radius-xl: var(--hf-radius-card);
   font-family: var(--hf-font);
   font-variant-numeric: tabular-nums;
   color: var(--hf-ink);

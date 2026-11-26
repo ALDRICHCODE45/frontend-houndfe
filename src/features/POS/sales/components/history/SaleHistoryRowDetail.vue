@@ -22,8 +22,18 @@ export interface SaleHistoryChargeRequest {
 }
 
 const props = withDefaults(
-  defineProps<{ saleId: string; allowCharge?: boolean; party?: 'seller' | 'customer' }>(),
-  { allowCharge: false, party: 'seller' },
+  defineProps<{
+    saleId: string
+    allowCharge?: boolean
+    party?: 'seller' | 'customer'
+    /**
+     * The host row already draws the surface (customer history table row / mobile card), so the
+     * detail drops its own border, corner and fill instead of nesting a card (design/system.md:130,
+     * style-cleanup U3). The seller report keeps the default bordered panel.
+     */
+    embedded?: boolean
+  }>(),
+  { allowCharge: false, party: 'seller', embedded: false },
 )
 const emit = defineEmits<{ charge: [request: SaleHistoryChargeRequest] }>()
 
@@ -69,7 +79,9 @@ function charge() {
 <template>
   <div
     data-testid="sale-history-detail"
-    class="min-w-0 rounded-lg border border-[var(--hf-border)] bg-[var(--hf-surface)] px-4 py-3 text-[13px]"
+    :data-embedded="embedded ? 'true' : undefined"
+    class="min-w-0 px-4 py-3 text-[13px]"
+    :class="{ 'rounded-lg border border-[var(--hf-border)] bg-[var(--hf-surface)]': !embedded }"
   >
     <div v-if="isLoading" aria-busy="true" class="grid gap-2">
       <span class="sr-only" role="status">Cargando el detalle de la venta…</span>

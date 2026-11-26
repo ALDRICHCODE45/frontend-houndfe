@@ -269,9 +269,10 @@ describe('R1 — checkout composition on the native slideover root', () => {
     expect(body.contains(footer)).toBe(false)
     expect(footer.querySelector('[data-testid="confirm-charge"]')).not.toBeNull()
 
-    expect(root!.querySelector('.sales-pos-checkout-total')).not.toBeNull()
-    expect(root!.querySelector('.sales-pos-checkout-methods')).not.toBeNull()
-    expect(root!.querySelector('.sales-pos-checkout-entries')).not.toBeNull()
+    // style-cleanup U3: total, tiles and entries use the shared payment sheet (`hf-pay-*`).
+    expect(root!.querySelector('.hf-pay-total')).not.toBeNull()
+    expect(root!.querySelector('.hf-pay-methods')).not.toBeNull()
+    expect(root!.querySelector('.hf-pay-empty')).not.toBeNull()
     expect(root!.querySelector('.sales-pos-checkout-due-date')).not.toBeNull()
     expect(root!.querySelector('.sales-pos-checkout-delivery')).not.toBeNull()
 
@@ -280,7 +281,9 @@ describe('R1 — checkout composition on the native slideover root', () => {
     expect(ui.content).toContain('sales-pos-checkout')
   })
 
-  it('keeps the omitted opt-in byte-identical (no marker class)', async () => {
+  // style-cleanup U3: Venta is the only caller and always opts in, so the owned checkout marker
+  // is unconditional; without a portal class the root carries only geometry and that marker.
+  it('always carries the owned checkout marker, even without a portal class', async () => {
     const wrapper = track(
       mount(PaymentModal, {
         props: { open: true, saleId: 'sale-1', totalCents: 45050 },
@@ -290,9 +293,8 @@ describe('R1 — checkout composition on the native slideover root', () => {
     )
     await flushPromises()
 
-    expect(hasCheckoutMarker()).toBe(false)
     const ui = wrapper.findComponent({ name: 'Slideover' }).props('ui') as { content: string }
-    expect(ui.content).toBe('sm:max-w-lg overflow-hidden')
+    expect(ui.content).toBe('sm:max-w-lg overflow-hidden sales-pos-checkout')
   })
 })
 
@@ -310,13 +312,12 @@ describe('R2 — method tiles select, count and preserve the public action', () 
     await flushPromises()
 
     const tile = bodyEl('[data-testid="add-payment-entry"]')
-    expect(tile.classes()).toContain('sales-pos-checkout-method-tile')
-    expect(tile.attributes('data-sales-pos-checkout-state')).toBe('idle')
+    expect(tile.classes()).toContain('hf-pay-tile')
+    expect(tile.attributes('aria-pressed')).toBe('false')
 
     await tile.trigger('click')
-    expect(bodyEl('[data-testid="add-payment-entry"]').attributes('data-sales-pos-checkout-state')).toBe(
-      'selected',
-    )
+    expect(bodyEl('[data-testid="add-payment-entry"]').attributes('aria-pressed')).toBe('true')
+    expect(bodyEl('[data-testid="add-payment-entry"]').find('.hf-pay-tile-count').text()).toBe('1')
     expect(document.body.querySelectorAll('[data-testid^="payment-entry-"]')).toHaveLength(1)
 
     await bodyEl('[data-testid="confirm-charge"]').trigger('click')
@@ -343,7 +344,7 @@ describe('R3 — payment entries keep readable stacked fields and references', (
     await bodyEl('[data-testid="payment-method-tile-card_credit"]').trigger('click')
 
     const entry = bodyEl('[data-testid="payment-entry-0"]')
-    expect(entry.classes()).toContain('sales-pos-checkout-payment-entry')
+    expect(entry.classes()).toContain('hf-pay-entry')
     expect(entry.find('[data-testid="payment-amount-0"]').exists()).toBe(true)
     expect(entry.find('[data-testid="payment-reference-0"]').exists()).toBe(true)
   })
@@ -410,7 +411,8 @@ describe('R4 — Caja session choice and lost binding stay explicit', () => {
 
     const lost = document.body.querySelector('[data-testid="cash-session-binding-lost"]')
     expect(lost).not.toBeNull()
-    expect(lost!.classList.contains('sales-pos-checkout-binding-lost')).toBe(true)
+    expect(lost!.classList.contains('hf-pay-panel')).toBe(true)
+    expect(lost!.getAttribute('data-tone')).toBe('warning')
 
     await bodyEl('[data-testid="cash-session-binding-optout"]').trigger('click')
     await flushPromises()
@@ -793,18 +795,8 @@ describe('R11 — the checkout marker requires the exact sales-entry-portal toke
       },
     },
     { name: 'VariantPickerModal', component: VariantPickerModal, props: { productId: 'prod-1', productName: 'Ibuprofeno', variants: [variantRow] }, expected: NEAR },
-    {
-      name: 'PaymentSuccessModal',
-      component: PaymentSuccessModal,
-      props: { folio: 'A-1', totalCents: 10000, paidCents: 10000, changeDueCents: 0, debtCents: 0, confirmedAt: '2026-05-06T21:00:00.000Z' },
-      expected: `sm:max-w-md ${NEAR}`,
-    },
-    {
-      name: 'PromotionCapacityRequoteModal',
-      component: PromotionCapacityRequoteModal,
-      props: { subtotalCents: 12000, discountCents: 2000, totalCents: 10000 },
-      expected: `sm:max-w-md ${NEAR}`,
-    },
+    // style-cleanup U3: PaymentSuccessModal and PromotionCapacityRequoteModal no longer gate on
+    // the token — their only caller (SalesView) always passes the exact sales entry portal.
   ]
 
   it.each(modalCases)('$name keeps a near-match token unpainted', async ({ component, props, expected, stubs }) => {

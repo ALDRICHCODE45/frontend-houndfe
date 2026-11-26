@@ -10,9 +10,6 @@
   --radius-sm: 6px;
   --radius-md: var(--hf-radius-control);
   --radius-lg: var(--hf-radius-card);
-  --radius-xl: var(--hf-radius-card);
-  --radius-2xl: 16px;
-  --radius-3xl: 20px;
 }
 
 .hf-theme.roles-list-portal,

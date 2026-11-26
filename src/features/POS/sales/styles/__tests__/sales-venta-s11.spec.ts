@@ -20,6 +20,8 @@ const read = (name: string) => readFileSync(`src/features/POS/sales/styles/${nam
 const workspaceCss = read('sales-pos-workspace.css')
 const cartCss = read('sales-pos-cart.css')
 const checkoutCss = read('sales-pos-checkout.css')
+const sheetCss = readFileSync('src/core/shared/components/payments/payment-sheet.css', 'utf8')
+const uiCss = readFileSync('src/core/shared/design-system/houndfe-ui.css', 'utf8')
 
 const styles: HTMLStyleElement[] = []
 
@@ -142,27 +144,27 @@ describe('S11 — cart rows and dividers', () => {
 
 describe('S11 — Venta checkout paint', () => {
   it('maps the Nuxt warning and primary colors to readable semantic tokens', () => {
+    // style-cleanup U3: the app-wide `.hf-ui` adapter already binds both (body carries `hf-ui`,
+    // so every teleported checkout root inherits them); the checkout no longer repeats them.
+    expect(declarationsOf(uiCss, '.hf-ui')).toMatch(/--ui-warning:\s*var\(--hf-warning\)/)
+    expect(declarationsOf(uiCss, '.hf-ui')).toMatch(/--ui-primary:\s*var\(--hf-action\)/)
     const root = declarationsOf(checkoutCss, '.sales-pos-checkout')
-    expect(root).toMatch(/--ui-warning:\s*var\(--hf-warning\)/)
-    expect(root).toMatch(/--ui-primary:\s*var\(--hf-action\)/)
+    expect(root).not.toMatch(/--ui-(?:warning|primary)\s*:/)
   })
 
   it('replaces the legacy gold method, total and due-date paint', () => {
-    expect(
-      effective(checkoutCss, '.sales-pos-checkout .sales-pos-checkout-method-tile > svg', 'color', 1280),
-    ).toBe('var(--hf-muted)')
+    // Tiles and total live in the shared payment sheet since style-cleanup U3.
+    expect(effective(sheetCss, '.hf-pay-tile-icon', 'color', 1280)).toBe('var(--hf-muted)')
     // jsdom's CSSOM drops `color-mix()` values, so the hover wash is read from
     // the declaration text: it must repaint the inherited gold hover background.
-    expect(
-      declarationsOf(checkoutCss, '.sales-pos-checkout .sales-pos-checkout-method-tile:is(:hover, :focus-visible)'),
-    ).toMatch(/background-color:\s*color-mix\(in srgb, var\(--hf-action\)/)
+    expect(sheetCss).toMatch(
+      /\.hf-pay-tile:is\(:hover, :focus-visible\):not\(:disabled\)\s*\{[^}]*background-color:\s*color-mix\(in srgb, var\(--hf-action\)/,
+    )
     expect(
       // jsdom serializes attribute selectors with double quotes.
       effective(checkoutCss, '.sales-pos-checkout [data-testid="expand-due-date"]', 'color', 1280),
     ).toBe('var(--hf-action)')
-    expect(
-      effective(checkoutCss, '.sales-pos-checkout .sales-pos-checkout-total', 'background-color', 1280),
-    ).toBe('var(--hf-page)')
+    expect(effective(sheetCss, '.hf-pay-total', 'background-color', 1280)).toBe('var(--hf-page)')
   })
 })
 

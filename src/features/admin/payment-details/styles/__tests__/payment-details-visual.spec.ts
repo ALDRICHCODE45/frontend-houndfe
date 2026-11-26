@@ -22,7 +22,8 @@ describe('AdminPaymentDetailsView.vue presentation adapter', () => {
     for (const marker of ['payment-details-visual', 'payment-details-list-portal', 'payment-details-form-portal']) {
       expect(css).toContain(`.hf-theme.${marker}`)
     }
-    expect(css).toContain('--radius-xl: var(--hf-radius-card)')
+    // Card corners (xl/2xl/3xl) come from the root scale, never a local copy.
+    expect(css).not.toMatch(/--radius-(?:xl|2xl|3xl)\s*:/)
   })
 
   it('paints only on --hf roles: no palette literals, no local re-theme', () => {

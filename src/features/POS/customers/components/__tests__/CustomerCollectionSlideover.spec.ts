@@ -593,3 +593,215 @@ describe('CustomerCollectionSlideover — removed catalog method (R3)', () => {
     expect(q('[data-testid="collection-catalog-notice"]')).toBeNull()
   })
 })
+
+/**
+ * payment-split T1 (S2-S5, S7): helping the cashier split the debt (1,400.00 here) across tenders.
+ * Every helper edit goes through `setPayments` exactly like typing (same debounced preview).
+ */
+describe('CustomerCollectionSlideover — split the debt across methods', () => {
+  async function pick(...methods: string[]) {
+    for (const method of methods) {
+      q(`[data-testid="collection-method-${method}"]`)!.click()
+      await flushPromises()
+    }
+  }
+  async function type(selector: string, value: string) {
+    const input = q(selector) as HTMLInputElement
+    input.value = value
+    input.dispatchEvent(new Event('input'))
+    await flushPromises()
+  }
+  const amountsSent = () =>
+    fake.setPayments.mock.lastCall![0].map((tender: CollectionTender) => tender.amountCents)
+  const entryText = (index: number) => text(`[data-testid="collection-entry-${index}"]`)
+
+  describe('S5 — a new method enters with what is still due', () => {
+    it('a non-cash first method takes the whole debt', async () => {
+      mountSheet()
+      await flushPromises()
+      await pick('card_debit')
+      expect(fake.setPayments).toHaveBeenLastCalledWith([
+        { method: 'card_debit', amountCents: 140000 },
+      ])
+    })
+
+    it('the next method takes what the others leave pending', async () => {
+      mountSheet()
+      await flushPromises()
+      await pick('cash')
+      await type('[data-testid="collection-amount-0"]', '600')
+      await pick('transfer')
+      expect(amountsSent()).toEqual([60000, 80000])
+    })
+
+    it('when everything is covered it enters blank without an error until the cashier types', async () => {
+      mountSheet()
+      await flushPromises()
+      await pick('cash', 'card_credit')
+      expect(amountsSent()).toEqual([140000, 0])
+      expect((q('[data-testid="collection-amount-1"]') as HTMLInputElement).value).toBe('')
+      expect(entryText(1)).not.toContain('El monto debe ser mayor a 0')
+      await type('[data-testid="collection-amount-1"]', '0')
+      expect(entryText(1)).toContain('El monto debe ser mayor a 0')
+    })
+
+    it('a blank method shows its amount error once a confirm is tried', async () => {
+      mountSheet()
+      await flushPromises()
+      await pick('cash', 'card_credit')
+      expect(entryText(1)).not.toContain('El monto debe ser mayor a 0')
+      q('[data-testid="collection-confirm"]')!.click()
+      await flushPromises()
+      expect(entryText(1)).toContain('El monto debe ser mayor a 0')
+    })
+
+    it('a confirm blocked by something else does not reveal a blank method added later', async () => {
+      // Two open tills and none chosen: the confirm stops at the session check, not at an amount.
+      sessions.value = [session('sess-1'), session('sess-2')]
+      mountSheet()
+      await flushPromises()
+      await pick('cash')
+      q('[data-testid="collection-confirm"]')!.click()
+      await flushPromises()
+      expect(fake.confirm).not.toHaveBeenCalled()
+      await pick('card_credit')
+      expect(amountsSent()).toEqual([140000, 0])
+      expect(entryText(1)).not.toContain('El monto debe ser mayor a 0')
+    })
+
+    it('a blank method revealed by a confirm hides again once removed and added back', async () => {
+      mountSheet()
+      await flushPromises()
+      await pick('cash', 'card_credit')
+      q('[data-testid="collection-confirm"]')!.click()
+      await flushPromises()
+      expect(entryText(1)).toContain('El monto debe ser mayor a 0')
+      expect(fake.confirm).not.toHaveBeenCalled()
+      await pick('card_credit', 'card_credit')
+      expect(entryText(1)).not.toContain('El monto debe ser mayor a 0')
+    })
+
+    it('a blank-marked method that already holds an amount does not block the confirm', async () => {
+      // Guard self-consistency: only blank tenders whose amount is still 0 stop the confirm. The
+      // amount is written straight into the sheet state (any path that skips the blank unmark).
+      const sheet = mountSheet()
+      await flushPromises()
+      await pick('cash', 'card_credit')
+      expect(amountsSent()).toEqual([140000, 0])
+      const state = (
+        sheet.vm.$ as unknown as {
+          setupState: { entries: { method: string; amountCents: number }[] }
+        }
+      ).setupState
+      state.entries = [{ method: 'cash', amountCents: 100000 }, { method: 'card_credit', amountCents: 40000 }]
+      await flushPromises()
+      expect(amountsSent()).toEqual([100000, 40000])
+      q('[data-testid="collection-confirm"]')!.click()
+      await flushPromises()
+      expect(fake.confirm).toHaveBeenCalledTimes(1)
+    })
+
+    it('cash already over the debt (change) leaves the new method blank too (S7)', async () => {
+      mountSheet()
+      await flushPromises()
+      await pick('cash')
+      await type('[data-testid="collection-amount-0"]', '1500')
+      await pick('transfer')
+      expect(amountsSent()).toEqual([150000, 0])
+    })
+  })
+
+  describe('S2 — «Lo que falta» on each amount', () => {
+    it('completes the tender with what the other tenders leave pending', async () => {
+      mountSheet()
+      await flushPromises()
+      await pick('cash')
+      await type('[data-testid="collection-amount-0"]', '500')
+      await pick('card_debit')
+      await type('[data-testid="collection-amount-1"]', '200')
+      const fill = q('[data-testid="collection-fill-remaining-1"]')!
+      expect(fill.textContent).toContain('Lo que falta')
+      expect(fill.getAttribute('aria-label')).toContain('Tarjeta')
+      fill.click()
+      await flushPromises()
+      expect(amountsSent()).toEqual([50000, 90000])
+    })
+
+    it('is hidden when nothing remains', async () => {
+      mountSheet()
+      await flushPromises()
+      await pick('cash')
+      expect(q('[data-testid="collection-fill-remaining-0"]')).toBeNull()
+      await type('[data-testid="collection-amount-0"]', '100')
+      expect(q('[data-testid="collection-fill-remaining-0"]')).not.toBeNull()
+    })
+  })
+
+  describe('S3 — «Repartir en partes iguales»', () => {
+    it('is offered only with 2 or more methods', async () => {
+      mountSheet()
+      await flushPromises()
+      await pick('cash')
+      expect(q('[data-testid="tender-split-equal"]')).toBeNull()
+      await pick('transfer')
+      expect(q('[data-testid="tender-split-equal"]')?.textContent).toContain(
+        'Repartir en partes iguales',
+      )
+    })
+
+    it('splits the debt equally; the leftover cents go to the last method', async () => {
+      mountSheet()
+      await flushPromises()
+      await pick('cash', 'card_credit', 'transfer')
+      q('[data-testid="tender-split-equal"]')!.click()
+      await flushPromises()
+      expect(amountsSent()).toEqual([46666, 46666, 46668])
+      expect(entryText(1)).not.toContain('El monto debe ser mayor a 0')
+    })
+  })
+
+  describe('S4 — «Por porcentaje»', () => {
+    it('applies 50/30/20 in exact cents', async () => {
+      mountSheet()
+      await flushPromises()
+      await pick('cash', 'card_credit', 'transfer')
+      q('[data-testid="tender-split-percent-toggle"]')!.click()
+      await flushPromises()
+      const percentInput = q('[data-testid="tender-split-percent-1"]')!
+      expect(percentInput.getAttribute('aria-label')).toContain('Tarjeta')
+      await type('[data-testid="tender-split-percent-0"]', '50')
+      await type('[data-testid="tender-split-percent-1"]', '30')
+      await type('[data-testid="tender-split-percent-2"]', '20')
+      q('[data-testid="tender-split-percent-apply"]')!.click()
+      await flushPromises()
+      expect(amountsSent()).toEqual([70000, 42000, 28000])
+    })
+
+    it('flags a total that is not 100% and does not apply it', async () => {
+      mountSheet()
+      await flushPromises()
+      await pick('cash', 'transfer')
+      q('[data-testid="tender-split-percent-toggle"]')!.click()
+      await flushPromises()
+      await type('[data-testid="tender-split-percent-0"]', '50')
+      await type('[data-testid="tender-split-percent-1"]', '30')
+      expect(text('[data-testid="tender-split-percent-total"]')).toContain('80')
+      expect(text('[data-testid="tender-split-percent-total"]')).toContain('100%')
+      const apply = q('[data-testid="tender-split-percent-apply"]') as HTMLButtonElement
+      expect(apply.disabled).toBe(true)
+      const calls = fake.setPayments.mock.calls.length
+      apply.click()
+      await flushPromises()
+      expect(fake.setPayments.mock.calls.length).toBe(calls)
+    })
+  })
+
+  it('the split actions are disabled while the sheet is locked', async () => {
+    mountSheet()
+    await flushPromises()
+    await pick('cash', 'transfer')
+    fake.uncertain.value = true
+    await flushPromises()
+    expect((q('[data-testid="tender-split-equal"]') as HTMLButtonElement).disabled).toBe(true)
+  })
+})

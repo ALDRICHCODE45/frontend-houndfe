@@ -22,10 +22,16 @@ describe('paymentEntries.utils', () => {
       expect(entry).toEqual({ method: 'cash', amountCents: 12_500 })
     })
 
-    it('defaults non-cash amount to zero', () => {
+    // payment-split S5: every method enters with what is still due, not only cash.
+    it('defaults a non-cash amount to the remaining debt too (payment-split S5)', () => {
       const entry = createEntry('card_credit', 12_500)
 
-      expect(entry).toEqual({ method: 'card_credit', amountCents: 0 })
+      expect(entry).toEqual({ method: 'card_credit', amountCents: 12_500 })
+    })
+
+    it('enters at 0 when nothing remains, never negative (payment-split S5)', () => {
+      expect(createEntry('cash', -2_000)).toEqual({ method: 'cash', amountCents: 0 })
+      expect(createEntry('transfer', 0)).toEqual({ method: 'transfer', amountCents: 0 })
     })
 
     // sdd custom-payment-methods S4B (REQ-CAT-001 / design §1.3): the
@@ -36,7 +42,7 @@ describe('paymentEntries.utils', () => {
 
       expect(entry).toEqual({
         method: 'transfer',
-        amountCents: 0,
+        amountCents: 12_500,
         paymentMethodId: '11111111-1111-4111-8111-111111111111',
       })
     })
@@ -56,8 +62,14 @@ describe('paymentEntries.utils', () => {
       const next = addEntry(entries, 'transfer', 10_000)
 
       expect(next).toHaveLength(2)
-      expect(next[1]).toEqual({ method: 'transfer', amountCents: 0 })
+      expect(next[1]).toEqual({ method: 'transfer', amountCents: 5000 })
       expect(entries).toHaveLength(1)
+    })
+
+    it('a new method takes what the other entries leave pending, 0 once covered (payment-split S5)', () => {
+      const covered: PaymentEntry[] = [{ method: 'cash', amountCents: 12_000 }]
+
+      expect(addEntry(covered, 'card_debit', 10_000)[1]).toEqual({ method: 'card_debit', amountCents: 0 })
     })
 
     it('returns unchanged array when max entries reached', () => {
@@ -81,7 +93,7 @@ describe('paymentEntries.utils', () => {
       expect(next).toHaveLength(1)
       expect(next[0]).toEqual({
         method: 'transfer',
-        amountCents: 0,
+        amountCents: 10_000,
         paymentMethodId: '22222222-2222-4222-8222-222222222222',
       })
     })

@@ -389,12 +389,13 @@ function onChargeSuccess() {
             disabled
             class="w-full"
           />
-          <div class="grid gap-2">
+          <!-- One list surface with hairline rows (like the table it stands for), not a card per row. -->
+          <div class="grid divide-y divide-[var(--hf-border)] overflow-hidden rounded-xl border border-[var(--hf-border)] bg-[var(--hf-surface)]">
             <div
               v-for="index in 5"
               :key="index"
               data-testid="row-skeleton"
-              class="grid gap-1.5 rounded-xl border border-[var(--hf-border)] px-4 py-3"
+              class="grid gap-1.5 px-4 py-3"
             >
               <div class="flex items-center justify-between gap-3">
                 <USkeleton class="h-4 w-24 !rounded" />

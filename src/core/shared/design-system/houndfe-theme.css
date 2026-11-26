@@ -32,6 +32,7 @@
   --hf-font: 'Geist', ui-sans-serif, system-ui, sans-serif;
   --hf-radius-card: 12px;
   --hf-radius-control: 6px;
+  --hf-radius-sheet: 16px;
   --hf-control-height: 44px;
 
   font-family: var(--hf-font);

@@ -23,7 +23,8 @@ describe('Clients local presentation adapter', () => {
     expect(declarations).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
     expect(declarations).not.toMatch(/--hf-(?:page|surface|surface-muted|field|ink|heading|muted|border|action|on-action|active|focus):/)
     expect(declarations).not.toMatch(/coco|--brand|--light/)
-    expect(css).toContain('--radius-xl: var(--hf-radius-card)')
+    // Card corners (xl/2xl/3xl) come from the root scale, never a local copy.
+    expect(css).not.toMatch(/--radius-(?:xl|2xl|3xl)\s*:/)
   })
 
   it('has no rules for the retired card grid, view toggle, badge or custom empty state', () => {
@@ -120,7 +121,7 @@ describe('Clients form overlay adapter (S1-S3)', () => {
     expect(scope.style.getPropertyValue('--radius-sm').trim()).toBe('6px')
     expect(scope.style.getPropertyValue('--radius-md').trim()).toBe('var(--hf-radius-control)')
     expect(scope.style.getPropertyValue('--radius-lg').trim()).toBe('var(--hf-radius-card)')
-    expect(scope.style.getPropertyValue('--radius-xl').trim()).toBe('var(--hf-radius-card)')
+    expect(scope.style.getPropertyValue('--radius-xl')).toBe('')
     // Circles and avatars keep the legacy full radius.
     expect(css).not.toContain('--radius-full')
   })

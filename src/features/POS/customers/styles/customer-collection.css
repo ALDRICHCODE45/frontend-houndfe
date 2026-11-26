@@ -1,56 +1,20 @@
 @import '../../../../core/shared/design-system/houndfe-ui.css';
 
 /*
- * «Cobrar todo» (customer collection) — presentation adapter (S6).
+ * «Cobrar todo» (customer collection) — collection-only adapter (S6, style-cleanup U2).
  *
- * Same look as the counter checkout (`sales-pos-checkout.css`) without its marker: a neutral
- * total panel on the page tone, sales as ONE bordered surface holding a `.hf-plain-table`,
- * one-line method tiles, muted payment entries and plain summary rows. Cards and panels take
- * `--hf-radius-card` (12px), controls `--hf-radius-control` (6px); nothing nests a decorative card.
+ * The payment look (total panel, method tiles, payment entries, summary rows, panels) is the
+ * shared, marker-free `src/core/shared/components/payments/payment-sheet.css` (`hf-pay-*`), the
+ * same pieces as «Cobrar deuda» and the counter checkout. What stays here is only what «Cobrar
+ * todo» has and the others do not: the sales with debt as ONE bordered surface holding a
+ * `.hf-plain-table` (stacking with hairlines on narrow sheets) and its loading skeleton.
  *
  * Every rule is governed by the owned root `.customer-collection` (the slideover content root,
- * which also hosts the sale list), so the counter checkout and every other consumer are untouched.
- * No palette literal, no `:root`, no `!important`.
+ * which also hosts the sale list). Cards take `--hf-radius-card` (12px); nothing nests a
+ * decorative card. No palette literal, no `:root`, no `!important`.
  */
 
-/* ── Neutral total panel (counter `sales-pos-checkout-total`) ───────────── */
-
-.customer-collection .customer-collection-total {
-  padding: 0.75rem 1.25rem;
-  text-align: center;
-  background-color: var(--hf-page);
-  border: 1px solid var(--hf-border);
-  border-radius: var(--hf-radius-card);
-}
-
-.customer-collection .customer-collection-total > p:first-child {
-  color: var(--hf-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.customer-collection .customer-collection-total > p:last-child {
-  margin-top: 0.25rem;
-  color: var(--hf-heading);
-  font-size: 2.25rem;
-  font-weight: 600;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── Panels, alerts and skeleton: 12px card radius ──────────────────────── */
-
-.customer-collection .customer-collection-panel {
-  padding: 0.75rem 1rem;
-  background-color: var(--hf-surface);
-  border: 1px solid var(--hf-border);
-  border-radius: var(--hf-radius-card);
-}
-
-.customer-collection .customer-collection-panel[data-tone='warning'] {
-  background-color: var(--hf-warning-soft);
-  border-color: color-mix(in srgb, var(--hf-warning) 40%, var(--hf-border));
-}
+/* ── Sale list skeleton: 12px card radius ───────────────────────────────── */
 
 .customer-collection .customer-collection-skeleton {
   border-radius: var(--hf-radius-card);
@@ -211,87 +175,4 @@
     color: var(--hf-muted);
     font-weight: 400;
   }
-}
-
-/* ── Method tiles: one horizontal line (counter v0) ─────────────────────── */
-
-.customer-collection .customer-collection-method-tile {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  column-gap: 0.5rem;
-  min-height: var(--hf-control-height);
-  padding: 0.625rem 0.75rem;
-  text-align: left;
-  background-color: var(--hf-surface);
-  border: 1px solid var(--hf-border);
-  border-radius: var(--hf-radius-control);
-}
-
-.customer-collection .customer-collection-method-tile > svg,
-.customer-collection .customer-collection-method-tile > .customer-collection-method-icon {
-  flex-shrink: 0;
-  width: 1.25rem;
-  height: 1.25rem;
-  color: var(--hf-muted);
-}
-
-.customer-collection .customer-collection-method-label {
-  min-width: 0;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--hf-heading);
-}
-
-.customer-collection .customer-collection-method-count {
-  order: 3;
-  margin-left: auto;
-  font-size: 0.75rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--hf-active);
-}
-
-/* Custom-method subtitle wraps under the label instead of squeezing it. */
-.customer-collection .customer-collection-method-subtitle {
-  flex-basis: 100%;
-  order: 4;
-  font-size: 0.75rem;
-  color: var(--hf-muted);
-}
-
-.customer-collection .customer-collection-method-tile:is(:hover, :focus-visible):not(:disabled) {
-  background-color: color-mix(in srgb, var(--hf-action) 4%, var(--hf-surface));
-  border-color: color-mix(in srgb, var(--hf-action) 40%, var(--hf-border));
-}
-
-.customer-collection .customer-collection-method-tile[aria-pressed='true'] {
-  background-color: var(--hf-active-soft);
-  border-color: var(--hf-action);
-}
-
-/* ── Payment entries (counter `sales-pos-checkout-payment-entry`) ───────── */
-
-.customer-collection .customer-collection-entry {
-  padding: 0.75rem;
-  background-color: var(--hf-surface-muted);
-  border: 1px solid var(--hf-border);
-  border-radius: var(--hf-radius-card);
-}
-
-.customer-collection .customer-collection-entry input {
-  font-size: 0.9375rem;
-}
-
-/* ── Summary rows: plain, tabular, no box ───────────────────────────────── */
-
-.customer-collection .customer-collection-summary {
-  padding: 0;
-  background-color: transparent;
-  border: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.customer-collection .customer-collection-summary dt {
-  color: var(--hf-muted);
 }

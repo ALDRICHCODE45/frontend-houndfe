@@ -7,11 +7,12 @@
  * `PaymentModal.vue` (the statically imported checkout entry). The palette,
  * control pairing, portal paint and keyboard focus already live in the
  * accepted `sales-entry-visual.css` adapter; here we only compose the reached
- * checkout surfaces: a compact readable total header, touch-sized method tiles
- * with an explicit action selection, readable stacked payment fields and
- * references, the explicit Caja session / lost-binding choice, the optional due
- * date and delivery groups, and a scrollable body above an always-reachable
- * footer that carries every debt/error/processing state.
+ * checkout layout: the Caja session pagination, the optional due date and
+ * delivery groups, and a scrollable body above an always-reachable footer that
+ * carries every debt/error/processing state. The total, method tiles, payment
+ * entries, summary and warning panels come from the shared marker-free payment
+ * sheet (`src/core/shared/components/payments/payment-sheet.css`, `hf-pay-*`,
+ * style-cleanup U3), so they are not re-defined here.
  *
  * Every rule is governed by the single owned marker `.sales-pos-checkout`,
  * which each checkout caller APPENDS to its existing opt-in portal class on the
@@ -25,14 +26,6 @@
 .sales-pos-checkout {
   background-color: var(--hf-surface);
   color: var(--hf-ink);
-  /* S11: Nuxt UI paints `color="warning"` alerts/badges/text and `primary`
-   * actions from these variables. Inside the Venta checkout only, they resolve
-   * to the semantic foundation: the readable warning ink of each theme
-   * instead of the bright yellow that was unreadable on white,
-   * and the shared blue action. Sale detail and every other consumer keep
-   * their own values because they never receive this marker. */
-  --ui-warning: var(--hf-warning);
-  --ui-primary: var(--hf-action);
 }
 
 /* ── Sheet: compact header, scrollable body, reachable footer ───────────── */
@@ -44,25 +37,6 @@
 .sales-pos-checkout .sales-pos-checkout-header {
   background-color: var(--hf-surface);
   border-bottom-color: var(--hf-border);
-}
-
-/* One clear money figure: a 12px label over the readable total, on the neutral
- * page tone (v0 `checkout-total`) instead of the gold wash or a tinted blue. */
-.sales-pos-checkout .sales-pos-checkout-total {
-  background-color: var(--hf-page);
-  border-color: var(--hf-border);
-  border-radius: var(--hf-radius-card);
-}
-
-.sales-pos-checkout .sales-pos-checkout-total > p:first-child {
-  color: var(--hf-muted);
-  font-size: 0.75rem;
-}
-
-.sales-pos-checkout .sales-pos-checkout-total > p:last-child {
-  color: var(--hf-heading);
-  font-size: 2.25rem;
-  line-height: 1.1;
 }
 
 /* The body owns the scroll; the footer stays a sibling so the final action is
@@ -79,74 +53,7 @@
   border-top-color: var(--hf-border);
 }
 
-/* ── Method tiles: touch target and a distinct selection ────────────────── */
-
-.sales-pos-checkout .sales-pos-checkout-methods {
-  gap: 0.75rem;
-}
-
-/* v0 method tiles: one horizontal line (icon · label · count), ~54px tall, muted
- * icon, blue selection — no gold icon, gold hover or tall stacked tile. */
-.sales-pos-checkout .sales-pos-checkout-method-tile {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  column-gap: 0.5rem;
-  min-height: var(--hf-control-height);
-  padding: 1rem 0.75rem;
-  background-color: var(--hf-surface);
-  border-color: var(--hf-border);
-  border-radius: var(--hf-radius-control);
-}
-
-.sales-pos-checkout .sales-pos-checkout-method-tile > svg {
-  flex-shrink: 0;
-  width: 1.25rem;
-  height: 1.25rem;
-  margin: 0;
-  color: var(--hf-muted);
-}
-
-/* The count badge moves from the absolute corner to the end of the line. */
-.sales-pos-checkout .sales-pos-checkout-method-tile > [data-slot='base'] {
-  position: static;
-  order: 3;
-  margin-left: auto;
-}
-
-/* Custom-method subtitle wraps under the label instead of squeezing it. */
-.sales-pos-checkout .sales-pos-checkout-method-tile > p + p {
-  flex-basis: 100%;
-  order: 4;
-}
-
-.sales-pos-checkout .sales-pos-checkout-method-tile:is(:hover, :focus-visible) {
-  background-color: color-mix(in srgb, var(--hf-action) 4%, var(--hf-surface));
-  border-color: color-mix(in srgb, var(--hf-action) 40%, var(--hf-border));
-}
-
-.sales-pos-checkout .sales-pos-checkout-method-tile[data-sales-pos-checkout-state='selected'] {
-  background-color: var(--hf-active-soft);
-  border-color: var(--hf-action);
-}
-
-/* ── Payment entries: readable stacked fields ───────────────────────────── */
-
-.sales-pos-checkout .sales-pos-checkout-entries {
-  gap: 0.75rem;
-}
-
-.sales-pos-checkout .sales-pos-checkout-payment-entry {
-  background-color: var(--hf-surface-muted);
-  border-color: var(--hf-border);
-  border-radius: var(--hf-radius-card);
-}
-
-.sales-pos-checkout .sales-pos-checkout-payment-entry input {
-  font-size: 0.9375rem;
-}
-
-/* ── Caja session, lost binding and pagination ──────────────────────────── */
+/* ── Caja session and pagination ────────────────────────────────────────── */
 
 .sales-pos-checkout .sales-pos-checkout-session {
   border-radius: var(--hf-radius-card);
@@ -156,12 +63,6 @@
 .sales-pos-checkout .sales-pos-cash-session [data-testid='cash-session-next-page'] {
   min-height: var(--hf-control-height);
   border-radius: var(--hf-radius-control);
-}
-
-.sales-pos-checkout .sales-pos-checkout-binding-lost {
-  background-color: var(--hf-warning-soft);
-  border-color: color-mix(in srgb, var(--hf-warning) 40%, var(--hf-border));
-  border-radius: var(--hf-radius-card);
 }
 
 /* ── Due date and delivery groups ───────────────────────────────────────── */
@@ -177,16 +78,6 @@
 .sales-pos-checkout [data-testid='expand-due-date'] {
   min-height: var(--hf-control-height);
   color: var(--hf-action);
-}
-
-/* ── Footer summary ─────────────────────────────────────────────────────── */
-
-/* v0 footer: plain received/remaining rows over the actions, not a tinted box. */
-.sales-pos-checkout .sales-pos-checkout-summary {
-  padding: 0;
-  background-color: transparent;
-  border-color: transparent;
-  font-variant-numeric: tabular-nums;
 }
 
 /* ── Supporting windows (discount / price / product / variant) ──────────── */

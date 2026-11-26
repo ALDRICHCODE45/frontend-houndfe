@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { formatCentsMXN } from '../utils/currency.utils'
-import { hasSalesEntryToken } from '../utils/salesEntryPortal'
 
 /**
  * PCA-2 — dedicated modal shown after a `PROMO_CAPACITY_RE_QUOTE` (409).
@@ -25,11 +24,7 @@ const props = withDefaults(
     discountCents: number
     totalCents: number
     excludedPromotions?: ExcludedPromotion[]
-    /**
-     * Optional teleport boundary marker forwarded to the installed Modal's
-     * `ui.content`. Absent by default, so the dialog keeps `sm:max-w-md` and
-     * every native default.
-     */
+    /** Teleport boundary marker forwarded to the Modal's `ui.content` (Venta passes the sales entry portal). */
     portalClass?: string
   }>(),
   {
@@ -46,21 +41,11 @@ const subtotalFormatted = computed(() => formatCentsMXN(props.subtotalCents))
 const discountFormatted = computed(() => formatCentsMXN(props.discountCents))
 const totalFormatted = computed(() => formatCentsMXN(props.totalCents))
 
-// T3: only the caller's opt-in swaps the forced legacy gold utility; omission
-// keeps the previous class string exactly. The owned checkout marker is
-// appended only for the sales opt-in.
-const modalUi = computed(() => {
-  if (!props.portalClass) return { content: 'sm:max-w-md' }
-  const content = hasSalesEntryToken(props.portalClass)
-    ? `sm:max-w-md ${props.portalClass} sales-pos-checkout`
-    : `sm:max-w-md ${props.portalClass}`
-  return { content }
-})
-const acceptButtonClass = computed(() =>
-  props.portalClass
-    ? 'w-full justify-center sales-entry-primary-action rounded-xl font-semibold shadow-sm sm:w-auto'
-    : 'w-full justify-center sm:w-auto hf-primary-control',
-)
+// The content root carries the caller's portal marker (Venta passes the sales
+// entry portal) plus the owned checkout composition marker.
+const modalUi = computed(() => ({
+  content: ['sm:max-w-md', props.portalClass, 'sales-pos-checkout'].filter(Boolean).join(' '),
+}))
 
 function handleAccept() {
   emit('accept')
@@ -138,7 +123,7 @@ function handleAccept() {
         <UButton
           data-testid="requote-accept"
           color="primary"
-          :class="acceptButtonClass"
+          class="w-full justify-center sales-entry-primary-action rounded-xl font-semibold shadow-sm sm:w-auto"
           @click="handleAccept"
         >
           Entendido, revisar pagos

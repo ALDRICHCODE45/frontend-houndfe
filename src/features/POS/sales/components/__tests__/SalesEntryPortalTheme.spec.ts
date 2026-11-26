@@ -246,13 +246,16 @@ const modalCases: ModalCase[] = [
     name: 'PaymentSuccessModal',
     component: PaymentSuccessModal,
     props: { folio: 'A-1', totalCents: 10000, paidCents: 10000, confirmedAt: '2026-05-06T21:00:00.000Z' },
-    priorContent: 'sm:max-w-md',
+    // style-cleanup U3: Venta always opts in, so the checkout marker is no longer conditional;
+    // without a portal class the root keeps only the geometry and that owned marker.
+    priorContent: 'sm:max-w-md sales-pos-checkout',
   },
   {
     name: 'PromotionCapacityRequoteModal',
     component: PromotionCapacityRequoteModal,
     props: { subtotalCents: 12000, discountCents: 2000, totalCents: 10000 },
-    priorContent: 'sm:max-w-md',
+    // style-cleanup U3: see PaymentSuccessModal above.
+    priorContent: 'sm:max-w-md sales-pos-checkout',
   },
 ]
 
@@ -430,7 +433,8 @@ describe('Sales entry portal opt-in — installed native content roots', () => {
     const inertUi = inert.findComponent({ name: 'Slideover' }).props('ui') as {
       content: string
     }
-    expect(inertUi.content).toBe('sm:max-w-lg overflow-hidden')
+    // style-cleanup U3: the owned checkout marker is unconditional (Venta always opts in).
+    expect(inertUi.content).toBe('sm:max-w-lg overflow-hidden sales-pos-checkout')
     expect(hasMarker()).toBe(false)
   })
 })

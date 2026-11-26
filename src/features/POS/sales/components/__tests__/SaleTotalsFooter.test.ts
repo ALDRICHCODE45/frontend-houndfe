@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, type VueWrapper } from '@vue/test-utils'
 import SaleTotalsFooter from '../SaleTotalsFooter.vue'
 import type { Sale } from '../../interfaces/sale.types'
 
@@ -22,6 +22,15 @@ const stubs = {
     props: ['text'],
     template: '<span><slot /></span>',
   },
+}
+
+/**
+ * The Cobrar action is the last button: the summary «Vaciar» clear action precedes it since the
+ * Venta composition became the only footer (style-cleanup U3).
+ */
+function chargeButton(wrapper: VueWrapper) {
+  const buttons = wrapper.findAll('button')
+  return buttons[buttons.length - 1]!
 }
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -98,9 +107,8 @@ describe('SaleTotalsFooter — totals binding (work-unit B)', () => {
 
   it('renders line and product counts from the sale items list', () => {
     const wrapper = mountFooter(makeSale(TOTALS))
-    // Phase 14b: new format "2 Artic · 5 Unidad" (items count first, units second)
-    expect(wrapper.html()).toContain('2 Artic')
-    expect(wrapper.html()).toContain('5 Unidad')
+    // v0 wording (items count first, units second); the old «Artic · Unidad» branch is gone.
+    expect(wrapper.get('[data-testid="totals-count"]').text()).toBe('2 artículos · 5 unidades')
   })
 
   it('renders the TOTALS fixture cents verbatim — backend values, no client recompute', () => {
@@ -238,7 +246,7 @@ describe('SaleTotalsFooter — totals binding (work-unit B)', () => {
     const wrapper = mountFooter(makeSale({ items: [] }))
 
     expect(wrapper.html()).toContain('$0.00')
-    expect(wrapper.find('button').attributes('disabled')).toBeDefined()
+    expect(chargeButton(wrapper).attributes('disabled')).toBeDefined()
   })
 })
 
@@ -246,7 +254,7 @@ describe('SaleTotalsFooter — charge button (preserved non-totals behavior)', (
   it('enables Cobrar and emits charge-click when items exist and not pending', async () => {
     const wrapper = mountFooter(makeSale(TOTALS))
 
-    const button = wrapper.find('button')
+    const button = chargeButton(wrapper)
     expect(button.attributes('disabled')).toBeUndefined()
 
     await button.trigger('click')
@@ -256,7 +264,7 @@ describe('SaleTotalsFooter — charge button (preserved non-totals behavior)', (
   it('disables Cobrar when draft has no items', () => {
     const wrapper = mountFooter(makeSale({ items: [] }))
 
-    const button = wrapper.find('button')
+    const button = chargeButton(wrapper)
     expect(button.attributes('disabled')).toBeDefined()
   })
 
@@ -266,7 +274,7 @@ describe('SaleTotalsFooter — charge button (preserved non-totals behavior)', (
       global: { stubs },
     })
 
-    const button = wrapper.find('button')
+    const button = chargeButton(wrapper)
     expect(button.attributes('disabled')).toBeDefined()
 
     await button.trigger('click')
@@ -296,11 +304,12 @@ describe('SaleTotalsFooter — charge button (preserved non-totals behavior)', (
 // ── Phase 14b — totals breakdown ────────────────────────────────────────────
 
 describe('SaleTotalsFooter — Phase 14b breakdown', () => {
-  it('renders Artic / Unidad count line at the top', () => {
+  it('renders the artículos / unidades count line at the top', () => {
     // 2 items with quantities 2 + 3 = 5 units
     const wrapper = mountFooter(makeSale(TOTALS))
-    expect(wrapper.html()).toContain('2 Artic')
-    expect(wrapper.html()).toContain('5 Unidad')
+    const html = wrapper.html()
+    expect(html).toContain('2 artículos · 5 unidades')
+    expect(html.indexOf('totals-count')).toBeLessThan(html.indexOf('Subtotal'))
   })
 
   it('renders Subtotal as separate line before discount', () => {

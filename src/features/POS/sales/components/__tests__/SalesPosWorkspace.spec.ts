@@ -608,7 +608,7 @@ describe('D3 — cart hooks and public events', () => {
   it('marks the totals block and still emits charge-click', async () => {
     const wrapper = track(
       mount(SaleTotalsFooter, {
-        props: { sale: makeSale(), isChargePending: false, themed: true },
+        props: { sale: makeSale(), isChargePending: false },
         global: { stubs: totalsStubs },
       }),
     )
@@ -621,7 +621,9 @@ describe('D3 — cart hooks and public events', () => {
     expect(wrapper.emitted('charge-click')).toHaveLength(1)
   })
 
-  it('takes the shared primary control when the opt-in is omitted', () => {
+  // style-cleanup U3: the `themed` opt-in is gone (ActiveSalePanel, its only caller, always
+  // passed it), so Cobrar is always the Venta paired action and never the legacy gold utility.
+  it('always takes the Venta paired primary action, never the legacy gold utility', () => {
     const wrapper = track(
       mount(SaleTotalsFooter, {
         props: { sale: makeSale(), isChargePending: false },
@@ -629,11 +631,9 @@ describe('D3 — cart hooks and public events', () => {
       }),
     )
 
-    const button = wrapper.get('button')
-    expect(button.classes()).toContain('hf-primary-control')
+    const button = wrapper.get('button.sales-pos-charge-button')
+    expect(button.classes()).toContain('sales-entry-primary-action')
     expect(button.classes()).not.toContain('!bg-(--brand-action)')
-    expect(button.classes()).not.toContain('sales-pos-charge-button')
-    expect(button.classes()).not.toContain('sales-entry-primary-action')
   })
 
   it('marks the available-promotions accordion and still emits apply/remove', async () => {

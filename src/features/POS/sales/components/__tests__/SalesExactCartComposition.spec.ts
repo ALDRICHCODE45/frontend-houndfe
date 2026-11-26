@@ -115,9 +115,9 @@ function mountPanel(options: {
         },
         SaleTotalsFooter: {
           name: 'SaleTotalsFooter',
-          props: ['sale', 'isChargePending', 'themed', 'composition'],
+          props: ['sale', 'isChargePending'],
           emits: ['charge-click', 'clear-click', 'remove-order-promo'],
-          template: '<div data-testid="footer-stub" @click="$emit(\'charge-click\')"><button v-if="composition" data-testid="summary-clear-stub" @click.stop="$emit(\'clear-click\')">Vaciar</button></div>',
+          template: '<div data-testid="footer-stub" @click="$emit(\'charge-click\')"><button data-testid="summary-clear-stub" @click.stop="$emit(\'clear-click\')">Vaciar</button></div>',
         },
         GlobalDiscountModal: { template: '<div />' },
         ConfirmModal: {
@@ -174,15 +174,6 @@ describe('Exact cart composition — promotions placement and callbacks', () => 
     expect(body.classes()).toContain('overflow-y-auto')
   })
 
-  it.each([undefined, UNRELATED])('retains legacy footer placement for portalClass=%s', (portalClass) => {
-    const wrapper = mountPanel({ portalClass, items: [makeItem()], promotions: [promotion] })
-    const footer = wrapper.get('[data-testid="cart-footer"]')
-    const promos = footer.get('[data-testid="promociones-disponibles-accordion"]')
-    expect(wrapper.get('[data-testid="cart-body"]').find('[data-testid="promociones-disponibles-accordion"]').exists()).toBe(false)
-    expect(wrapper.get('.sales-pos-customer-state').element.compareDocumentPosition(promos.element) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(wrapper.findAll('[data-testid="promociones-disponibles-accordion"]')).toHaveLength(1)
-  })
-
   it('preserves real apply/remove, eligibility and loading without changing sale data', async () => {
     const wrapper = mountPanel({
       portalClass: ENTRY,
@@ -232,29 +223,15 @@ describe('Exact cart composition — root marker is exact-token only', () => {
     expect(support.text()).toContain('unidades')
   })
 
-  it('keeps the exact prior presentation when the opt-in is omitted', () => {
-    const wrapper = mountPanel({ items: [makeItem()] })
+  // style-cleanup U3: SalesView (the only caller) always passes the sales entry portal, so the
+  // composition is no longer gated on the token and the legacy cart branch is gone.
+  it.each([undefined, UNRELATED])('renders the Venta composition whatever the portal class (%s)', (portalClass) => {
+    const wrapper = mountPanel({ portalClass, items: [makeItem()] })
 
-    const root = wrapper.get('.sales-pos-cart-panel')
-    expect(root.classes()).not.toContain('sales-pos-cart-composition')
-    expect(root.classes()).not.toContain('sales-pos-cart-composition-sheet')
-    expect(wrapper.find('[data-testid="cart-heading"]').exists()).toBe(false)
-    expect(
-      wrapper.get('[data-testid="cart-header"]').classes(),
-    ).not.toContain('sales-pos-price-list-band')
-    expect(wrapper.findComponent({ name: 'SaleItemRow' }).props('composition')).toBeFalsy()
-    expect(wrapper.findComponent({ name: 'SaleTotalsFooter' }).props('composition')).toBeFalsy()
-  })
-
-  it('does not activate the new composition for an unrelated portalClass', () => {
-    const wrapper = mountPanel({ portalClass: UNRELATED, items: [makeItem()] })
-
-    const root = wrapper.get('.sales-pos-cart-panel')
-    expect(root.classes()).not.toContain('sales-pos-cart-composition')
-    expect(wrapper.find('[data-testid="cart-heading"]').exists()).toBe(false)
-    expect(
-      wrapper.get('[data-testid="cart-header"]').classes(),
-    ).not.toContain('sales-pos-price-list-band')
+    expect(wrapper.get('.sales-pos-cart-panel').classes()).toContain('sales-pos-cart-composition')
+    expect(wrapper.find('[data-testid="cart-heading"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="cart-header"]').classes()).toContain('sales-pos-price-list-band')
+    expect(wrapper.findComponent({ name: 'SaleItemRow' }).props('composition')).toBe(true)
   })
 
   it('marks the mobile sheet instance too, with its own modifier', () => {
@@ -289,11 +266,14 @@ describe('Exact cart composition — bands, bands order and forwarded props', ()
     expect(wrapper.find('[data-testid="cart-type-toggle"]').exists()).toBe(true)
   })
 
-  it('forwards the composition opt-in to the row and the totals footer', () => {
+  it('forwards the composition to the row; the totals footer always renders it', () => {
     const wrapper = mountPanel({ portalClass: ENTRY, items: [makeItem()] })
 
     expect(wrapper.findComponent({ name: 'SaleItemRow' }).props('composition')).toBe(true)
-    expect(wrapper.findComponent({ name: 'SaleTotalsFooter' }).props('composition')).toBe(true)
+    // SaleTotalsFooter no longer takes `themed` / `composition` opt-ins (style-cleanup U3).
+    const footerAttrs = wrapper.findComponent({ name: 'SaleTotalsFooter' }).attributes()
+    expect(footerAttrs).not.toHaveProperty('themed')
+    expect(footerAttrs).not.toHaveProperty('composition')
   })
 
   it('keeps the real payload and public events wired in the composition variant', async () => {
@@ -494,21 +474,21 @@ const footerStubs = {
   Tooltip: { props: ['text'], template: '<span><slot /></span>' },
 }
 
-function mountFooter(composition: boolean, overrides: Partial<Sale> = {}) {
+function mountFooter(overrides: Partial<Sale> = {}) {
   const sale = makeDraft({
     items: [makeItem({ quantity: 2 }), makeItem({ id: 'item-2', quantity: 3 })],
     ...TOTALS,
     ...overrides,
   })
   return mount(SaleTotalsFooter, {
-    props: { sale, composition },
+    props: { sale },
     global: { stubs: footerStubs },
   })
 }
 
 describe('Exact cart composition — summary clear action', () => {
   it('places Vaciar beside the real count and requests clear without changing the sale', async () => {
-    const wrapper = mountFooter(true)
+    const wrapper = mountFooter()
     const before = JSON.parse(JSON.stringify(wrapper.props('sale')))
     const summary = wrapper.get('[data-testid="totals-summary"]')
     const count = summary.get('[data-testid="totals-count"]')
@@ -524,18 +504,8 @@ describe('Exact cart composition — summary clear action', () => {
     expect(wrapper.props('sale')).toEqual(before)
   })
 
-  it('keeps the legacy footer unchanged when composition is omitted', async () => {
-    const wrapper = mountFooter(false)
-    expect(wrapper.find('[data-testid="totals-summary"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="totals-clear"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="totals-count"]').text()).toContain('2 Artic · 5 Unidad')
-    await wrapper.get('button').trigger('click')
-    expect(wrapper.emitted('charge-click')).toEqual([[]])
-    expect(wrapper.emitted('clear-click')).toBeUndefined()
-  })
-
   it('prevents clear while the sale is mutating or empty', async () => {
-    const wrapper = mountFooter(true)
+    const wrapper = mountFooter()
     const before = JSON.parse(JSON.stringify(wrapper.props('sale')))
     await wrapper.setProps({ isChargePending: true })
     expect(wrapper.get('[data-testid="totals-clear"]').attributes('disabled')).toBeDefined()
@@ -581,7 +551,7 @@ describe('Exact cart composition — totals footer', () => {
       ...TOTALS,
     })
     const wrapper = mount(SaleTotalsFooter, {
-      props: { sale, composition: true },
+      props: { sale },
       global: { stubs: footerStubs },
     })
     expect(wrapper.classes()).toContain('sales-pos-totals-composition')
@@ -591,17 +561,8 @@ describe('Exact cart composition — totals footer', () => {
     expect(wrapper.get('[data-testid="totals-currency"]').text()).toContain('Moneda MXN')
   })
 
-  it('keeps the previous count wording and no extra label when the opt-in is omitted', () => {
-    const wrapper = mountFooter(false)
-
-    expect(wrapper.classes()).not.toContain('sales-pos-totals-composition')
-    expect(wrapper.get('[data-testid="totals-count"]').text()).toContain('2 Artic')
-    expect(wrapper.get('[data-testid="totals-count"]').text()).toContain('5 Unidad')
-    expect(wrapper.find('[data-testid="totals-currency"]').exists()).toBe(false)
-  })
-
   it('still renders the backend totals and emits charge-click in the composition variant', async () => {
-    const wrapper = mountFooter(true)
+    const wrapper = mountFooter()
 
     expect(wrapper.get('[data-testid="total-amount"]').text()).toContain('$85.00')
     expect(wrapper.html()).not.toContain('$340.00')
@@ -614,7 +575,7 @@ describe('Exact cart composition — totals footer', () => {
   it('keeps Cobrar disabled without items in the composition variant', () => {
     const sale = makeDraft({ items: [], ...TOTALS })
     const wrapper = mount(SaleTotalsFooter, {
-      props: { sale, composition: true },
+      props: { sale },
       global: { stubs: footerStubs },
     })
 
@@ -637,14 +598,6 @@ describe('Exact cart composition — S11 sale options live in the heading', () =
     expect(buttons).toHaveLength(1)
     expect(buttons[0]!.attributes('aria-label')).toBe('Opciones de venta')
     expect(wrapper.findAll('[data-testid="summary-clear-stub"]')).toHaveLength(1)
-  })
-
-  it('keeps the legacy toolbar with clear and options at the bottom when not opted in', () => {
-    const wrapper = mountPanel({ items: [makeItem()] })
-
-    const footerToolbar = wrapper.get('[data-testid="cart-footer"] [data-testid="cart-actions-toolbar"]')
-    expect(footerToolbar.findAll('button')).toHaveLength(2)
-    expect(wrapper.find('[data-testid="cart-heading"]').exists()).toBe(false)
   })
 
   it('hides the heading options while the cart is empty, like the legacy toolbar', () => {

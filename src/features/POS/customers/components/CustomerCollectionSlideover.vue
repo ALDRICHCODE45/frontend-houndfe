@@ -15,13 +15,18 @@
  * only actions are «Reintentar con los mismos datos» (same key and body) and «Revisar historial»,
  * and closing asks first. A catalog method the backend no longer accepts is dropped from the
  * tenders with a notice that stays until the cashier edits the tenders or dismisses it.
+ *
+ * Splitting (payment-split S2-S5): a new method enters with what is still due (blank, without an
+ * error until the cashier types, or until a confirm is stopped by that blank amount, when the debt
+ * is already covered); each amount offers «Lo que falta» while it differs from what is pending for
+ * it, and 2+ methods offer «Repartir en partes iguales» / «Por porcentaje». Every helper amount is written to `entries` like a typed one, so it
+ * reaches the composable's debounced preview through the same watcher.
  */
 import { computed, ref, watch } from 'vue'
 import type { PaymentEntry } from '@/features/POS/sales/interfaces/sale.types'
 import { PAYMENT_METHOD } from '@/features/POS/sales/constants/sale.constants'
 import {
   MAX_PAYMENT_ENTRIES,
-  addEntry,
   normalizeReferenceInput,
   paidSum,
   removeEntry,
@@ -44,11 +49,16 @@ import { useCashSaleSession } from '@/features/POS/cash-register/composables/use
 import { useCashAccess } from '@/features/POS/cash-register/composables/useCashAccess'
 import { PAYMENT_METHOD_CATEGORY_ICONS } from '@/core/shared/constants/payment-method-category'
 import HfMoneyInput from '@/core/shared/components/form/HfMoneyInput.vue'
+import TenderSplitControl from '@/core/shared/components/payments/TenderSplitControl.vue'
+import TenderRemainingButton from '@/core/shared/components/payments/TenderRemainingButton.vue'
+import type { SplitControlTender } from '@/core/shared/components/payments/splitControl.types'
+import { applyTenderAmounts, remainingDueCents } from '@/core/shared/payments/tenderSplit'
 import { formatCentsMXN } from '@/features/POS/sales/utils/currency.utils'
 import { useCustomerCollection } from '../collection/useCustomerCollection'
 import { useCollectionReceiptDownload } from '../collection/useCollectionReceiptDownload'
 import type { CollectionTender } from '../collection/collection.types'
 import CustomerCollectionSaleList from './CustomerCollectionSaleList.vue'
+import '@/core/shared/components/payments/payment-sheet.css'
 import '../styles/customer-collection.css'
 
 const props = withDefaults(
@@ -72,6 +82,10 @@ const CATALOG_CODES: ReadonlySet<string> = new Set([
 
 const entries = ref<PaymentEntry[]>([])
 const amountTextErrors = ref<Record<string, string>>({})
+/** Tenders added once the debt was covered: blank and without an error until typed (S5). */
+const blankKeys = ref<ReadonlySet<string>>(new Set())
+/** Blank tenders a confirm was stopped by: only these show their amount error (S5). */
+const revealedBlankKeys = ref<ReadonlySet<string>>(new Set())
 /** Names the catalog method(s) dropped after PAYMENT_METHOD_NOT_FOUND / INACTIVE_PAYMENT_METHOD. */
 const catalogNotice = ref<string | null>(null)
 const closeConfirmOpen = ref(false)
@@ -144,7 +158,34 @@ const receipt = useCollectionReceiptDownload(() => result.value?.collectionId)
 
 const debtCents = computed(() => preview.value?.debtCents ?? 0)
 const tenderedCents = computed(() => paidSum(entries.value))
-const entryErrors = computed(() => entries.value.map((entry) => validateEntry(entry)))
+const entryErrors = computed(() =>
+  entries.value.map((entry) => {
+    const key = paymentEntryKey(entry)
+    return blankKeys.value.has(key) && !revealedBlankKeys.value.has(key) ? {} : validateEntry(entry)
+  }),
+)
+const entryLabels = computed(() =>
+  entries.value.map((entry) => resolveEntryDisplay(entry, methodOptions.value).label),
+)
+const splitTenders = computed<SplitControlTender[]>(() =>
+  entries.value.map((entry, index) => ({
+    key: paymentEntryKey(entry),
+    label: entryLabels.value[index] ?? '',
+    method: entry.method,
+    amountCents: entry.amountCents,
+  })),
+)
+const isBlank = (entry: PaymentEntry) => blankKeys.value.has(paymentEntryKey(entry))
+function unmarkBlank(keys: Iterable<string>) {
+  const next = new Set(blankKeys.value)
+  const revealed = new Set(revealedBlankKeys.value)
+  for (const key of keys) {
+    next.delete(key)
+    revealed.delete(key)
+  }
+  if (next.size !== blankKeys.value.size) blankKeys.value = next
+  if (revealed.size !== revealedBlankKeys.value.size) revealedBlankKeys.value = revealed
+}
 const hasAmountTextErrors = computed(() =>
   entries.value.some((entry) => amountTextErrors.value[paymentEntryKey(entry)]),
 )
@@ -174,6 +215,7 @@ watch(
     )
     if (Object.keys(kept).length !== Object.keys(amountTextErrors.value).length)
       amountTextErrors.value = kept
+    unmarkBlank([...blankKeys.value].filter((key) => !live.has(key)))
     collection.setPayments(current.map(toTender))
   },
   { deep: true },
@@ -186,6 +228,8 @@ watch(
     // The composable previews without tenders on open; only a reopened sheet has entries to drop.
     if (entries.value.length > 0) entries.value = []
     amountTextErrors.value = {}
+    blankKeys.value = new Set()
+    revealedBlankKeys.value = new Set()
     catalogNotice.value = null
     closeConfirmOpen.value = false
     cashSaleSession.clearSelection()
@@ -220,16 +264,36 @@ function handleMethodToggle(tile: PaymentMethodTile) {
   if (inputsDisabled.value) return
   catalogNotice.value = null
   const index = findEntryIndex(entries.value, tile)
-  entries.value =
-    index >= 0
-      ? removeEntry(entries.value, index)
-      : addEntry(entries.value, tile.value, debtCents.value, tile.paymentMethodId)
+  if (index >= 0) {
+    entries.value = removeEntry(entries.value, index)
+    return
+  }
+  if (!canAddEntry.value) return
+  // S5: the new method takes what is still due (never more, S7); blank when all is covered.
+  const amountCents = remainingDueCents(
+    debtCents.value,
+    entries.value.map((entry) => entry.amountCents),
+  )
+  const entry: PaymentEntry = { method: tile.value, amountCents }
+  if (tile.paymentMethodId !== undefined) entry.paymentMethodId = tile.paymentMethodId
+  if (amountCents === 0) blankKeys.value = new Set([...blankKeys.value, paymentEntryKey(entry)])
+  entries.value = [...entries.value, entry]
 }
 
 function handleAmountChange(index: number, amountCents: number | null) {
   if (inputsDisabled.value) return
   catalogNotice.value = null
+  const entry = entries.value[index]
+  if (entry) unmarkBlank([paymentEntryKey(entry)])
   entries.value = updateEntry(entries.value, index, { amountCents: Math.max(0, amountCents ?? 0) })
+}
+
+/** Amounts from the split helpers, one per tender: written exactly like typed amounts. */
+function handleSplitApply(amounts: number[]) {
+  if (inputsDisabled.value || amounts.length !== entries.value.length) return
+  catalogNotice.value = null
+  unmarkBlank(entries.value.map(paymentEntryKey))
+  entries.value = applyTenderAmounts(entries.value, amounts)
 }
 
 function handleAmountValidation(entry: PaymentEntry, error: string | null) {
@@ -251,7 +315,18 @@ function handleRemove(index: number) {
 }
 
 async function handleConfirm() {
-  if (locked.value || !canConfirm.value) return
+  if (locked.value) return
+  // A blank tender still at 0 blocks the confirm: reveal only those tenders' errors. A confirm
+  // stopped by anything else never reveals a blank tender added afterwards (S5).
+  const blank = entries.value
+    .filter((entry) => !(entry.amountCents > 0))
+    .map(paymentEntryKey)
+    .filter((key) => blankKeys.value.has(key))
+  if (blank.length > 0) {
+    revealedBlankKeys.value = new Set(blank)
+    return
+  }
+  if (!canConfirm.value) return
   // Several sessions: the explicit choice is revalidated live right before the money moves.
   if (needsCashSessionPick.value && !cashSaleSession.revalidateSelection()) return
   await collection.confirm()
@@ -309,9 +384,9 @@ function closeAnyway() {
               @click="close"
             />
           </div>
-          <div v-if="!result" class="customer-collection-total">
-            <p>Deuda total</p>
-            <p data-testid="collection-total-debt" class="hf-figure">
+          <div v-if="!result" class="hf-pay-total">
+            <p class="hf-pay-total-label">Deuda total</p>
+            <p data-testid="collection-total-debt" class="hf-figure hf-pay-total-value">
               <USkeleton v-if="!preview" class="mx-auto h-8 w-32 !rounded" />
               <template v-else>{{ formatCentsMXN(preview.debtCents) }}</template>
             </p>
@@ -335,20 +410,20 @@ function closeAnyway() {
             :sales="result.sales"
             caption="Ventas abonadas en este cobro"
           />
-          <dl class="customer-collection-summary grid gap-2 text-sm">
-            <div class="flex items-center justify-between gap-2">
+          <dl class="hf-pay-summary">
+            <div class="hf-pay-summary-row">
               <dt>Recibido</dt>
-              <dd class="hf-figure font-semibold">{{ formatCentsMXN(result.tenderedCents) }}</dd>
+              <dd class="hf-figure hf-pay-summary-value">{{ formatCentsMXN(result.tenderedCents) }}</dd>
             </div>
-            <div class="flex items-center justify-between gap-2">
+            <div class="hf-pay-summary-row">
               <dt>Cambio</dt>
-              <dd data-testid="collection-result-change" class="hf-figure font-semibold">
+              <dd data-testid="collection-result-change" class="hf-figure hf-pay-summary-value">
                 {{ formatCentsMXN(result.changeDueCents) }}
               </dd>
             </div>
-            <div class="flex items-center justify-between gap-2">
+            <div class="hf-pay-summary-row">
               <dt>Deuda restante del cliente</dt>
-              <dd data-testid="collection-result-remaining" class="hf-figure font-semibold">
+              <dd data-testid="collection-result-remaining" class="hf-figure hf-pay-summary-value">
                 {{
                   result.remainingCustomerDebtCents === null
                     ? 'No disponible'
@@ -415,7 +490,7 @@ function closeAnyway() {
             data-testid="collection-uncertain"
             role="alert"
             data-tone="warning"
-            class="customer-collection-panel space-y-2 text-sm"
+            class="hf-pay-panel space-y-2 text-sm"
           >
             <p class="flex items-center gap-2 font-semibold text-(--hf-warning)">
               <UIcon name="i-lucide-triangle-alert" class="size-5 shrink-0" aria-hidden="true" />
@@ -469,7 +544,7 @@ function closeAnyway() {
 
           <section class="space-y-3">
             <p class="text-sm font-semibold text-highlighted">Métodos de pago</p>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="hf-pay-methods">
               <button
                 v-for="option in methodOptions"
                 :key="paymentMethodTileKey(option)"
@@ -480,7 +555,7 @@ function closeAnyway() {
                 "
                 :aria-pressed="getMethodCount(entries, option) > 0"
                 type="button"
-                class="customer-collection-method-tile transition disabled:cursor-not-allowed disabled:opacity-50"
+                class="hf-pay-tile"
                 :disabled="
                   (getMethodCount(entries, option) === 0 && !canAddEntry) ||
                   inputsDisabled ||
@@ -490,20 +565,20 @@ function closeAnyway() {
               >
                 <UIcon
                   :name="option.icon"
-                  class="customer-collection-method-icon"
+                  class="hf-pay-tile-icon"
                   aria-hidden="true"
                 />
-                <p class="customer-collection-method-label">{{ option.label }}</p>
+                <p class="hf-pay-tile-label">{{ option.label }}</p>
                 <span
                   v-if="getMethodCount(entries, option) > 0"
-                  class="customer-collection-method-count"
+                  class="hf-pay-tile-count"
                   aria-hidden="true"
                 >
                   {{ getMethodCount(entries, option) }}
                 </span>
                 <p
                   v-if="option.kind === 'custom' && (option.subtitle?.trim() ?? '') !== ''"
-                  class="customer-collection-method-subtitle"
+                  class="hf-pay-tile-subtitle"
                 >
                   {{ option.subtitle }}
                 </p>
@@ -517,17 +592,26 @@ function closeAnyway() {
               v-for="(entry, index) in entries"
               :key="paymentEntryKey(entry)"
               :data-testid="`collection-entry-${index}`"
-              class="customer-collection-entry space-y-3"
+              class="hf-pay-entry"
             >
-              <div class="flex items-center gap-3">
+              <div class="hf-pay-entry-head">
                 <UIcon
                   :name="PAYMENT_METHOD_CATEGORY_ICONS[entry.method]"
-                  class="size-4 shrink-0 text-(--hf-muted)"
+                  class="hf-pay-entry-icon"
                   aria-hidden="true"
                 />
-                <p class="min-w-0 flex-1 text-sm font-semibold text-highlighted">
-                  {{ resolveEntryDisplay(entry, methodOptions).label }}
+                <p class="hf-pay-entry-label">
+                  {{ entryLabels[index] }}
                 </p>
+                <TenderRemainingButton
+                  :data-testid="`collection-fill-remaining-${index}`"
+                  :tenders="entries"
+                  :index="index"
+                  :target-cents="debtCents"
+                  :label="entryLabels[index] ?? ''"
+                  :disabled="inputsDisabled"
+                  @fill="handleAmountChange(index, $event)"
+                />
                 <UButton
                   :aria-label="`Quitar pago ${index + 1}`"
                   type="button"
@@ -543,7 +627,7 @@ function closeAnyway() {
                 <HfMoneyInput
                   :id="`collection-amount-${index}`"
                   :data-testid="`collection-amount-${index}`"
-                  :model-value="entry.amountCents"
+                  :model-value="isBlank(entry) ? null : entry.amountCents"
                   :disabled="inputsDisabled"
                   class="w-full"
                   @update:model-value="handleAmountChange(index, $event)"
@@ -562,6 +646,13 @@ function closeAnyway() {
                 />
               </UFormField>
             </div>
+
+            <TenderSplitControl
+              :tenders="splitTenders"
+              :target-cents="debtCents"
+              :disabled="inputsDisabled || !preview"
+              @apply="handleSplitApply"
+            />
           </section>
 
           <section class="space-y-2" data-testid="collection-session" aria-label="Caja del cobro">
@@ -581,7 +672,7 @@ function closeAnyway() {
             <div
               v-else-if="cashSessionMissing"
               data-testid="collection-session-missing"
-              class="customer-collection-panel space-y-2"
+              class="hf-pay-panel space-y-2"
               role="alert"
             >
               <p v-if="canOpenCashSession" class="text-sm font-semibold text-(--hf-warning)">
@@ -627,22 +718,22 @@ function closeAnyway() {
         <!-- Footer -->
         <div class="shrink-0 space-y-3 border-t border-default bg-default px-5 py-4">
           <template v-if="!result">
-            <dl class="customer-collection-summary grid gap-1.5 text-sm" aria-live="polite">
-              <div class="flex items-center justify-between gap-2">
+            <dl class="hf-pay-summary" aria-live="polite">
+              <div class="hf-pay-summary-row">
                 <dt>Recibido</dt>
-                <dd class="hf-figure font-semibold">{{ formatCentsMXN(tenderedCents) }}</dd>
+                <dd class="hf-figure hf-pay-summary-value">{{ formatCentsMXN(tenderedCents) }}</dd>
               </div>
-              <div class="flex items-center justify-between gap-2">
+              <div class="hf-pay-summary-row">
                 <dt>Cambio</dt>
-                <dd data-testid="collection-change" class="hf-figure font-semibold">
+                <dd data-testid="collection-change" class="hf-figure hf-pay-summary-value">
                   {{ formatCentsMXN(preview?.changeDueCents ?? 0) }}
                 </dd>
               </div>
-              <div class="flex items-center justify-between gap-2">
+              <div class="hf-pay-summary-row">
                 <dt>Queda debiendo</dt>
                 <dd
                   data-testid="collection-remaining"
-                  class="hf-figure font-semibold text-(--hf-warning)"
+                  class="hf-figure hf-pay-summary-value text-(--hf-warning)"
                 >
                   {{ formatCentsMXN(preview?.remainingCustomerDebtCents ?? 0) }}
                 </dd>
@@ -676,7 +767,7 @@ function closeAnyway() {
               role="alertdialog"
               aria-labelledby="collection-close-confirm-title"
               data-tone="warning"
-              class="customer-collection-panel space-y-2 text-sm"
+              class="hf-pay-panel space-y-2 text-sm"
             >
               <p id="collection-close-confirm-title" class="font-semibold">
                 Aún no sabemos si el cobro se registró.

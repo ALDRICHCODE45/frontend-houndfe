@@ -200,11 +200,12 @@ describe('Quotations workspace visual adapter', () => {
     expect(css).not.toMatch(/--(?:coco|ui|color)-(?:info|danger|error|warning)\s*:/)
   })
 
-  it('restrains the legacy radius ramp without flattening circles', () => {
+  it('restrains the small radius steps without flattening circles', () => {
     const scope = exactRule(css, '.quotations-workspace-visual')!
     expect(scope.style.getPropertyValue('--radius-md').trim()).toBe('var(--hf-radius-control)')
     expect(scope.style.getPropertyValue('--radius-lg').trim()).toBe('var(--hf-radius-control)')
-    expect(scope.style.getPropertyValue('--radius-xl').trim()).toBe('var(--hf-radius-card)')
+    // Card corners (xl/2xl/3xl) come from the root scale, never a local copy.
+    expect(css).not.toMatch(/--radius-(?:xl|2xl|3xl)\s*:/)
     expect(css).not.toContain('--radius-full')
   })
 

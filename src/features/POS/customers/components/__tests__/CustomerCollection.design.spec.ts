@@ -60,13 +60,53 @@ describe('«Cobrar todo» design guard (S6)', () => {
     expect(wrapper.find('li').exists()).toBe(false)
   })
 
-  it('takes radii from the card/control tokens in its scoped adapter', () => {
+  it('takes radii from the card token in its collection-only adapter', () => {
     const declarations = css.replace(/\/\*[\s\S]*?\*\//g, '')
     expect(declarations).toContain('border-radius: var(--hf-radius-card)')
-    expect(declarations).toContain('border-radius: var(--hf-radius-control)')
     expect(declarations).not.toMatch(/border-radius:(?!\s*var\(--hf-radius-(?:card|control)\))/)
     expect(declarations).not.toContain('!important')
     expect(declarations).not.toContain(':root')
     expect(declarations).not.toMatch(/#[0-9a-fA-F]{3,8}\b/)
+  })
+
+  // Style-cleanup U2 (owner S3 «una sola pieza»): the payment look is the shared `hf-pay-*` sheet.
+  it('uses the shared payment sheet and no longer redefines its rules locally', () => {
+    expect(sources.slideover).toContain(
+      "import '@/core/shared/components/payments/payment-sheet.css'",
+    )
+    for (const piece of [
+      'hf-pay-total',
+      'hf-pay-methods',
+      'hf-pay-tile',
+      'hf-pay-tile-icon',
+      'hf-pay-tile-label',
+      'hf-pay-tile-count',
+      'hf-pay-entry',
+      'hf-pay-entry-head',
+      'hf-pay-summary',
+      'hf-pay-summary-row',
+      'hf-pay-panel',
+    ]) {
+      expect(sources.slideover).toMatch(new RegExp(`class="[^"]*\\b${piece}\\b`))
+    }
+    const removed = [
+      'total',
+      'panel',
+      'method-tile',
+      'method-icon',
+      'method-label',
+      'method-count',
+      'method-subtitle',
+      'entry',
+      'summary',
+    ]
+    for (const name of removed) {
+      expect(css).not.toContain(`.customer-collection-${name}`)
+      expect(sources.slideover).not.toContain(`customer-collection-${name}`)
+    }
+    const declarations = css.replace(/\/\*[\s\S]*?\*\//g, '')
+    expect(declarations).not.toContain('hf-pay-')
+    expect(declarations).not.toContain('aria-pressed')
+    expect(declarations).not.toMatch(/font-size:\s*2\.25rem/)
   })
 })

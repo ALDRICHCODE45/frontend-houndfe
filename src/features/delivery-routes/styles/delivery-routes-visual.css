@@ -4,7 +4,7 @@
  * driver views (active-route list and route-tracking cockpit), with their
  * teleported menus, drawer, slideover and dialogs. Colors come from the shared
  * `--hf-*` roles through `hf-theme hf-ui`; this file declares no palette. Only
- * the legacy radius aliases are remapped, inside the owned boundaries. */
+ * the small radius aliases are remapped, inside the owned boundaries. */
 .hf-theme.delivery-routes-visual,
 .hf-theme.delivery-routes-driver,
 .hf-theme.delivery-routes-list-portal,
@@ -12,9 +12,6 @@
   --radius-sm: 6px;
   --radius-md: var(--hf-radius-control);
   --radius-lg: var(--hf-radius-card);
-  --radius-xl: var(--hf-radius-card);
-  --radius-2xl: 16px;
-  --radius-3xl: 20px;
 }
 
 .hf-theme.delivery-routes-list-portal,

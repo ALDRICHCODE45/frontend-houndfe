@@ -22,6 +22,12 @@ const css = existsSync(path) ? readFileSync(path, 'utf8') : ''
 /** Declarations only: comments must not satisfy or defeat textual assertions. */
 const declarations = css.replace(/\/\*[\s\S]*?\*\//g, '')
 
+/*
+ * style-cleanup U3: the total, method tiles, payment entries, summary and warning panels moved
+ * to the shared marker-free payment sheet (`hf-pay-*`), so their contracts read that sheet.
+ */
+const sheetCss = readFileSync('src/core/shared/components/payments/payment-sheet.css', 'utf8')
+
 const OWNER = 'PaymentModal.vue'
 const ownerSource = readFileSync(`src/features/POS/sales/components/${OWNER}`, 'utf8')
 
@@ -193,24 +199,17 @@ describe('CSS-R2 — colour resolves through the foundation roles', () => {
 // ── CSS-R3 — compact readable total header, scrollable body, fixed footer ───
 
 describe('CSS-R3 — the sheet keeps a compact header, scrollable body and reachable footer', () => {
-  it('keeps the total header compact and readable', () => {
-    const amount = exactRule(
-      css,
-      '.sales-pos-checkout .sales-pos-checkout-total > p:last-child',
-      'font-size',
-    )!
+  it('keeps the total header compact and readable (shared payment sheet)', () => {
+    const amount = exactRule(sheetCss, '.hf-pay-total-value', 'font-size')!
     expect(amount).toBeDefined()
     const size = remValue(amount.style.getPropertyValue('font-size').trim())
     expect(size).toBeGreaterThanOrEqual(2)
     expect(size).toBeLessThanOrEqual(2.5)
 
-    const label = exactRule(
-      css,
-      '.sales-pos-checkout .sales-pos-checkout-total > p:first-child',
-      'font-size',
-    )!
+    const label = exactRule(sheetCss, '.hf-pay-total-label', 'font-size')!
     expect(label).toBeDefined()
     expect(remValue(label.style.getPropertyValue('font-size').trim())).toBeGreaterThanOrEqual(0.75)
+    expect(declarations).not.toContain('sales-pos-checkout-total')
   })
 
   it('scrolls the body and anchors the footer outside it', () => {
@@ -230,17 +229,14 @@ describe('CSS-R3 — the sheet keeps a compact header, scrollable body and reach
 
 describe('CSS-R4 — method tiles are touch-sized and use the action selection pair', () => {
   it('sizes the tiles on the shared control height', () => {
-    const tile = exactRule(css, '.sales-pos-checkout .sales-pos-checkout-method-tile', 'min-height')!
+    const tile = exactRule(sheetCss, '.hf-pay-tile', 'min-height')!
     expect(tile).toBeDefined()
     expect(tile.style.getPropertyValue('min-height').trim()).toBe('var(--hf-control-height)')
+    expect(declarations).not.toContain('sales-pos-checkout-method-tile')
   })
 
   it('pairs the selected tile with the action/active roles, not a status colour', () => {
-    const selected = exactRule(
-      css,
-      '.sales-pos-checkout .sales-pos-checkout-method-tile[data-sales-pos-checkout-state=selected]',
-      'background-color',
-    )!
+    const selected = exactRule(sheetCss, '.hf-pay-tile[aria-pressed=true]', 'background-color')!
     expect(selected).toBeDefined()
     expect(selected.style.getPropertyValue('background-color').trim()).toBe('var(--hf-active-soft)')
     expect(selected.style.getPropertyValue('border-color').trim()).toBe('var(--hf-action)')
@@ -251,22 +247,15 @@ describe('CSS-R4 — method tiles are touch-sized and use the action selection p
 
 describe('CSS-R5 — payment entries keep readable stacked fields', () => {
   it('uses the card radius/surface and a readable field size', () => {
-    const entry = exactRule(
-      css,
-      '.sales-pos-checkout .sales-pos-checkout-payment-entry',
-      'border-radius',
-    )!
+    const entry = exactRule(sheetCss, '.hf-pay-entry', 'border-radius')!
     expect(entry).toBeDefined()
     expect(entry.style.getPropertyValue('border-radius').trim()).toBe('var(--hf-radius-card)')
     expect(entry.style.getPropertyValue('background-color').trim()).toBe('var(--hf-surface-muted)')
 
-    const field = exactRule(
-      css,
-      '.sales-pos-checkout .sales-pos-checkout-payment-entry input',
-      'font-size',
-    )!
+    const field = exactRule(sheetCss, '.hf-pay-entry input', 'font-size')!
     expect(field).toBeDefined()
     expect(remValue(field.style.getPropertyValue('font-size').trim())).toBeGreaterThanOrEqual(0.875)
+    expect(declarations).not.toContain('sales-pos-checkout-payment-entry')
   })
 })
 
@@ -290,14 +279,11 @@ describe('CSS-R6 — the Caja session choice stays readable and paginated', () =
     expect(next.style.getPropertyValue('min-height').trim()).toBe('var(--hf-control-height)')
   })
 
-  it('keeps the lost-binding decision on the warning role', () => {
-    const lost = exactRule(
-      css,
-      '.sales-pos-checkout .sales-pos-checkout-binding-lost',
-      'background-color',
-    )!
+  it('keeps the lost-binding decision on the warning role (shared warning panel)', () => {
+    const lost = exactRule(sheetCss, '.hf-pay-panel[data-tone=warning]', 'background-color')!
     expect(lost).toBeDefined()
     expect(lost.style.getPropertyValue('background-color').trim()).toBe('var(--hf-warning-soft)')
+    expect(declarations).not.toContain('sales-pos-checkout-binding-lost')
   })
 })
 

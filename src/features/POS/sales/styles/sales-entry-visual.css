@@ -17,16 +17,14 @@
 
 /* ── Owned workspace boundary ───────────────────────────────────────────── */
 
-/* Restrained geometry: section cards land on the foundation card radius and
- * controls on the control radius, matching the already-migrated modules. The
- * `--radius-2xl` / `--radius-3xl` / `--radius-full` values stay untouched, so
- * the mobile sheet's `rounded-t-2xl` and every circular control keep their
- * exact prior shape. */
+/* Restrained geometry: controls land on the control radius and section cards
+ * on the foundation card radius (xl/2xl/3xl already resolve to it at the
+ * root). The mobile sheet's `rounded-t-2xl` keeps its 16px sheet corner from
+ * the shared adapter, and `--radius-full` keeps every circular control. */
 .hf-theme.sales-entry-visual,
 .hf-theme.sales-entry-portal {
   --radius-md: var(--hf-radius-control);
   --radius-lg: var(--hf-radius-card);
-  --radius-xl: var(--hf-radius-card);
 }
 
 /* The workspace canvas is the quiet foundation page instead of the legacy

@@ -51,7 +51,8 @@ describe('Promotions listing presentation adapter', () => {
     ]) {
       expect(css).toContain(`.hf-theme.${marker}`)
     }
-    expect(css).toContain('--radius-xl: var(--hf-radius-card)')
+    // Card corners (xl/2xl/3xl) come from the root scale, never a local copy.
+    expect(css).not.toMatch(/--radius-(?:xl|2xl|3xl)\s*:/)
   })
 
   it('themes toolbar, pagination, filter, row-menu and dialog portals', () => {
