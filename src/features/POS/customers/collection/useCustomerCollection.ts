@@ -6,16 +6,26 @@
  *   the latest request is dropped, and the preview counts as loading from the first keystroke.
  * - Confirm is off while the preview loads or failed, without valid tenders (1-5, ≥ 1 cent) or
  *   without the caller's open cash session.
- * - One idempotency key per submission. It is reused only to resend the very same body after an
- *   uncertain outcome (network failure, `IDEMPOTENCY_KEY_IN_FLIGHT`, any 5xx or an unknown code);
- *   a documented 4xx, a tender change or a different session/expected debt gives a new key.
+ * - One idempotency key per submission. After an uncertain outcome (network failure,
+ *   `IDEMPOTENCY_KEY_IN_FLIGHT`, any 5xx or an unknown code) the key AND body stay unresolved per
+ *   customer at module scope, so closing, reopening or remounting the sheet keeps them: tender
+ *   edits are ignored and confirm/`retry()` resend exactly that submission until a definitive
+ *   answer (success or a documented 4xx) frees it. A documented 4xx gives the next confirm a new key.
  * - `409 COLLECTION_DEBT_CHANGED`: «La deuda del cliente cambió», the screen shows `body.preview`
  *   and a new confirm is required. `IDEMPOTENCY_KEY_IN_FLIGHT`: a short wait and one retry with
  *   the same key and body. Any other answer: its message, and the preview is refreshed.
  * - Success refreshes the customer history (and its metrics), the monthly chart, the sales lists
  *   and the detail of every sale that received money.
  */
-import { computed, getCurrentScope, onScopeDispose, shallowRef, toValue, watch } from 'vue'
+import {
+  computed,
+  getCurrentScope,
+  onScopeDispose,
+  reactive,
+  shallowRef,
+  toValue,
+  watch,
+} from 'vue'
 import type { MaybeRefOrGetter, Ref, ShallowRef } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import { analyticsQueryKeys, saleQueryKeys } from '@/core/shared/constants/query-keys'
@@ -73,6 +83,38 @@ const DEFINITIVE_CODES: ReadonlySet<string> = new Set([
   'CASH_TENANT_MEMBERSHIP_REQUIRED',
 ])
 
+interface UnresolvedSubmission {
+  key: string
+  body: CollectionApplyBody
+}
+
+/**
+ * Submissions whose outcome is unknown, per `tenantId:customerId`. Module scope on purpose: the
+ * sheet may unmount (close, customer change) and a fresh key would risk a second collection.
+ */
+const unresolved = reactive(new Map<string, UnresolvedSubmission>())
+const scopeOf = (tenantId: string | null | undefined, customerId: string) =>
+  `${tenantId ?? ''}:${customerId}`
+
+/** Whether `customerId` has a collection whose outcome is still unknown (reactive). */
+export function hasUnresolvedCollection(
+  tenantId: string | null | undefined,
+  customerId: string | null | undefined,
+): boolean {
+  return !!customerId && unresolved.has(scopeOf(tenantId, customerId))
+}
+
+/** Forgets every unresolved submission (tests). */
+export function clearUnresolvedCollections() {
+  unresolved.clear()
+}
+
+const uncertainFailure = (): CollectionFailure => ({
+  code: 'UNKNOWN',
+  message: UNCERTAIN,
+  network: false,
+})
+
 export function useCustomerCollection(options: UseCustomerCollectionOptions) {
   const debounceMs = options.debounceMs ?? 300
   const inFlightRetryMs = options.inFlightRetryMs ?? 1500
@@ -90,8 +132,18 @@ export function useCustomerCollection(options: UseCustomerCollectionOptions) {
 
   let previewSeq = 0
   let debounceTimer: ReturnType<typeof setTimeout> | null = null
-  /** The submission whose key may be resent: only for the exact same body. */
-  let pending: { key: string; body: string } | null = null
+
+  const scope = computed(() => {
+    const customerId = toValue(options.customerId)
+    return customerId ? scopeOf(authStore.currentTenantId, customerId) : null
+  })
+  const stored = computed(() => (scope.value ? unresolved.get(scope.value) : undefined))
+  /** This instance's first send of a fresh submission: in flight, not yet uncertain. */
+  const freshInFlight = shallowRef(false)
+  /** A submission may have been written: the sheet stays locked until a definitive answer. */
+  const uncertain = computed(() => !!stored.value && !freshInFlight.value)
+  const pendingPayments = computed(() => stored.value?.body.payments ?? null)
+  const pendingCashSessionId = computed(() => stored.value?.body.cashSessionId ?? null)
 
   function clearTimer() {
     if (debounceTimer !== null) clearTimeout(debounceTimer)
@@ -125,8 +177,9 @@ export function useCustomerCollection(options: UseCustomerCollectionOptions) {
   }
 
   function setPayments(next: CollectionTender[]) {
+    // Locked: only the unresolved submission may be resent.
+    if (uncertain.value) return
     payments.value = next
-    pending = null
     notice.value = null
     applyError.value = null
     clearTimer()
@@ -142,14 +195,13 @@ export function useCustomerCollection(options: UseCustomerCollectionOptions) {
   function reset() {
     clearTimer()
     previewSeq++
-    pending = null
     payments.value = []
     preview.value = null
     previewLoading.value = false
     previewError.value = null
     result.value = null
     isSubmitting.value = false
-    applyError.value = null
+    applyError.value = uncertain.value ? uncertainFailure() : null
     notice.value = null
   }
 
@@ -164,6 +216,7 @@ export function useCustomerCollection(options: UseCustomerCollectionOptions) {
   if (getCurrentScope()) onScopeDispose(clearTimer)
 
   const canConfirm = computed(() => {
+    if (uncertain.value) return !isSubmitting.value && !result.value
     const tenders = payments.value
     return (
       !!preview.value &&
@@ -193,21 +246,41 @@ export function useCustomerCollection(options: UseCustomerCollectionOptions) {
     for (const queryKey of keys) void queryClient.invalidateQueries({ queryKey })
   }
 
-  function onApplyFailure(failure: CollectionFailure) {
-    if (failure.network || failure.code === 'IDEMPOTENCY_KEY_IN_FLIGHT') {
-      // Maybe written: only the same key with the same body may follow.
-      applyError.value = failure
-      return
-    }
+  function refreshHistory(customerId: string) {
+    const tenantId = authStore.currentTenantId ?? ''
+    for (const queryKey of [
+      saleQueryKeys.customerHistoryPrefix(tenantId, customerId),
+      saleQueryKeys.customerMonthlyPrefix(tenantId, customerId),
+    ])
+      void queryClient.invalidateQueries({ queryKey })
+  }
+
+  /** Lets the cashier see whether the unresolved collection landed (history, monthly, debt). */
+  function checkOutcome() {
+    const customerId = toValue(options.customerId)
+    if (!customerId) return
+    refreshHistory(customerId)
+    refreshPreview()
+  }
+
+  function onApplyFailure(failure: CollectionFailure, submission: string, customerId: string) {
     const status = failure.status ?? 0
-    if (status < 400 || status >= 500 || !DEFINITIVE_CODES.has(failure.code)) {
-      // 5xx or unknown answer: maybe committed. Keep the key and body; no refresh, which could
-      // lower expectedDebtCents and turn the retry into a second collection.
-      applyError.value = { ...failure, message: UNCERTAIN }
+    const maybeWritten =
+      failure.network ||
+      failure.code === 'IDEMPOTENCY_KEY_IN_FLIGHT' ||
+      status < 400 ||
+      status >= 500 ||
+      !DEFINITIVE_CODES.has(failure.code)
+    if (maybeWritten) {
+      // Maybe committed: keep the key and body (stored before sending); no preview refresh, which
+      // could lower expectedDebtCents and turn the retry into a second collection.
+      const network = failure.network || failure.code === 'IDEMPOTENCY_KEY_IN_FLIGHT'
+      applyError.value = network ? failure : { ...failure, message: UNCERTAIN }
+      refreshHistory(customerId)
       return
     }
     // A documented 4xx: nothing was written, the key is free, the next confirm gets a new one.
-    pending = null
+    unresolved.delete(submission)
     if (failure.code === 'COLLECTION_DEBT_CHANGED') {
       notice.value = failure.message
       if (failure.preview) {
@@ -227,18 +300,25 @@ export function useCustomerCollection(options: UseCustomerCollectionOptions) {
 
   async function confirm(): Promise<CollectionResult | null> {
     const customerId = toValue(options.customerId)
-    const cashSessionId = toValue(options.cashSessionId)
-    if (!canConfirm.value || !customerId || !cashSessionId || !preview.value) return null
-
-    const body: CollectionApplyBody = {
-      payments: payments.value,
-      cashSessionId,
-      expectedDebtCents: preview.value.debtCents,
+    const submission = scope.value
+    if (!canConfirm.value || !customerId || !submission) return null
+    let current = stored.value
+    if (!current) {
+      const cashSessionId = toValue(options.cashSessionId)
+      if (!cashSessionId || !preview.value) return null
+      current = {
+        key: newIdempotencyKey(),
+        body: {
+          payments: payments.value,
+          cashSessionId,
+          expectedDebtCents: preview.value.debtCents,
+        },
+      }
+      // Unresolved from the moment it leaves: an unmount mid-request still keeps the key.
+      unresolved.set(submission, current)
+      freshInFlight.value = true
     }
-    const serialized = JSON.stringify(body)
-    if (!pending || pending.body !== serialized)
-      pending = { key: newIdempotencyKey(), body: serialized }
-    const key = pending.key
+    const { key, body } = current
 
     isSubmitting.value = true
     applyError.value = null
@@ -252,15 +332,16 @@ export function useCustomerCollection(options: UseCustomerCollectionOptions) {
         await sleep(inFlightRetryMs)
         data = await customerCollectionApi.apply(customerId, body, key)
       }
-      pending = null
+      unresolved.delete(submission)
       result.value = data
       refreshAfterSuccess(data, customerId)
       return data
     } catch (error) {
-      onApplyFailure(readCollectionError(error))
+      onApplyFailure(readCollectionError(error), submission, customerId)
       return null
     } finally {
       isSubmitting.value = false
+      freshInFlight.value = false
     }
   }
 
@@ -274,8 +355,14 @@ export function useCustomerCollection(options: UseCustomerCollectionOptions) {
     applyError: readonly(applyError),
     notice: readonly(notice),
     canConfirm,
+    uncertain,
+    pendingPayments,
+    pendingCashSessionId,
     setPayments,
     refreshPreview,
     confirm,
+    /** Resends the unresolved submission with the same key and body; no-op without one. */
+    retry: () => (uncertain.value ? confirm() : Promise.resolve(null)),
+    checkOutcome,
   }
 }

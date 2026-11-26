@@ -4,7 +4,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
-import { computed, defineComponent, h, shallowRef } from 'vue'
+import { computed, defineComponent, h, reactive, ref, shallowRef } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import type { Customer } from '../../interfaces/customer.types'
@@ -44,6 +44,17 @@ vi.mock('../CustomerCollectionSlideover.vue', () => ({
           )
         : null,
   }),
+}))
+
+const unresolvedFor = ref(new Set<string>())
+vi.mock('../../collection/useCustomerCollection', () => ({
+  hasUnresolvedCollection: (tenantId: string, customerId: string | undefined) =>
+    tenantId === 'tenant-1' && !!customerId && unresolvedFor.value.has(customerId),
+}))
+const toast = vi.hoisted(() => ({ add: vi.fn() }))
+vi.mock('@nuxt/ui/runtime/composables/useToast', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useToast: () => toast,
 }))
 
 const response = shallowRef<ConfirmedSalesListResponse>()
@@ -112,10 +123,12 @@ function stubViewport(mobile: boolean) {
 }
 
 let wrapper: VueWrapper | undefined
+let props: { open: boolean; customer: Customer | null }
 function mountHistory() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+  props = reactive({ open: true, customer: customer() })
   wrapper = mountWithUApp(CustomerSalesHistorySlideover, {
-    props: { open: true, customer: customer() },
+    props,
     attachTo: document.body,
     global: { plugins: [[VueQueryPlugin, { queryClient }]] },
   })
@@ -127,6 +140,8 @@ const qa = (selector: string) => [...document.body.querySelectorAll<HTMLElement>
 beforeEach(() => {
   document.body.innerHTML = ''
   can.update = true
+  unresolvedFor.value = new Set()
+  toast.add.mockClear()
   stubViewport(false)
   withDebt(61000)
 })
@@ -192,5 +207,42 @@ describe('CustomerSalesHistorySlideover — «Cobrar todo»', () => {
     withDebt(0)
     await flushPromises()
     expect(q('[data-testid="collection-sheet"]')).not.toBeNull()
+  })
+})
+
+describe('CustomerSalesHistorySlideover — unresolved collection (R1/R4)', () => {
+  const other = (): Customer => ({ ...customer(), id: 'customer-2', fullName: 'Luis Gómez' })
+
+  it('keeps the collection reachable while its outcome is unknown, even without debt', async () => {
+    unresolvedFor.value = new Set(['customer-1'])
+    withDebt(0)
+    mountHistory()
+    await flushPromises()
+    const action = q('[data-testid="history-collect-all"]')
+    expect(action?.textContent).toContain('Cobro sin confirmar')
+    action!.click()
+    await flushPromises()
+    expect(q('[data-testid="collection-sheet"]')?.dataset.customerId).toBe('customer-1')
+  })
+
+  it('changing customer with an unresolved collection warns which customer to come back to', async () => {
+    unresolvedFor.value = new Set(['customer-1'])
+    mountHistory()
+    await flushPromises()
+    props.customer = other()
+    await flushPromises()
+    expect(toast.add).toHaveBeenCalledTimes(1)
+    const [options] = toast.add.mock.calls[0]!
+    expect(options.title).toBe('Cobro sin confirmar')
+    expect(options.description).toContain('Ana Pérez')
+    expect(options.description).toContain('mismos datos')
+  })
+
+  it('changing customer without an unresolved collection says nothing', async () => {
+    mountHistory()
+    await flushPromises()
+    props.customer = other()
+    await flushPromises()
+    expect(toast.add).not.toHaveBeenCalled()
   })
 })

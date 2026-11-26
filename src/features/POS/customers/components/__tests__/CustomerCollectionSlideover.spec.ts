@@ -10,6 +10,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import type { CashSession } from '@/features/POS/cash-register/interfaces/cash.types'
+import type { ActivePaymentMethodProjection } from '@/features/POS/sales/interfaces/sale.types'
 import type {
   CollectionPreview,
   CollectionResult,
@@ -28,6 +29,11 @@ const fake = {
   applyError: shallowRef<CollectionFailure | null>(null),
   notice: shallowRef<string | null>(null),
   canConfirm: shallowRef(true),
+  uncertain: shallowRef(false),
+  pendingPayments: shallowRef<CollectionTender[] | null>(null),
+  pendingCashSessionId: shallowRef<string | null>(null),
+  retry: vi.fn(),
+  checkOutcome: vi.fn(),
   setPayments: vi.fn<(payments: CollectionTender[]) => void>(),
   confirm: vi.fn(),
   refreshPreview: vi.fn(),
@@ -47,8 +53,10 @@ const receipt = {
 vi.mock('../../collection/useCollectionReceiptDownload', () => ({
   useCollectionReceiptDownload: () => receipt,
 }))
+const VALES_ID = '6f1c2a3b-4d5e-4f60-8a71-9b2c3d4e5f60'
+const catalog = ref<ActivePaymentMethodProjection[]>([])
 vi.mock('@/features/POS/sales/composables/useSalePaymentMethods', () => ({
-  useSalePaymentMethods: () => ({ data: computed(() => []), refetch: vi.fn() }),
+  useSalePaymentMethods: () => ({ data: computed(() => catalog.value), refetch: vi.fn() }),
 }))
 const session = (id: string): CashSession => ({
   id,
@@ -212,6 +220,13 @@ beforeEach(() => {
   fake.applyError.value = null
   fake.notice.value = null
   fake.canConfirm.value = true
+  fake.uncertain.value = false
+  fake.pendingPayments.value = null
+  fake.pendingCashSessionId.value = null
+  fake.retry.mockReset()
+  fake.checkOutcome.mockReset()
+  catalog.value = []
+  onUpdateOpen.mockClear()
   fake.setPayments.mockReset()
   fake.confirm.mockReset()
   receipt.download.mockClear()
@@ -432,5 +447,149 @@ describe('CustomerCollectionSlideover — success', () => {
     q('[data-testid="collection-done"]')!.click()
     await flushPromises()
     expect(onUpdateOpen).toHaveBeenLastCalledWith(false)
+  })
+})
+
+const UNCERTAIN_MESSAGE =
+  'No sabemos si el cobro se registró. Vuelve a confirmar con los mismos montos; no se duplicará.'
+
+/** The sheet with one cash tender typed, then an uncertain apply answer. */
+async function mountUncertain() {
+  mountSheet()
+  await flushPromises()
+  q('[data-testid="collection-method-cash"]')!.click()
+  q('[data-testid="collection-method-transfer"]')!.click()
+  await flushPromises()
+  fake.setPayments.mockClear()
+  fake.uncertain.value = true
+  fake.pendingPayments.value = [
+    { method: 'cash', amountCents: 140000 },
+    { method: 'transfer', amountCents: 140000 },
+  ]
+  fake.pendingCashSessionId.value = 'sess-2'
+  fake.applyError.value = { code: 'UNKNOWN', message: UNCERTAIN_MESSAGE, network: false }
+  await flushPromises()
+}
+
+describe('CustomerCollectionSlideover — unresolved submission lock (R1/R4)', () => {
+  const disabled = (selector: string) =>
+    (q(selector) as HTMLButtonElement | HTMLInputElement | null)?.disabled
+
+  it('disables tenders, amounts, references and remove buttons', async () => {
+    await mountUncertain()
+    expect(disabled('[data-testid="collection-method-cash"]')).toBe(true)
+    expect(disabled('[data-testid="collection-method-card_debit"]')).toBe(true)
+    expect(disabled('[data-testid="collection-amount-0"]')).toBe(true)
+    expect(disabled('[data-testid="collection-reference-1"]')).toBe(true)
+    expect(disabled('[aria-label="Quitar pago 1"]')).toBe(true)
+    q('[data-testid="collection-method-cash"]')!.click()
+    await flushPromises()
+    expect(fake.setPayments).not.toHaveBeenCalled()
+  })
+
+  it('replaces the session picker with the session of the retried submission', async () => {
+    sessions.value = [session('sess-1'), session('sess-2')]
+    await mountUncertain()
+    expect(q('[data-testid="cash-session-binding"]')).toBeNull()
+    expect(text('[data-testid="collection-session-locked"]')).toContain('Caja Principal')
+  })
+
+  it('explains the lock and lists the submission being retried', async () => {
+    await mountUncertain()
+    const panel = text('[data-testid="collection-uncertain"]')
+    expect(panel).toContain('No sabemos si el cobro se registró')
+    expect(panel).toContain('Efectivo')
+    expect(panel).toContain('1,400.00')
+  })
+
+  it('offers only «Reintentar con los mismos datos», which calls retry()', async () => {
+    await mountUncertain()
+    expect(q('[data-testid="collection-confirm"]')).toBeNull()
+    const retry = q('[data-testid="collection-retry"]')!
+    expect(retry.textContent?.trim()).toBe('Reintentar con los mismos datos')
+    retry.click()
+    await flushPromises()
+    expect(fake.retry).toHaveBeenCalledTimes(1)
+    expect(fake.confirm).not.toHaveBeenCalled()
+  })
+
+  it('«Revisar historial» checks the outcome', async () => {
+    await mountUncertain()
+    q('[data-testid="collection-check-outcome"]')!.click()
+    await flushPromises()
+    expect(fake.checkOutcome).toHaveBeenCalledTimes(1)
+  })
+
+  it('closing asks for confirmation first, then closes', async () => {
+    await mountUncertain()
+    q('[aria-label="Cerrar cobro"]')!.click()
+    await flushPromises()
+    expect(onUpdateOpen).not.toHaveBeenCalled()
+    expect(text('[data-testid="collection-close-confirm"]')).toContain(
+      'Revisa el historial del cliente',
+    )
+    q('[data-testid="collection-close-stay"]')!.click()
+    await flushPromises()
+    expect(q('[data-testid="collection-close-confirm"]')).toBeNull()
+    q('[aria-label="Cerrar cobro"]')!.click()
+    await flushPromises()
+    q('[data-testid="collection-close-anyway"]')!.click()
+    await flushPromises()
+    expect(onUpdateOpen).toHaveBeenLastCalledWith(false)
+  })
+
+  it('a definitive answer unlocks the tenders again', async () => {
+    await mountUncertain()
+    fake.uncertain.value = false
+    fake.applyError.value = null
+    await flushPromises()
+    expect(disabled('[data-testid="collection-method-cash"]')).toBe(false)
+    expect(q('[data-testid="collection-retry"]')).toBeNull()
+    expect(q('[data-testid="collection-confirm"]')).not.toBeNull()
+  })
+})
+
+describe('CustomerCollectionSlideover — removed catalog method (R3)', () => {
+  async function mountWithCatalogTender() {
+    catalog.value = [{ id: VALES_ID, name: 'Vales Sodexo', category: 'card_debit', subtitle: null }]
+    mountSheet()
+    await flushPromises()
+    q(`[data-testid="collection-method-custom-${VALES_ID}"]`)!.click()
+    q('[data-testid="collection-method-cash"]')!.click()
+    await flushPromises()
+    // The composable clears its errors as soon as the tenders change (setPayments, new preview).
+    fake.setPayments.mockImplementation(() => {
+      fake.applyError.value = null
+      fake.previewError.value = null
+    })
+    fake.applyError.value = {
+      code: 'PAYMENT_METHOD_NOT_FOUND',
+      message: 'Ese método de pago ya no existe. Elige otro.',
+      network: false,
+    }
+    await flushPromises()
+  }
+
+  it('drops the tender and keeps a notice that names the removed method', async () => {
+    await mountWithCatalogTender()
+    expect(qa('[data-testid^="collection-entry-"]')).toHaveLength(1)
+    expect(fake.applyError.value).toBeNull()
+    const notice = text('[data-testid="collection-catalog-notice"]')
+    expect(notice).toContain('Vales Sodexo')
+    expect(notice).toContain('ya no existe')
+  })
+
+  it('the notice goes away when the cashier dismisses it', async () => {
+    await mountWithCatalogTender()
+    q('[data-testid="collection-catalog-notice"] button')!.click()
+    await flushPromises()
+    expect(q('[data-testid="collection-catalog-notice"]')).toBeNull()
+  })
+
+  it('the notice goes away when the cashier edits the tenders again', async () => {
+    await mountWithCatalogTender()
+    q('[data-testid="collection-method-transfer"]')!.click()
+    await flushPromises()
+    expect(q('[data-testid="collection-catalog-notice"]')).toBeNull()
   })
 })

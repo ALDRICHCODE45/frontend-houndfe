@@ -10,6 +10,11 @@
  * The flow (live preview, confirm gate, idempotency, 409 / IN_FLIGHT / 422) lives in
  * `useCustomerCollection`; this sheet only renders it. Success shows the result and the
  * «Comprobante de cobro» downloads.
+ *
+ * While a submission's outcome is unknown the sheet is locked: no tender or session edits, the
+ * only actions are «Reintentar con los mismos datos» (same key and body) and «Revisar historial»,
+ * and closing asks first. A catalog method the backend no longer accepts is dropped from the
+ * tenders with a notice that stays until the cashier edits the tenders or dismisses it.
  */
 import { computed, ref, watch } from 'vue'
 import type { PaymentEntry } from '@/features/POS/sales/interfaces/sale.types'
@@ -66,6 +71,9 @@ const CATALOG_CODES: ReadonlySet<string> = new Set([
 
 const entries = ref<PaymentEntry[]>([])
 const amountTextErrors = ref<Record<string, string>>({})
+/** Names the catalog method(s) dropped after PAYMENT_METHOD_NOT_FOUND / INACTIVE_PAYMENT_METHOD. */
+const catalogNotice = ref<string | null>(null)
+const closeConfirmOpen = ref(false)
 
 const { data: projection, refetch: refetchMethods } = useSalePaymentMethods()
 const methodOptions = computed<PaymentMethodTile[]>(() =>
@@ -101,8 +109,35 @@ const collection = useCustomerCollection({
   open: () => props.open,
   cashSessionId: () => cashSessionId.value,
 })
-const { preview, previewLoading, previewError, result, isSubmitting, applyError, notice } =
-  collection
+const {
+  preview,
+  previewLoading,
+  previewError,
+  result,
+  isSubmitting,
+  applyError,
+  notice,
+  uncertain,
+  pendingPayments,
+  pendingCashSessionId,
+} = collection
+
+/** An unresolved submission: nothing may change until it is retried or answered. */
+const locked = computed(() => uncertain.value && !result.value)
+const inputsDisabled = computed(() => isSubmitting.value || locked.value)
+const pendingTenders = computed(() =>
+  (pendingPayments.value ?? []).map((tender) => ({
+    label: resolveEntryDisplay(tender, methodOptions.value).label,
+    amountCents: tender.amountCents,
+  })),
+)
+const pendingSessionLabel = computed(() => {
+  const session = openCashSessions.value.find((row) => row.id === pendingCashSessionId.value)
+  return (session && registerNames.value[session.registerId]) || 'La caja elegida al cobrar'
+})
+watch(locked, (value) => {
+  if (!value) closeConfirmOpen.value = false
+})
 
 const receipt = useCollectionReceiptDownload(() => result.value?.collectionId)
 
@@ -150,6 +185,8 @@ watch(
     // The composable previews without tenders on open; only a reopened sheet has entries to drop.
     if (entries.value.length > 0) entries.value = []
     amountTextErrors.value = {}
+    catalogNotice.value = null
+    closeConfirmOpen.value = false
     cashSaleSession.clearSelection()
     // Fresh own/OPEN sessions each time the sheet opens (a till may have opened meanwhile).
     void cashSaleSession.refetch()
@@ -163,6 +200,15 @@ watch(
     if (!code) return
     if (code.startsWith('CASH_')) void cashSaleSession.refetch()
     if (CATALOG_CODES.has(code)) {
+      const removed = entries.value.filter((entry) => entry.paymentMethodId !== undefined)
+      if (removed.length > 0) {
+        const names = removed
+          .map((entry) => `«${resolveEntryDisplay(entry, methodOptions.value).label}»`)
+          .join(', ')
+        const reason = code === 'INACTIVE_PAYMENT_METHOD' ? 'está desactivado' : 'ya no existe'
+        // Its own notice: the tender change below clears the apply/preview error at once.
+        catalogNotice.value = `${names} ${reason} y se quitó de los pagos. Elige otro método.`
+      }
       void refetchMethods()
       entries.value = entries.value.filter((entry) => entry.paymentMethodId === undefined)
     }
@@ -170,6 +216,8 @@ watch(
 )
 
 function handleMethodToggle(tile: PaymentMethodTile) {
+  if (inputsDisabled.value) return
+  catalogNotice.value = null
   const index = findEntryIndex(entries.value, tile)
   entries.value =
     index >= 0
@@ -178,6 +226,8 @@ function handleMethodToggle(tile: PaymentMethodTile) {
 }
 
 function handleAmountChange(index: number, amountCents: number | null) {
+  if (inputsDisabled.value) return
+  catalogNotice.value = null
   entries.value = updateEntry(entries.value, index, { amountCents: Math.max(0, amountCents ?? 0) })
 }
 
@@ -188,17 +238,36 @@ function handleAmountValidation(entry: PaymentEntry, error: string | null) {
 }
 
 function handleReferenceChange(index: number, reference: string) {
+  if (inputsDisabled.value) return
+  catalogNotice.value = null
   entries.value = updateEntry(entries.value, index, { reference })
 }
 
+function handleRemove(index: number) {
+  if (inputsDisabled.value) return
+  catalogNotice.value = null
+  entries.value = removeEntry(entries.value, index)
+}
+
 async function handleConfirm() {
-  if (!canConfirm.value) return
+  if (locked.value || !canConfirm.value) return
   // Several sessions: the explicit choice is revalidated live right before the money moves.
   if (needsCashSessionPick.value && !cashSaleSession.revalidateSelection()) return
   await collection.confirm()
 }
 
 function close() {
+  if (isSubmitting.value) return
+  // Unknown outcome: closing keeps the key (module scope), but the cashier should check first.
+  if (locked.value) {
+    closeConfirmOpen.value = true
+    return
+  }
+  emit('update:open', false)
+}
+
+function closeAnyway() {
+  closeConfirmOpen.value = false
   emit('update:open', false)
 }
 </script>
@@ -209,9 +278,10 @@ function close() {
     title="Cobrar todo"
     :description="`Cobro de la deuda de ${customerName}`"
     inset
-    :dismissible="!isSubmitting"
+    :dismissible="!isSubmitting && !locked"
     :ui="slideoverUi"
     @update:open="emit('update:open', $event)"
+    @close:prevent="close"
   >
     <template #content>
       <div class="flex h-full max-h-[100dvh] min-w-0 flex-col">
@@ -335,7 +405,44 @@ function close() {
             role="status"
           />
           <UAlert
-            v-if="applyError"
+            v-if="catalogNotice"
+            data-testid="collection-catalog-notice"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-circle-alert"
+            :description="catalogNotice"
+            :close="{ 'aria-label': 'Descartar aviso', class: 'min-h-11 min-w-11' }"
+            role="status"
+            @update:open="catalogNotice = null"
+          />
+          <div
+            v-if="locked"
+            data-testid="collection-uncertain"
+            role="alert"
+            class="space-y-2 rounded-xl border border-(--hf-warning) bg-elevated px-4 py-3 text-sm"
+          >
+            <p class="flex items-center gap-2 font-semibold text-(--hf-warning)">
+              <UIcon name="i-lucide-triangle-alert" class="size-5 shrink-0" aria-hidden="true" />
+              Cobro sin confirmar
+            </p>
+            <p v-if="applyError">{{ applyError.message }}</p>
+            <p class="text-(--hf-muted)">
+              Reintenta con los mismos datos: si ya se registró, no se cobra dos veces. También
+              puedes revisar el historial del cliente: si la deuda bajó, el cobro sí entró.
+            </p>
+            <ul class="grid gap-1" aria-label="Pagos del cobro sin confirmar">
+              <li
+                v-for="(tender, index) in pendingTenders"
+                :key="index"
+                class="flex items-center justify-between gap-2"
+              >
+                <span>{{ tender.label }}</span>
+                <span class="hf-figure font-semibold">{{ formatCentsMXN(tender.amountCents) }}</span>
+              </li>
+            </ul>
+          </div>
+          <UAlert
+            v-else-if="applyError"
             data-testid="collection-apply-error"
             color="error"
             variant="subtle"
@@ -381,7 +488,7 @@ function close() {
                 "
                 :disabled="
                   (getMethodCount(entries, option) === 0 && !canAddEntry) ||
-                  isSubmitting ||
+                  inputsDisabled ||
                   !preview
                 "
                 @click="handleMethodToggle(option)"
@@ -426,8 +533,8 @@ function close() {
                   variant="ghost"
                   icon="i-lucide-trash-2"
                   class="min-h-11 min-w-11 justify-center"
-                  :disabled="isSubmitting"
-                  @click="entries = removeEntry(entries, index)"
+                  :disabled="inputsDisabled"
+                  @click="handleRemove(index)"
                 />
               </div>
               <UFormField label="Monto" :error="entryErrors[index]?.amountCents">
@@ -435,7 +542,7 @@ function close() {
                   :id="`collection-amount-${index}`"
                   :data-testid="`collection-amount-${index}`"
                   :model-value="entry.amountCents"
-                  :disabled="isSubmitting"
+                  :disabled="inputsDisabled"
                   class="w-full"
                   @update:model-value="handleAmountChange(index, $event)"
                   @validation="handleAmountValidation(entry, $event)"
@@ -447,7 +554,7 @@ function close() {
                   :model-value="entry.reference ?? ''"
                   :maxlength="REFERENCE_MAX_LENGTH"
                   placeholder="Ej: VOUCHER-123"
-                  :disabled="isSubmitting"
+                  :disabled="inputsDisabled"
                   class="w-full"
                   @update:model-value="handleReferenceChange(index, String($event ?? ''))"
                 />
@@ -457,8 +564,11 @@ function close() {
 
           <section class="space-y-2" data-testid="collection-session" aria-label="Caja del cobro">
             <p class="text-sm font-semibold text-highlighted">Caja</p>
+            <p v-if="locked" data-testid="collection-session-locked" class="text-sm">
+              {{ pendingSessionLabel }} · el reintento usa la misma caja.
+            </p>
             <p
-              v-if="cashSessionLoading && openCashSessions.length === 0"
+              v-else-if="cashSessionLoading && openCashSessions.length === 0"
               class="text-xs text-muted"
             >
               Buscando tu caja abierta…
@@ -561,7 +671,64 @@ function close() {
                 Reintentar
               </UButton>
             </div>
-            <div class="flex flex-wrap justify-end gap-2">
+            <div
+              v-if="closeConfirmOpen"
+              data-testid="collection-close-confirm"
+              role="alertdialog"
+              aria-labelledby="collection-close-confirm-title"
+              class="space-y-2 rounded-xl border border-(--hf-warning) bg-elevated px-4 py-3 text-sm"
+            >
+              <p id="collection-close-confirm-title" class="font-semibold">
+                Aún no sabemos si el cobro se registró.
+              </p>
+              <p class="text-(--hf-muted)">
+                Revisa el historial del cliente antes de cerrar: si la deuda bajó, el cobro sí
+                entró. Al volver a abrir «Cobrar todo» se reintenta con los mismos datos.
+              </p>
+              <div class="flex flex-wrap justify-end gap-2">
+                <UButton
+                  data-testid="collection-close-stay"
+                  color="neutral"
+                  variant="soft"
+                  class="min-h-11"
+                  @click="closeConfirmOpen = false"
+                >
+                  Seguir aquí
+                </UButton>
+                <UButton
+                  data-testid="collection-close-anyway"
+                  color="warning"
+                  variant="outline"
+                  class="min-h-11"
+                  @click="closeAnyway"
+                >
+                  Cerrar de todas formas
+                </UButton>
+              </div>
+            </div>
+            <div v-if="locked" class="flex flex-wrap justify-end gap-2">
+              <UButton
+                data-testid="collection-check-outcome"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-refresh-cw"
+                class="min-h-11"
+                :disabled="isSubmitting"
+                @click="collection.checkOutcome()"
+              >
+                Revisar historial
+              </UButton>
+              <UButton
+                data-testid="collection-retry"
+                class="hf-primary-control min-h-11 justify-center"
+                :loading="isSubmitting"
+                :disabled="isSubmitting"
+                @click="collection.retry()"
+              >
+                Reintentar con los mismos datos
+              </UButton>
+            </div>
+            <div v-else class="flex flex-wrap justify-end gap-2">
               <UButton
                 color="neutral"
                 variant="soft"

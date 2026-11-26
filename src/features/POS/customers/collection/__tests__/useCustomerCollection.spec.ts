@@ -27,7 +27,9 @@ vi.mock('@/features/POS/sales/utils/idempotency.utils', () => ({
   newIdempotencyKey: () => `key-${++keyCounter}`,
 }))
 
-const { useCustomerCollection } = await import('../useCustomerCollection')
+const { useCustomerCollection, clearUnresolvedCollections } = await import(
+  '../useCustomerCollection'
+)
 
 function makePreview(overrides: Partial<CollectionPreview> = {}): CollectionPreview {
   return {
@@ -155,6 +157,7 @@ beforeEach(() => {
   preview.mockReset()
   apply.mockReset()
   keyCounter = 0
+  clearUnresolvedCollections()
   open.value = true
   cashSessionId.value = 'sess-1'
 })
@@ -280,11 +283,12 @@ describe('useCustomerCollection — apply', () => {
     expect(apply.mock.calls[1]![1]).toEqual(apply.mock.calls[0]![1])
   })
 
-  it('regenerates the key when the tenders change after a network failure', async () => {
+  it('regenerates the key when the tenders change before any uncertain answer', async () => {
     const api = await ready()
-    apply.mockRejectedValueOnce(networkError())
+    apply.mockRejectedValueOnce(httpError(422, { error: 'COLLECTION_EXCEEDS_DEBT' }))
+    preview.mockResolvedValue(makePreview({ appliedCents: 20000 }))
     await api.confirm()
-    preview.mockResolvedValueOnce(makePreview({ appliedCents: 20000 }))
+    await flushPromises()
     api.setPayments([{ method: 'cash', amountCents: 20000 }])
     await vi.advanceTimersByTimeAsync(300)
     await flushPromises()
@@ -293,14 +297,15 @@ describe('useCustomerCollection — apply', () => {
     expect(apply.mock.calls[1]![2]).not.toBe(apply.mock.calls[0]![2])
   })
 
-  it('regenerates the key when the cash session changes (another body)', async () => {
+  it('a cash session change after a network failure does not change the retried body', async () => {
     const api = await ready()
     apply.mockRejectedValueOnce(networkError())
     await api.confirm()
     cashSessionId.value = 'sess-2'
     apply.mockResolvedValueOnce(makeResult())
     await api.confirm()
-    expect(apply.mock.calls[1]![2]).not.toBe(apply.mock.calls[0]![2])
+    expect(apply.mock.calls[1]![2]).toBe('key-1')
+    expect(apply.mock.calls[1]![1]).toEqual(apply.mock.calls[0]![1])
   })
 
   it('409 COLLECTION_DEBT_CHANGED: says so, shows body.preview and needs a new confirm with a new key', async () => {
@@ -452,5 +457,159 @@ describe('useCustomerCollection — apply', () => {
     slow.resolve(makeResult())
     await flushPromises()
     expect(apply).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('useCustomerCollection — unresolved submission lock (R1/R4)', () => {
+  const historyKeys = () =>
+    vi.mocked(queryClient.invalidateQueries).mock.calls.map(([filters]) => filters?.queryKey)
+
+  it('after an uncertain answer tender edits are ignored and the retry resends key and body', async () => {
+    const api = await ready()
+    apply.mockRejectedValueOnce(networkError())
+    await api.confirm()
+    expect(api.uncertain.value).toBe(true)
+    expect(api.pendingPayments.value).toEqual(CASH)
+    const previewCalls = preview.mock.calls.length
+    api.setPayments([{ method: 'cash', amountCents: 20000 }])
+    await vi.advanceTimersByTimeAsync(300)
+    await flushPromises()
+    expect(api.payments.value).toEqual(CASH)
+    expect(preview.mock.calls.length).toBe(previewCalls)
+    expect(api.canConfirm.value).toBe(true)
+    apply.mockResolvedValueOnce(makeResult())
+    await api.retry()
+    expect(apply.mock.calls[1]![2]).toBe('key-1')
+    expect(apply.mock.calls[1]![1]).toEqual(apply.mock.calls[0]![1])
+  })
+
+  it('an uncertain answer refreshes the customer history and monthly chart', async () => {
+    const api = await ready()
+    apply.mockRejectedValueOnce(httpError(502, 'Bad Gateway'))
+    await api.confirm()
+    expect(historyKeys()).toEqual(
+      expect.arrayContaining([
+        ['sales', 'tenant-1', 'customer-history', 'c-1'],
+        ['sales', 'tenant-1', 'customer-monthly', 'c-1'],
+      ]),
+    )
+  })
+
+  it('checkOutcome refreshes the history, the monthly chart and the preview', async () => {
+    const api = await ready()
+    apply.mockRejectedValueOnce(networkError())
+    await api.confirm()
+    vi.mocked(queryClient.invalidateQueries).mockClear()
+    const previewCalls = preview.mock.calls.length
+    preview.mockResolvedValueOnce(makePreview({ debtCents: 110000 }))
+    api.checkOutcome()
+    await flushPromises()
+    expect(historyKeys()).toEqual([
+      ['sales', 'tenant-1', 'customer-history', 'c-1'],
+      ['sales', 'tenant-1', 'customer-monthly', 'c-1'],
+    ])
+    expect(preview.mock.calls.length).toBe(previewCalls + 1)
+    expect(api.preview.value?.debtCents).toBe(110000)
+    expect(api.uncertain.value).toBe(true)
+  })
+
+  it('closing and reopening the sheet keeps the same key and body', async () => {
+    const api = await ready()
+    apply.mockRejectedValueOnce(networkError())
+    await api.confirm()
+    preview.mockResolvedValue(makePreview())
+    open.value = false
+    await flushPromises()
+    open.value = true
+    await flushPromises()
+    expect(api.uncertain.value).toBe(true)
+    expect(api.applyError.value?.message).toBe(
+      'No sabemos si el cobro se registró. Vuelve a confirmar con los mismos montos; no se duplicará.',
+    )
+    apply.mockResolvedValueOnce(makeResult())
+    await api.confirm()
+    expect(apply.mock.calls[1]![2]).toBe('key-1')
+    expect(apply.mock.calls[1]![1]).toEqual(apply.mock.calls[0]![1])
+  })
+
+  it('an unmounted and remounted sheet for the same customer reuses the key and body', async () => {
+    const api = await ready()
+    apply.mockRejectedValueOnce(networkError())
+    await api.confirm()
+    wrapper!.unmount()
+    wrapper = undefined
+    cashSessionId.value = 'sess-2'
+    preview.mockResolvedValue(makePreview({ debtCents: 110000 }))
+    const again = setup()
+    await flushPromises()
+    expect(again.uncertain.value).toBe(true)
+    expect(again.pendingPayments.value).toEqual(CASH)
+    expect(again.pendingCashSessionId.value).toBe('sess-1')
+    apply.mockResolvedValueOnce(makeResult())
+    await again.retry()
+    expect(apply.mock.calls[1]![2]).toBe('key-1')
+    expect(apply.mock.calls[1]![1]).toEqual({
+      payments: CASH,
+      cashSessionId: 'sess-1',
+      expectedDebtCents: 140000,
+    })
+  })
+
+  it('a definitive answer to the retry unlocks and the next confirm gets a new key', async () => {
+    const api = await ready()
+    apply.mockRejectedValueOnce(networkError())
+    await api.confirm()
+    const fresh = makePreview({ debtCents: 110000, appliedCents: 30000 })
+    apply.mockRejectedValueOnce(
+      httpError(409, { error: 'COLLECTION_DEBT_CHANGED', preview: fresh }),
+    )
+    await api.retry()
+    expect(api.uncertain.value).toBe(false)
+    preview.mockResolvedValueOnce(makePreview({ debtCents: 110000, appliedCents: 20000 }))
+    api.setPayments([{ method: 'cash', amountCents: 20000 }])
+    await vi.advanceTimersByTimeAsync(300)
+    await flushPromises()
+    apply.mockResolvedValueOnce(makeResult())
+    await api.confirm()
+    expect(apply.mock.calls[2]![2]).toBe('key-2')
+    expect(apply.mock.calls[2]![1]).toMatchObject({ payments: [{ amountCents: 20000 }] })
+  })
+
+  it('a successful retry unlocks', async () => {
+    const api = await ready()
+    apply.mockRejectedValueOnce(networkError())
+    await api.confirm()
+    apply.mockResolvedValueOnce(makeResult())
+    await api.retry()
+    expect(api.uncertain.value).toBe(false)
+    expect(api.result.value?.collectionId).toBe('col-1')
+  })
+
+  it('a first submission in flight is not shown as uncertain by the sheet that sent it', async () => {
+    const api = await ready()
+    const slow = deferred<CollectionResult>()
+    apply.mockReturnValueOnce(slow.promise)
+    const pending = api.confirm()
+    expect(api.isSubmitting.value).toBe(true)
+    expect(api.uncertain.value).toBe(false)
+    slow.resolve(makeResult())
+    await pending
+    expect(api.uncertain.value).toBe(false)
+  })
+
+  it('retry() does nothing without an unresolved submission', async () => {
+    const api = await ready()
+    expect(await api.retry()).toBeNull()
+    expect(apply).not.toHaveBeenCalled()
+  })
+
+  it('reports the unresolved submission per customer to other screens', async () => {
+    const { hasUnresolvedCollection } = await import('../useCustomerCollection')
+    const api = await ready()
+    expect(hasUnresolvedCollection('tenant-1', 'c-1')).toBe(false)
+    apply.mockRejectedValueOnce(networkError())
+    await api.confirm()
+    expect(hasUnresolvedCollection('tenant-1', 'c-1')).toBe(true)
+    expect(hasUnresolvedCollection('tenant-1', 'c-2')).toBe(false)
   })
 })
