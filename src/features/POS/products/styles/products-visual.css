@@ -11,17 +11,13 @@
  * mapping, so no per-screen color literals are introduced here.
  */
 
-/* Restrained geometry inside the pilot only. The global theme keeps its legacy
- * radius scale for unmigrated screens; here the old utilities (`rounded-xl` was
- * 28px) resolve to the shared card/control corners instead. `--radius-full` is
- * deliberately untouched so avatars and dot indicators keep their circles. */
+/* Small corners inside the workspace land on the control/card radius. The
+ * card-sized steps (xl/2xl/3xl) already resolve to the card token at the root;
+ * `--radius-full` stays untouched so avatars and dots keep their circles. */
 .products-visual {
   --radius-sm: 6px;
   --radius-md: var(--hf-radius-control);
   --radius-lg: var(--hf-radius-card);
-  --radius-xl: var(--hf-radius-card);
-  --radius-2xl: 16px;
-  --radius-3xl: 20px;
 }
 
 /* ── Toolbar ─────────────────────────────────────────────────────────────── */

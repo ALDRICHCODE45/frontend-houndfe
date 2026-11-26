@@ -411,13 +411,12 @@ describe('Products pilot adapter', () => {
     expect(error!.style.getPropertyValue('border-color').trim()).toBe('var(--ui-error)')
   })
 
-  it('restrains the legacy radius ramp inside the pilot without flattening circles', () => {
+  it('restrains the small radius steps inside the pilot without flattening circles', () => {
     const scope = exactRule(products, '.products-visual')!
     expect(scope).toBeDefined()
-    expect(scope.style.getPropertyValue('--radius-xl').trim()).not.toBe('')
     expect(scope.style.getPropertyValue('--radius-lg').trim()).not.toBe('')
-    // The legacy 28px `rounded-xl` must not survive inside Products.
-    expect(scope.style.getPropertyValue('--radius-xl').trim()).not.toContain('28px')
+    // Card corners (xl/2xl/3xl) come from the root scale, never a local copy.
+    expect(products).not.toMatch(/--radius-(?:xl|2xl|3xl)\s*:/)
     // Circles and avatars keep the legacy full radius.
     expect(scope.style.getPropertyValue('--radius-full')).toBe('')
   })

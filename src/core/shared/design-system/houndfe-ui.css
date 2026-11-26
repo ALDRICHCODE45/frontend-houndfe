@@ -58,13 +58,25 @@ body.hf-app {
   --border-color-muted: var(--hf-border);
   --border-color-accented: color-mix(in srgb, var(--hf-muted) 45%, var(--hf-border));
 
-  /* Shared geometry and typography. */
+  /* Shared geometry and typography. Every card-sized step (lg through 3xl)
+   * is the one card corner; features do not re-define the scale. */
   --radius-md: var(--hf-radius-control);
   --radius-lg: var(--hf-radius-card);
+  --radius-xl: var(--hf-radius-card);
+  --radius-2xl: var(--hf-radius-card);
+  --radius-3xl: var(--hf-radius-card);
   --color-primary: var(--hf-action);
 
   color: var(--hf-ink);
   font-family: var(--hf-font);
+}
+
+/* Mobile bottom sheets (and the docked cart bar) keep a softer 16px top
+ * corner instead of the card corner (owner decision, style-cleanup S3). Only
+ * the allowlisted sheets in radius-guard.spec.ts may use `rounded-t-2xl`. */
+.hf-ui .rounded-t-2xl {
+  border-top-left-radius: var(--hf-radius-sheet);
+  border-top-right-radius: var(--hf-radius-sheet);
 }
 
 /* Warning, success and destructive controls keep their existing semantic

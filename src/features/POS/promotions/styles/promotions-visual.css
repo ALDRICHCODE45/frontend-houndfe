@@ -3,7 +3,7 @@
 /* Promotions listing, the route-switched creation/edit workspace and their
  * teleported menus, selects, popovers and dialogs. Colors come from the shared
  * `--hf-*` roles through `hf-theme hf-ui`; this file declares no palette. Only
- * the legacy radius aliases are remapped, inside the owned boundaries. */
+ * the small radius aliases are remapped, inside the owned boundaries. */
 .hf-theme.promotions-visual,
 .hf-theme.promotions-workspace,
 .hf-theme.promotions-list-portal,
@@ -11,9 +11,6 @@
   --radius-sm: 6px;
   --radius-md: var(--hf-radius-control);
   --radius-lg: var(--hf-radius-card);
-  --radius-xl: var(--hf-radius-card);
-  --radius-2xl: 16px;
-  --radius-3xl: 20px;
 }
 
 .hf-theme.promotions-list-portal,

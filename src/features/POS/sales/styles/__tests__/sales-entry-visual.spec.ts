@@ -150,7 +150,7 @@ describe('Sales entry visual adapter — stylesheet', () => {
     expect(panel.style.getPropertyValue('border-color').trim()).toBe('var(--hf-border)')
   })
 
-  it('restrains the legacy radius ramp without flattening the mobile sheet', () => {
+  it('restrains the small radius steps without flattening the mobile sheet', () => {
     const workspaceRamp = exactRule(css, '.hf-theme.sales-entry-visual', '--radius-md')!
     const portalRamp = exactRule(css, '.hf-theme.sales-entry-portal', '--radius-md')!
     for (const rule of [workspaceRamp, portalRamp]) {
@@ -158,8 +158,9 @@ describe('Sales entry visual adapter — stylesheet', () => {
         'var(--hf-radius-control)',
       )
       expect(rule.style.getPropertyValue('--radius-lg').trim()).toBe('var(--hf-radius-card)')
-      expect(rule.style.getPropertyValue('--radius-xl').trim()).toBe('var(--hf-radius-card)')
-      // The mobile sheet keeps `rounded-t-2xl`, so 2xl/3xl/full are untouched.
+      // Card corners (xl/2xl/3xl) come from the root scale; the mobile sheet's
+      // `rounded-t-2xl` keeps its 16px corner from the shared adapter.
+      expect(rule.style.getPropertyValue('--radius-xl')).toBe('')
       expect(rule.style.getPropertyValue('--radius-2xl')).toBe('')
       expect(rule.style.getPropertyValue('--radius-3xl')).toBe('')
     }

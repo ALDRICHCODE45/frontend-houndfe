@@ -79,11 +79,18 @@
   --brand-danger: #ef4444;
 
   /* ── Radius scale ── */
+  /* xl/2xl/3xl are card corners: they resolve to the HF card token app-wide
+   * (12px, design/system.md). Declaring 2xl/3xl here also replaces Nuxt UI's
+   * inline `--ui-radius` multiples, so the utilities read these variables.
+   * The token lives on .hf-theme, so :root resolves the fallback and .hf-ui
+   * rebinds the same names to the live token (houndfe-ui.css). */
   --radius-xs:   4px;
   --radius-sm:   8px;
   --radius-md:   12px;
   --radius-lg:   18px;
-  --radius-xl:   28px;
+  --radius-xl:   var(--hf-radius-card, 12px);
+  --radius-2xl:  var(--hf-radius-card, 12px);
+  --radius-3xl:  var(--hf-radius-card, 12px);
   --radius-full: 9999px;
 
   /* ── Typography ── */

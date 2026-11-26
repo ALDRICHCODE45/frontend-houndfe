@@ -153,9 +153,10 @@ describe('Sales listing adapter — scope and tokens (S1/S3/S4)', () => {
       /--hf-(page|surface|surface-muted|field|ink|heading|muted|border|action|on-action|active|active-soft|focus)\s*:/,
     )
     expect(css).not.toMatch(/--ui-[a-z-]+\s*:/)
-    // Only the geometry compatibility aliases are remapped; circles keep shape.
-    expect(css).toContain('--radius-xl: var(--hf-radius-card)')
-    expect(css).toContain('--radius-2xl: var(--hf-radius-card)')
+    // Only the small radius steps are remapped; card corners (xl/2xl/3xl) come
+    // from the root scale and circles keep their shape.
+    expect(css).toContain('--radius-lg: var(--hf-radius-card)')
+    expect(css).not.toMatch(/--radius-(?:xl|2xl|3xl)\s*:/)
     expect(css).not.toContain('--radius-full')
   })
 
