@@ -2,67 +2,87 @@
 /**
  * CustomerCollectionSaleList — the sales of one «Cobrar todo» in allocation order (handoff 30 §4).
  *
- * Each sale reads as a stacked card (no sideways scroll at 390): folio, due day (first 10
- * characters of `dueDate`) or «Sin vencimiento», a «Vencida» status before the collection, and
- * what it owed, what it receives now and what stays owed. The API sends the balance AFTER the
- * collection, so «Debe» is `debtCents + appliedCents`.
+ * One bordered surface holding a `.hf-plain-table` (Venta, Vence, Debe, Abono, Queda) with
+ * hairline rows — no card per sale (S6). The due day is the first 10 characters of `dueDate`, or
+ * «Sin vencimiento»; overdue sales keep the «Vencida» status before the collection. On a narrow
+ * sheet (390px) the same rows stack inside the surface, divided by hairlines, without sideways
+ * scroll (`customer-collection.css`). The API sends the balance AFTER the collection, so «Debe»
+ * is `debtCents + appliedCents`.
  */
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { formatCentsMXN } from '@/features/POS/sales/utils/currency.utils'
 import { formatCollectionDueDay } from '../collection/collectionFormat'
 import type { CollectionSaleAllocation } from '../collection/collection.types'
+import '../styles/customer-collection.css'
 
 defineProps<{ sales: readonly CollectionSaleAllocation[]; caption: string }>()
 
 function dueLabel(sale: CollectionSaleAllocation): string {
-  const day = formatCollectionDueDay(sale.dueDate)
-  return day ? `Vence ${day}` : 'Sin vencimiento'
+  return formatCollectionDueDay(sale.dueDate) ?? 'Sin vencimiento'
 }
 </script>
 
 <template>
-  <ol class="grid min-w-0 gap-2" :aria-label="caption">
-    <li
-      v-for="sale in sales"
-      :key="sale.saleId"
-      data-testid="collection-sale-row"
-      :data-folio="sale.folio"
-      class="grid min-w-0 gap-2 rounded-xl border border-[var(--hf-border)] px-3 py-2.5"
-    >
-      <div class="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-        <span class="hf-figure font-semibold text-[var(--hf-heading)]">{{ sale.folio }}</span>
-        <StatusBadge v-if="sale.overdue" label="Vencida" tone="warning" />
-        <span
-          data-testid="collection-sale-due"
-          class="hf-figure ml-auto text-[13px] text-[var(--hf-muted)]"
+  <div class="customer-collection-sales">
+    <table class="hf-plain-table customer-collection-table">
+      <caption class="sr-only">{{ caption }}</caption>
+      <colgroup>
+        <col>
+        <col class="customer-collection-col-due">
+        <col class="customer-collection-col-amount">
+        <col class="customer-collection-col-amount">
+        <col class="customer-collection-col-amount">
+      </colgroup>
+      <thead>
+        <tr>
+          <th scope="col">Venta</th>
+          <th scope="col">Vence</th>
+          <th scope="col" class="customer-collection-figure">Debe</th>
+          <th scope="col" class="customer-collection-figure">Abono</th>
+          <th scope="col" class="customer-collection-figure">Queda</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          v-for="sale in sales"
+          :key="sale.saleId"
+          data-testid="collection-sale-row"
+          :data-folio="sale.folio"
         >
-          {{ dueLabel(sale) }}
-        </span>
-      </div>
-      <dl class="grid grid-cols-3 gap-2 text-[13px]">
-        <div class="grid min-w-0 gap-0.5">
-          <dt class="text-[var(--hf-muted)]">Debe</dt>
-          <dd data-testid="collection-sale-debt" class="hf-figure text-[var(--hf-ink)]">
+          <td>
+            <div class="customer-collection-sale">
+              <span class="hf-figure customer-collection-sale-folio">{{ sale.folio }}</span>
+              <StatusBadge v-if="sale.overdue" label="Vencida" tone="warning" />
+            </div>
+          </td>
+          <td data-testid="collection-sale-due" class="customer-collection-due">
+            <span class="customer-collection-cell-label" aria-hidden="true">Vence</span>
+            {{ dueLabel(sale) }}
+          </td>
+          <td
+            data-testid="collection-sale-debt"
+            class="hf-figure customer-collection-figure text-[var(--hf-ink)]"
+          >
+            <span class="customer-collection-cell-label" aria-hidden="true">Debe</span>
             {{ formatCentsMXN(sale.debtCents + sale.appliedCents) }}
-          </dd>
-        </div>
-        <div class="grid min-w-0 gap-0.5">
-          <dt class="text-[var(--hf-muted)]">Abono</dt>
-          <dd
+          </td>
+          <td
             data-testid="collection-sale-applied"
-            class="hf-figure font-semibold"
+            class="hf-figure customer-collection-figure font-semibold"
             :class="sale.appliedCents > 0 ? 'text-[var(--hf-success)]' : 'text-[var(--hf-muted)]'"
           >
+            <span class="customer-collection-cell-label" aria-hidden="true">Abono</span>
             {{ formatCentsMXN(sale.appliedCents) }}
-          </dd>
-        </div>
-        <div class="grid min-w-0 gap-0.5">
-          <dt class="text-[var(--hf-muted)]">Queda</dt>
-          <dd data-testid="collection-sale-remaining" class="hf-figure text-[var(--hf-ink)]">
+          </td>
+          <td
+            data-testid="collection-sale-remaining"
+            class="hf-figure customer-collection-figure text-[var(--hf-ink)]"
+          >
+            <span class="customer-collection-cell-label" aria-hidden="true">Queda</span>
             {{ formatCentsMXN(sale.debtCents) }}
-          </dd>
-        </div>
-      </dl>
-    </li>
-  </ol>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </template>

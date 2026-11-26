@@ -49,6 +49,7 @@ import { useCustomerCollection } from '../collection/useCustomerCollection'
 import { useCollectionReceiptDownload } from '../collection/useCollectionReceiptDownload'
 import type { CollectionTender } from '../collection/collection.types'
 import CustomerCollectionSaleList from './CustomerCollectionSaleList.vue'
+import '../styles/customer-collection.css'
 
 const props = withDefaults(
   defineProps<{
@@ -284,7 +285,7 @@ function closeAnyway() {
     @close:prevent="close"
   >
     <template #content>
-      <div class="flex h-full max-h-[100dvh] min-w-0 flex-col">
+      <div class="customer-collection flex h-full max-h-[100dvh] min-w-0 flex-col">
         <div class="shrink-0 space-y-3 border-b border-default px-5 py-4">
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
@@ -308,15 +309,9 @@ function closeAnyway() {
               @click="close"
             />
           </div>
-          <div
-            v-if="!result"
-            class="rounded-xl border border-default bg-(--hf-surface-muted) px-5 py-3 text-center"
-          >
-            <p class="text-[13px] font-semibold text-(--hf-muted)">Deuda total</p>
-            <p
-              data-testid="collection-total-debt"
-              class="hf-figure mt-1 text-3xl font-semibold text-(--hf-heading)"
-            >
+          <div v-if="!result" class="customer-collection-total">
+            <p>Deuda total</p>
+            <p data-testid="collection-total-debt" class="hf-figure">
               <USkeleton v-if="!preview" class="mx-auto h-8 w-32 !rounded" />
               <template v-else>{{ formatCentsMXN(preview.debtCents) }}</template>
             </p>
@@ -340,7 +335,7 @@ function closeAnyway() {
             :sales="result.sales"
             caption="Ventas abonadas en este cobro"
           />
-          <dl class="grid gap-2 rounded-xl border border-default bg-elevated px-4 py-3 text-sm">
+          <dl class="customer-collection-summary grid gap-2 text-sm">
             <div class="flex items-center justify-between gap-2">
               <dt>Recibido</dt>
               <dd class="hf-figure font-semibold">{{ formatCentsMXN(result.tenderedCents) }}</dd>
@@ -419,7 +414,8 @@ function closeAnyway() {
             v-if="locked"
             data-testid="collection-uncertain"
             role="alert"
-            class="space-y-2 rounded-xl border border-(--hf-warning) bg-elevated px-4 py-3 text-sm"
+            data-tone="warning"
+            class="customer-collection-panel space-y-2 text-sm"
           >
             <p class="flex items-center gap-2 font-semibold text-(--hf-warning)">
               <UIcon name="i-lucide-triangle-alert" class="size-5 shrink-0" aria-hidden="true" />
@@ -456,7 +452,11 @@ function closeAnyway() {
               Ventas con deuda · vencimiento más viejo primero
             </p>
             <div v-if="!preview && previewLoading" class="grid gap-2" aria-hidden="true">
-              <USkeleton v-for="index in 3" :key="index" class="h-20 w-full !rounded-xl" />
+              <USkeleton
+                v-for="index in 3"
+                :key="index"
+                class="customer-collection-skeleton h-14 w-full"
+              />
             </div>
             <CustomerCollectionSaleList
               v-else-if="preview"
@@ -480,12 +480,7 @@ function closeAnyway() {
                 "
                 :aria-pressed="getMethodCount(entries, option) > 0"
                 type="button"
-                class="relative min-h-11 rounded-xl border px-3 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-50"
-                :class="
-                  getMethodCount(entries, option) > 0
-                    ? 'border-(--hf-action) bg-(--hf-active-soft)'
-                    : 'border-default bg-elevated hover:border-(--hf-action) hover:bg-(--hf-active-soft)'
-                "
+                class="customer-collection-method-tile transition disabled:cursor-not-allowed disabled:opacity-50"
                 :disabled="
                   (getMethodCount(entries, option) === 0 && !canAddEntry) ||
                   inputsDisabled ||
@@ -495,13 +490,20 @@ function closeAnyway() {
               >
                 <UIcon
                   :name="option.icon"
-                  class="mb-1 size-5 text-(--hf-action)"
+                  class="customer-collection-method-icon"
                   aria-hidden="true"
                 />
-                <p class="text-sm font-semibold text-highlighted">{{ option.label }}</p>
+                <p class="customer-collection-method-label">{{ option.label }}</p>
+                <span
+                  v-if="getMethodCount(entries, option) > 0"
+                  class="customer-collection-method-count"
+                  aria-hidden="true"
+                >
+                  {{ getMethodCount(entries, option) }}
+                </span>
                 <p
                   v-if="option.kind === 'custom' && (option.subtitle?.trim() ?? '') !== ''"
-                  class="text-xs text-muted"
+                  class="customer-collection-method-subtitle"
                 >
                   {{ option.subtitle }}
                 </p>
@@ -515,12 +517,12 @@ function closeAnyway() {
               v-for="(entry, index) in entries"
               :key="paymentEntryKey(entry)"
               :data-testid="`collection-entry-${index}`"
-              class="space-y-3 rounded-xl border border-default bg-default px-3 py-3"
+              class="customer-collection-entry space-y-3"
             >
               <div class="flex items-center gap-3">
                 <UIcon
                   :name="PAYMENT_METHOD_CATEGORY_ICONS[entry.method]"
-                  class="size-4 shrink-0 text-(--hf-action)"
+                  class="size-4 shrink-0 text-(--hf-muted)"
                   aria-hidden="true"
                 />
                 <p class="min-w-0 flex-1 text-sm font-semibold text-highlighted">
@@ -579,7 +581,7 @@ function closeAnyway() {
             <div
               v-else-if="cashSessionMissing"
               data-testid="collection-session-missing"
-              class="space-y-2 rounded-xl border border-default bg-elevated px-4 py-3"
+              class="customer-collection-panel space-y-2"
               role="alert"
             >
               <p v-if="canOpenCashSession" class="text-sm font-semibold text-(--hf-warning)">
@@ -625,10 +627,7 @@ function closeAnyway() {
         <!-- Footer -->
         <div class="shrink-0 space-y-3 border-t border-default bg-default px-5 py-4">
           <template v-if="!result">
-            <dl
-              class="grid gap-1.5 rounded-xl border border-default bg-elevated px-4 py-3 text-sm"
-              aria-live="polite"
-            >
+            <dl class="customer-collection-summary grid gap-1.5 text-sm" aria-live="polite">
               <div class="flex items-center justify-between gap-2">
                 <dt>Recibido</dt>
                 <dd class="hf-figure font-semibold">{{ formatCentsMXN(tenderedCents) }}</dd>
@@ -676,7 +675,8 @@ function closeAnyway() {
               data-testid="collection-close-confirm"
               role="alertdialog"
               aria-labelledby="collection-close-confirm-title"
-              class="space-y-2 rounded-xl border border-(--hf-warning) bg-elevated px-4 py-3 text-sm"
+              data-tone="warning"
+              class="customer-collection-panel space-y-2 text-sm"
             >
               <p id="collection-close-confirm-title" class="font-semibold">
                 Aún no sabemos si el cobro se registró.
