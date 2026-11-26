@@ -80,8 +80,9 @@ Derived (all in `houndfe-ui.css`):
 - Default column widths (`columnLayout.utils.ts`): selection 48px, Acciones 64px (its declared `size` wins), name column 256px, a `w-N` header class N×4px, else the column's declared `size`, else 128px. Bounds: name 160 to 1200px, others 80 to 640px (a declared `minSize`/`maxSize` wins); selection and Acciones are fixed. Shrink floor 96px (`SHRINK_FLOOR`); keyboard resize step 16px (`RESIZE_STEP`).
 
 ## Radius
-- `--hf-radius-card` 12px, `--hf-radius-control` 6px (`houndfe-theme.css`). Status badge 6px.
-- Scale (6), `src/assets/main.css`: `--radius-xs` 4px, `--radius-sm` 8px, `--radius-md` 12px, `--radius-lg` 18px, `--radius-xl` 28px, `--radius-full` 9999px. Inside `.hf-ui`, `--radius-md` = control radius and `--radius-lg` = card radius (`houndfe-ui.css`).
+- `--hf-radius-card` 12px, `--hf-radius-control` 6px, `--hf-radius-sheet` 16px (`houndfe-theme.css`). Status badge 6px.
+- Scale, `src/assets/main.css` `@theme`: `--radius-xs` 4px, `--radius-sm` 8px, `--radius-md` 12px, `--radius-lg` 18px, `--radius-xl` / `--radius-2xl` / `--radius-3xl` `var(--hf-radius-card, 12px)`, `--radius-full` 9999px. Inside `.hf-ui` (`houndfe-ui.css`): `--radius-md` = control radius; `--radius-lg`, `--radius-xl`, `--radius-2xl`, `--radius-3xl` = card radius. So `rounded-xl`/`2xl`/`3xl` draw 12px everywhere; features never re-define the scale (guard `src/core/shared/design-system/__tests__/radius-guard.spec.ts`).
+- Mobile bottom sheets: `.hf-ui .rounded-t-2xl` draws `--hf-radius-sheet` (16px) top corners; only the sheets allowlisted in the radius guard use it.
 
 ## Shadows
 - Table surface (`houndfe-ui.css`): `0 1px 2px color-mix(in srgb, var(--hf-ink) 5%, transparent)`. Use sparingly; soft borders over shadows.
@@ -115,6 +116,7 @@ Source for all: `docs/design-system.md` Patrones, plus the CSS file named.
 - **Saved views** (`DataTableViews.vue`, `houndfe-ui.css` `.hf-views`): tabs above the toolbar (44px, active 600 with a 2px `--hf-action` underline), «Cambios sin guardar» in `--hf-warning`, «Restablecer», «Guardar vista»; a «Vista:» select below md. Ventas: «Todas», «Cobranza», «Entregas» (`useSalesViews.ts`).
 - **Toolbar-less table** (`AppDataTable.vue`, `houndfe-ui.css` `.hf-table-saved--surface`): no panel, so the ⋯ menu ends with «Restablecer columnas» instead of «Ocultar columna», and the saved cue sits at the surface's top-right.
 - **Persistence** (`useTablePreferences.ts`, `useTableViews.ts`): versioned layout `{ order, pinning, sizing, visibility, density }` (v1) in `localStorage` `table-preferences-<persistKey>`; views in `table-views-<persistKey>`. One key per list, never per record (`StockKardex.vue`, `AdminTenantMembersView.spec.ts`).
+- **Payment sheet** (`src/core/shared/components/payments/payment-sheet.css`, marker-free `hf-pay-*`; used by the counter checkout, the sale debt payment and «Cobrar todo»): total panel on `--hf-page`, 12px; method tiles one line (muted icon · label · count), 6px, control height, selected `--hf-active-soft` + `--hf-action` border via `aria-pressed`; payment entries `--hf-surface-muted`, 12px; summary as plain rows with tabular figures, no box; panels 12px, `data-tone="warning"` on `--hf-warning-soft`. Split tools (`tender-split.css`): plain rows with a hairline divider, 6px controls.
 - **Table surface** (`houndfe-ui.css` `.hf-table-surface`): `--hf-surface`, 1px `--hf-border`, 12px radius, the shadow above, `overflow: hidden`.
 - **Toolbar** (`DataTableToolbar.vue`): one row in the table surface: search (`sm:max-w-sm`), filters, `Columnas`, primary action at the far right; a single-choice filter shows its name in the control (`Estado · Todas`, `md:w-52`) and stays on the search row from md; no refresh button by default. When space runs out the search shrinks first, to a 12rem floor (`min-w-48`); filters keep their width; actions never shrink (`shrink-0`). Mobile is two rows: search, then `Filtros` left and actions right with the primary last, always with label and icon; no `Filtros` button when there are no filters.
 - **Status badge in a cell** (`houndfe-ui.css`): at a narrow width the badge shrinks to the cell and its label ends in an ellipsis, dot or urgent icon kept on the label line.
@@ -136,7 +138,7 @@ Source for all: `docs/design-system.md` Patrones, plus the CSS file named.
 - **Global**: Lucide icons, bundled locally in the app (`localIcons()` in `vite.config.ts`, literal `i-lucide-*` names; guard `local-assets-guard.spec.ts`), inline SVG in artboards; no emoji or external assets; same themed root (`hf-theme hf-ui`) for dialogs, sheets and menus; text always accompanies color; reduced motion respected.
 
 ## Counts
-HF color roles 23 (x2 themes); derived mixes 6; Nuxt role mappings 4; `--ui-*` aliases 17; Coco shades 44; legacy brand 4 plus 1; font families 1 (3 declarations: `--hf-font`, `--font-sans`, `--shell-font`); weights 4 loaded, 3 in use; sizes 9; spacing steps 6; radius 2 HF plus 6 scale; shadows 3 plus 2 shell shadow values plus focus ring.
+HF color roles 23 (x2 themes); derived mixes 6; Nuxt role mappings 4; `--ui-*` aliases 17; Coco shades 44; legacy brand 4 plus 1; font families 1 (3 declarations: `--hf-font`, `--font-sans`, `--shell-font`); weights 4 loaded, 3 in use; sizes 9; spacing steps 6; radius 3 HF plus 8 scale; shadows 3 plus 2 shell shadow values plus focus ring.
 
 ## Artboard self-check
 List colors and font families used; allowed: the tokens above, `transparent`, `currentColor`, `color-mix` of these tokens. Check both themes, focus ring, 390px behavior of mobile patterns, and no external requests.
