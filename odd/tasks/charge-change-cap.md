@@ -16,3 +16,4 @@ The backend found that the counter charge accepts card 1100 + cash 100 on a 1000
 - L3 Full suite 1113 files / 18609 tests green; merged to local main (owner pushes). Waiting for the backend fix to reach :3003 for a live check.
 - L4 Backend: card-only overpay is refused with 422 PAYMENT_AMOUNT_INVALID (unchanged by its fix); suggested the POS block it too. Done inline: PaymentModal blocks non-cash > total when there is no cash («Lo pagado con tarjeta, transferencia u otro método no puede superar el total. Ajusta los montos.»); RED 1 → GREEN 127/127; related 45 files / 719; eslint, type-check clean.
 - L5 Backend (2026-11-26): fix verified and on :3003 (backend main 8778ff99): card 1100 + cash 100 on 1000 → 422 CHANGE_EXCEEDS_CASH_TENDERED; card 800 + cash 300 → 201 with change 100. POS blocks the first before sending, so the live check is through the modal (owner).
+- L6 Full suite after the non-cash overpay block: 1113 files / 18611 tests green.
