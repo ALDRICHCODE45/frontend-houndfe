@@ -7,8 +7,9 @@ From the customer-pets fix round (odd/tasks/customer-pets.md L10): the line pet 
 - S2 Keep the permission gate: the picker (and the pets list request) still needs read:Customer — without it nothing changes (no picker). Lines without a pet and customers with no active pets keep hiding the picker. Choosing «Sin mascota» sends PUT /sales/drafts/:id/items/:itemId/pet { petId: null } as today.
 
 ## Tasks
-- [ ] T1 S1-S2 Line pet picker visible for a line with a pet when the user can read pets, even with zero active pets — worker
+- [x] T1 S1-S2 Line pet picker visible for a line with a pet when the user can read pets, even with zero active pets — worker
 - [ ] T2 Full suite, merge — parent
 
 ## Log
 - L1 Owner: «Bien hermano, ya esta todo pusheado, algo mas que tengas en tu radar?» → «Como lo recomiendes.» The «Guardar cambios» header item was already fixed by detail-page-frame (header save `max-md:hidden`, mobile bottom bar; L8 browser 390).
+- L2 T1 (worker): showPetPicker = isDraft && canReadPets && onSetPet && (pets.length > 0 || item.pet?.id); canReadPets from usePetAccess via useDraftLinePets → SalesView → ActiveSalePanel (ANDed with a draft customer), SaleItemRow default false. RED 7 → GREEN 99/99; related 447/447; eslint, type-check clean.
