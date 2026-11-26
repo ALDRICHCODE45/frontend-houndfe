@@ -40,12 +40,18 @@ const props = withDefaults(
        * dialogs keep their native defaults and prior paint.
        */
       portalClass?: string
-      /** Handoff 27 §5.2: ACTIVE pets of the sale customer; empty hides the line pet picker. */
+      /**
+       * Handoff 27 §5.2: ACTIVE pets of the sale customer. Empty hides the line pet picker unless
+       * the line already has a pet (archived-line-pet S1: it can still be cleared).
+       */
       pets?: Pet[]
+      /** read:Customer on a draft with a customer; without it no picker (archived-line-pet S2). */
+      canReadPets?: boolean
       onSetPet?: (itemId: string, petId: string | null) => Promise<unknown>
      }>(),
   {
     pets: () => [],
+    canReadPets: false,
     imageUrl: null,
     isUpdating: false,
     isDraft: true,
@@ -61,7 +67,11 @@ const props = withDefaults(
 const imageBroken = ref(false)
 
 const showPetPicker = computed(
-  () => props.isDraft && props.pets.length > 0 && props.onSetPet !== undefined,
+  () =>
+    props.isDraft &&
+    props.canReadPets &&
+    props.onSetPet !== undefined &&
+    (props.pets.length > 0 || !!props.item.pet?.id),
 )
 
 function handleSelectPet(petId: string | null) {

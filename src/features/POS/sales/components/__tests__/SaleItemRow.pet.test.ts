@@ -49,6 +49,7 @@ function mountRow(props: Record<string, unknown> = {}) {
       onSubmitPriceOverride: async () => undefined,
       onApplyDiscount: async () => undefined,
       onRemoveDiscount: async () => undefined,
+      canReadPets: true,
       ...props,
     },
     global: { stubs },
@@ -127,6 +128,35 @@ describe('SaleItemRow — line pet', () => {
 
   it('hides the picker when the customer has no active pets', () => {
     const wrapper = mountRow({ pets: [], onSetPet: vi.fn() })
+
+    expect(wrapper.find('[data-testid="sale-line-pet-select"]').exists()).toBe(false)
+  })
+
+  // archived-line-pet S1-S2: a line with a pet keeps the picker even without active pets.
+  it('keeps the picker on a line with an archived pet when the customer has no active pets', async () => {
+    const onSetPet = vi.fn(async () => undefined)
+    const item = { ...line, pet: { id: 'p9', name: 'Kira', species: 'DOG', status: 'ARCHIVED' } }
+    const wrapper = mountRow({ item, pets: [], onSetPet })
+
+    const select = wrapper.get('[data-testid="sale-line-pet-select"]')
+    const options = select.findAll('option')
+    expect(options.map((option) => option.text())).toEqual(['Sin mascota', 'Kira (archivada)'])
+    expect(options[1]!.attributes('disabled')).toBeDefined()
+
+    await select.setValue(options[0]!.element.value)
+    expect(onSetPet).toHaveBeenCalledWith('item-1', null)
+  })
+
+  it('hides the picker on a line with a pet when the user cannot read pets', () => {
+    const item = { ...line, pet: { id: 'p9', name: 'Kira', species: 'DOG', status: 'ARCHIVED' } }
+    const wrapper = mountRow({ item, pets: [], onSetPet: vi.fn(), canReadPets: false })
+
+    expect(wrapper.find('[data-testid="sale-line-pet-select"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="sale-line-pet"]').text()).toBe('Para: Kira (archivada)')
+  })
+
+  it('hides the picker when the user cannot read pets, even with pets given', () => {
+    const wrapper = mountRow({ pets, onSetPet: vi.fn(), canReadPets: false })
 
     expect(wrapper.find('[data-testid="sale-line-pet-select"]').exists()).toBe(false)
   })

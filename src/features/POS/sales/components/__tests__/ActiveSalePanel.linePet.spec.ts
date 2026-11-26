@@ -30,7 +30,7 @@ const draft: Sale = {
 
 const pets = [makePet({ id: 'p1', name: 'Bruno' })]
 
-function mountPanel(activeDraft: Sale) {
+function mountPanel(activeDraft: Sale, canReadPets = true) {
   return mount(ActiveSalePanel, {
     props: {
       drafts: [activeDraft],
@@ -39,6 +39,7 @@ function mountPanel(activeDraft: Sale) {
       isLoadingList: false,
       isMutating: false,
       customerPets: pets,
+      canReadPets,
       onSetItemPet: vi.fn(async () => undefined),
       onSubmitPriceOverride: vi.fn(async () => undefined),
       onApplyDiscount: vi.fn(async () => undefined),
@@ -51,9 +52,9 @@ function mountPanel(activeDraft: Sale) {
       stubs: {
         SaleItemRow: {
           name: 'SaleItemRow',
-          props: ['pets', 'onSetPet'],
+          props: ['pets', 'onSetPet', 'canReadPets'],
           template:
-            '<div data-testid="row" :data-pets="(pets ?? []).length" :data-can-set="typeof onSetPet" />',
+            '<div data-testid="row" :data-pets="(pets ?? []).length" :data-can-set="typeof onSetPet" :data-can-read="String(canReadPets)" />',
         },
         SaleTotalsFooter: true,
         PriceListSelector: true,
@@ -82,11 +83,23 @@ describe('ActiveSalePanel — line pets', () => {
     const row = wrapper.get('[data-testid="row"]')
     expect(row.attributes('data-pets')).toBe('1')
     expect(row.attributes('data-can-set')).toBe('function')
+    expect(row.attributes('data-can-read')).toBe('true')
+  })
+
+  // archived-line-pet S2: the picker keeps the read:Customer gate.
+  it('tells the lines the pets cannot be read without read:Customer', () => {
+    const wrapper = mountPanel(
+      { ...draft, customer: { id: 'c1', firstName: 'Ana', lastName: null } },
+      false,
+    )
+
+    expect(wrapper.get('[data-testid="row"]').attributes('data-can-read')).toBe('false')
   })
 
   it('offers no pets on the lines of a sale without customer', () => {
     const wrapper = mountPanel(draft)
 
     expect(wrapper.get('[data-testid="row"]').attributes('data-pets')).toBe('0')
+    expect(wrapper.get('[data-testid="row"]').attributes('data-can-read')).toBe('false')
   })
 })
