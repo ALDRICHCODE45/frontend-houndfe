@@ -29,10 +29,24 @@ const state = {
   refresh: vi.fn(),
 }
 
+// customers-module T6: the filters are URL-synced (useFiltersUrlAdapter reads the route).
+vi.mock('vue-router', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRoute: () => ({ path: '/pos/customers', query: {} }),
+}))
+
 vi.mock('@/core/shared/composables/useServerTable', () => ({
   useServerTable: () => ({
     pagination: state.pagination,
     sorting: ref([]),
+    response: computed(() => undefined),
+    columnPinning: ref({ left: [], right: [] }),
+    columnVisibility: ref({}),
+    columnOrder: ref([]),
+    columnSizing: ref({}),
+    density: ref('comfortable'),
+    resetLayout: vi.fn(),
     globalFilter: state.globalFilter,
     data: computed(() => state.data.value),
     totalCount: computed(() => state.data.value.length),

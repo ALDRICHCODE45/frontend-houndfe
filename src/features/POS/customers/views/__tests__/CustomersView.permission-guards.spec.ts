@@ -12,10 +12,22 @@ vi.mock('../../api/customer.api', () => ({ customerApi: api }))
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => ({ currentTenantId: 'tenant-test', userCan: (action: string, subject: string) => grants.value.has(`${action}:${subject}`) }),
 }))
+// customers-module T6: the filters are URL-synced (useFiltersUrlAdapter reads the route).
+vi.mock('vue-router', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRoute: () => ({ path: '/pos/customers', query: {} }),
+}))
+
 vi.mock('@/core/shared/composables/useServerTable', () => ({
   useServerTable: () => ({
     pagination: ref({ pageIndex: 0 }),
     sorting: ref([]),
+    response: ref(undefined),
+    columnOrder: ref([]),
+    columnSizing: ref({}),
+    density: ref('comfortable'),
+    resetLayout: vi.fn(),
     globalFilter: ref(''),
     rowSelection: ref({}),
     columnPinning: ref({}),

@@ -1,22 +1,25 @@
 <script setup lang="ts">
 /**
- * CustomerMobileCard — the mobile form of a customer row (Mobile cards rules).
+ * CustomerMobileCard — the mobile form of a customer row (Mobile cards rules, artboard 05).
  *
- * Name as the primary text (a real button when the card opens something) with
- * the ⋮ menu at the top-right, email as the secondary line, and a separated
- * footer with the phone and the price list. The whole card opens the customer
- * through `useClickableRow`; the ⋮ menu never does.
+ * Name as the primary text (a real button when the card opens something) with the ⋮ menu at the
+ * top-right and the phone as the secondary line. With read:Sale (`metrics` present) the debt with a
+ * «Vencida» badge, since when it is overdue, and the last purchase; a separated footer keeps the
+ * price list. The whole card opens the customer through `useClickableRow`; the ⋮ menu never does.
  */
 import { computed } from 'vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { useClickableRow } from '@/core/shared/composables/useClickableRow'
+import { formatCentsMXN } from '@/features/POS/sales/utils/currency.utils'
 import { formatCustomerPhone } from '../utils/customerPhone.utils'
 import { formatPetMatchHint } from '../composables/useCustomerColumns'
-import type { Customer } from '../interfaces/customer.types'
+import { formatListingDay, formatListingInstant } from '../config/customersListingFormat'
+import type { CustomerListingRow } from '../interfaces/customer-listing.types'
 
 const props = defineProps<{
-  customer: Customer
+  customer: CustomerListingRow
   actions: RowAction[]
   /** The card (and its name) open the customer; false for read-only roles. */
   openable?: boolean
@@ -24,11 +27,11 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  open: [customer: Customer]
-  action: [key: string, customer: Customer]
+  open: [customer: CustomerListingRow]
+  action: [key: string, customer: CustomerListingRow]
 }>()
 
-const clickable = useClickableRow<Customer>((customer) => emit('open', customer), {
+const clickable = useClickableRow<CustomerListingRow>((customer) => emit('open', customer), {
   focusable: false,
 })
 const rowProps = computed(() => (props.openable ? clickable.rowProps(props.customer) : {}))
@@ -36,7 +39,14 @@ const rowProps = computed(() => (props.openable ? clickable.rowProps(props.custo
 const petMatchHint = computed(() => formatPetMatchHint(props.customer))
 
 const phone = computed(() =>
-  formatCustomerPhone(props.customer.phoneCountryCode, props.customer.phone),
+  props.customer.phone ? formatCustomerPhone(props.customer.phoneCountryCode, props.customer.phone) : null,
+)
+
+const metrics = computed(() => props.customer.metrics)
+const hasDebt = computed(() => (metrics.value?.openDebtCents ?? 0) > 0)
+const isOverdue = computed(() => (metrics.value?.overdueCount ?? 0) > 0)
+const lastPurchase = computed(() =>
+  metrics.value?.lastPurchaseAt ? `Última compra ${formatListingInstant(metrics.value.lastPurchaseAt)}` : 'Sin compras',
 )
 </script>
 
@@ -60,7 +70,7 @@ const phone = computed(() =>
         <span v-if="petMatchHint" class="customer-card-pet" data-testid="customer-pet-match">{{
           petMatchHint
         }}</span>
-        <span v-if="customer.email" class="hf-row-secondary">{{ customer.email }}</span>
+        <span v-if="phone" class="hf-row-secondary hf-figure">{{ phone }}</span>
       </div>
       <RowActionsMenu
         class="customer-card-menu"
@@ -70,11 +80,25 @@ const phone = computed(() =>
         @select="emit('action', $event, customer)"
       />
     </div>
-    <div class="customer-card-footer">
-      <span class="hf-figure">{{ phone }}</span>
-      <span v-if="customer.globalPriceListName" class="customer-card-list">{{
-        customer.globalPriceListName
-      }}</span>
+    <div v-if="metrics" class="customer-card-money">
+      <p v-if="hasDebt" class="customer-card-debt" data-testid="customer-card-debt">
+        Deuda <span class="hf-figure">{{ formatCentsMXN(metrics.openDebtCents) }}</span>
+        <StatusBadge
+          v-if="isOverdue"
+          data-testid="customer-card-overdue"
+          tone="danger"
+          label="Vencida"
+        />
+      </p>
+      <p
+        v-if="isOverdue && metrics.oldestOverdueDueDate"
+        class="customer-card-meta"
+        data-testid="customer-card-overdue-since"
+      >Vencido desde {{ formatListingDay(metrics.oldestOverdueDueDate) }}</p>
+      <p class="customer-card-meta" data-testid="customer-card-last-purchase">{{ lastPurchase }}</p>
+    </div>
+    <div v-if="customer.globalPriceListName" class="customer-card-footer">
+      <span class="customer-card-list">{{ customer.globalPriceListName }}</span>
     </div>
   </article>
 </template>
@@ -108,6 +132,24 @@ const phone = computed(() =>
 .customer-card-menu {
   flex-shrink: 0;
   margin: -8px -8px 0 0;
+}
+.customer-card-money {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+}
+.customer-card-debt {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--hf-warning);
+  font-size: 13px;
+  font-weight: 600;
+}
+.customer-card-meta {
+  color: var(--hf-muted);
+  font-size: 13px;
 }
 .customer-card-footer {
   display: flex;

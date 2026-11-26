@@ -5,7 +5,10 @@ import { columnLabel } from '@/core/shared/components/DataTable/columnLayout.uti
 import { mount, flushPromises } from '@vue/test-utils'
 import { computed, ref } from 'vue'
 import CustomersView from '../CustomersView.vue'
-import type { Customer } from '../../interfaces/customer.types'
+import type { CustomerListingRow } from '../../interfaces/customer-listing.types'
+
+// customers-module T6: the rows come from GET /customers/listing.
+type Customer = CustomerListingRow
 
 // Row actions are asserted through the public `actions` prop of the shared
 // RowActionsMenu (no Reka UI internals).
@@ -15,7 +18,7 @@ type RowActionItem = { key: string; label: string; destructive?: boolean }
 
 const mockState = {
   pagination: ref({ pageIndex: 0, pageSize: 10 }),
-  sorting: ref<Array<{ id: string; desc: boolean }>>([{ id: 'fullName', desc: false }]),
+  sorting: ref<Array<{ id: string; desc: boolean }>>([{ id: 'name', desc: false }]),
   globalFilter: ref(''),
   columnPinning: ref<{ left: string[]; right: string[] }>({ left: [], right: [] }),
   columnVisibility: ref<Record<string, boolean>>({}),
@@ -50,6 +53,7 @@ vi.mock('@/core/shared/composables/useServerTable', () => ({
     resetLayout: mockState.resetLayout,
     rowSelection: mockState.rowSelection,
     data: computed(() => mockState.data.value),
+    response: computed(() => undefined),
     totalCount: computed(() => mockState.totalCount.value),
     pageCount: computed(() => mockState.pageCount.value),
     isLoading: computed(() => mockState.isLoading.value),
@@ -84,7 +88,8 @@ vi.mock('@tanstack/vue-query', () => ({
 const routerPush = vi.hoisted(() => vi.fn(async () => undefined))
 vi.mock('vue-router', async (importOriginal) => ({
   ...(await importOriginal<object>()),
-  useRouter: () => ({ push: routerPush }),
+  useRouter: () => ({ push: routerPush, replace: vi.fn() }),
+  useRoute: () => ({ path: '/pos/customers', query: {} }),
 }))
 
 vi.mock('../../components/CustomerPetsSlideover.vue', () => ({
@@ -134,13 +139,11 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
         <div v-else-if="(data ?? []).length === 0" data-testid="table-empty-state">{{ empty }}</div>
         <div v-else data-testid="table-data">
           <div v-for="row in data" :key="row.id" data-testid="table-row">
-            <slot name="fullName-header" :column="{ id: 'fullName', getIsSorted: () => false, toggleSorting: () => {} }" />
-            <slot name="email-header" :column="{ id: 'email', getIsSorted: () => false, toggleSorting: () => {} }" />
-            <slot name="phone-header" :column="{ id: 'phone', getIsSorted: () => false, toggleSorting: () => {} }" />
-            <div data-testid="name-cell"><slot name="fullName-cell" :row="{ original: row }" /></div>
-            <div data-testid="phone-cell"><slot name="phone-cell" :row="{ original: row }" /></div>
-            <slot name="globalPriceListName-header" :column="{ id: 'globalPriceListName', getIsSorted: () => false, toggleSorting: () => {} }" />
-            <div data-testid="price-list-cell"><slot name="globalPriceListName-cell" :row="{ original: row }" /></div>
+            <template v-for="column in columns" :key="column.id">
+              <slot :name="column.id + '-header'" :column="{ id: column.id, getIsSorted: () => false, toggleSorting: () => {} }" />
+            </template>
+            <div data-testid="name-cell"><slot name="name-cell" :row="{ original: row }" /></div>
+            <div data-testid="price-list-cell"><slot name="priceList-cell" :row="{ original: row }" /></div>
             <slot name="actions-cell" :row="{ original: row }" />
             <div data-testid="mobile-card-slot"><slot name="mobile-card" :row="row" /></div>
           </div>
@@ -202,14 +205,20 @@ function makeCustomer(overrides: Partial<Customer> = {}): Customer {
     firstName: 'Juan',
     lastName: 'Pérez',
     fullName: 'Juan Pérez',
+    businessName: null,
     phoneCountryCode: '+52',
     phone: '5512345678',
     email: 'juan@test.com',
     globalPriceListId: 'pl-1',
     globalPriceListName: 'Lista General',
-    comments: null,
+    rfc: null,
+    fiscalRegime: null,
+    isTrusted: false,
     createdAt: '2024-01-15T00:00:00.000Z',
-    updatedAt: '2024-01-15T00:00:00.000Z',
+    primaryAddress: null,
+    activePetsCount: 0,
+    petSpecies: [],
+    matchedPetName: null,
     ...overrides,
   }
 }
@@ -219,7 +228,7 @@ function makeCustomer(overrides: Partial<Customer> = {}): Customer {
 beforeEach(() => {
   localStorage.clear()
   mockState.pagination.value = { pageIndex: 0, pageSize: 10 }
-  mockState.sorting.value = [{ id: 'fullName', desc: false }]
+  mockState.sorting.value = [{ id: 'name', desc: false }]
   mockState.globalFilter.value = ''
   mockState.columnPinning.value = { left: [], right: [] }
   mockState.columnVisibility.value = {}
@@ -276,15 +285,15 @@ describe('CustomersView — mobile density containment (S3)', () => {
     expect(bodyClasses).not.toContain('px-6')
   })
 
-  it('uses one list layout: table on desktop and cards on mobile, with no view toggle or filters slot', () => {
+  it('uses one list layout: table on desktop and cards on mobile, with the shared filters and no view toggle', () => {
     const wrapper = mount(CustomersView)
     const table = wrapper.get('[data-testid="app-data-table"]')
 
     expect(table.attributes('data-display-mode')).toBe('auto')
     expect(table.attributes('data-mobile-render')).toBe('cards')
     const slots = (table.attributes('data-slots') ?? '').split(',')
-    expect(slots).toEqual(expect.arrayContaining(['mobile-card', 'fullName-cell', 'actions-cell']))
-    expect(slots).not.toContain('filters')
+    // customers-module T6: the filters sheet and the sort select live in the toolbar, as in Ventas.
+    expect(slots).toEqual(expect.arrayContaining(['mobile-card', 'name-cell', 'actions-cell', 'filters']))
     expect(slots).not.toContain('cards')
     expect(slots).not.toContain('actions')
     expect(wrapper.find('[data-testid="view-toggle"]').exists()).toBe(false)
@@ -358,20 +367,28 @@ describe('CustomersView — customer phone rendering', () => {
     mockState.data.value = [makeCustomer({ phoneCountryCode, phone: '5585876245' })]
     const wrapper = mount(CustomersView)
     await flushPromises()
-    expect(wrapper.get('[data-testid="phone-cell"]').text()).toBe(expected)
+    expect(wrapper.get('[data-testid="customer-phone"]').text()).toBe(expected)
     wrapper.unmount()
   })
 })
 
 describe('CustomersView — sortable headers', () => {
-  it('mounts SortableHeader slots for fullName, email, phone, globalPriceListName', async () => {
+  // customers-module T6: only the columns GET /customers/listing can order by.
+  it('mounts SortableHeader slots for the sortable columns only', async () => {
     mockState.data.value = [makeCustomer()]
     const wrapper = mount(CustomersView)
     await flushPromises()
-    expect(wrapper.find('[data-testid="sortable-fullName"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="sortable-email"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="sortable-phone"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="sortable-globalPriceListName"]').exists()).toBe(true)
+    const sortable = wrapper.findAll('[data-testid^="sortable-"]').map((header) => header.attributes('data-column'))
+    expect(sortable).toEqual([
+      'name',
+      'openDebt',
+      'oldestOverdue',
+      'lastPurchaseAt',
+      'totalSold',
+      'createdAt',
+      'salesCount',
+      'averageTicket',
+    ])
   })
 })
 
@@ -670,13 +687,15 @@ describe('CustomersView — delete confirmation opt-in (S1-S3)', () => {
 })
 
 describe('CustomersView — column layout (premium tables T9)', () => {
-  it('binds the persisted layout (pos-customers), persist-layout and «Restablecer columnas»', async () => {
-    const view = readFileSync(resolve(__dirname, '../CustomersView.vue'), 'utf8')
-    expect(view).toContain("persistKey: 'pos-customers'")
+  // customers-module T6: the layout persists under a new key (other columns) and, as in Ventas, the
+  // views bar reports layout changes, so there is no «Guardado en tu vista» pill (persist-layout off).
+  it('binds the persisted layout (pos-customers-listing) and «Restablecer columnas»', async () => {
+    const composable = readFileSync(resolve(__dirname, '../../composables/useCustomersListing.ts'), 'utf8')
+    expect(composable).toContain("persistKey: 'pos-customers-listing'")
     const wrapper = mount(CustomersView)
     const table = wrapper.getComponent({ name: 'AppDataTable' })
     expect(table.props()).toMatchObject({
-      persistLayout: true,
+      persistLayout: false,
       columnPinning: { left: [], right: [] },
       columnVisibility: {},
       columnOrder: [],
@@ -684,14 +703,14 @@ describe('CustomersView — column layout (premium tables T9)', () => {
       density: 'comfortable',
     })
 
-    table.vm.$emit('update:columnOrder', ['phone', 'fullName'])
-    table.vm.$emit('update:columnSizing', { fullName: 300 })
-    table.vm.$emit('update:columnPinning', { left: ['fullName'], right: ['actions'] })
+    table.vm.$emit('update:columnOrder', ['email', 'name'])
+    table.vm.$emit('update:columnSizing', { name: 300 })
+    table.vm.$emit('update:columnPinning', { left: ['name'], right: ['actions'] })
     table.vm.$emit('update:columnVisibility', { email: false })
     table.vm.$emit('update:density', 'compact')
-    expect(mockState.columnOrder.value).toEqual(['phone', 'fullName'])
-    expect(mockState.columnSizing.value).toEqual({ fullName: 300 })
-    expect(mockState.columnPinning.value).toEqual({ left: ['fullName'], right: ['actions'] })
+    expect(mockState.columnOrder.value).toEqual(['email', 'name'])
+    expect(mockState.columnSizing.value).toEqual({ name: 300 })
+    expect(mockState.columnPinning.value).toEqual({ left: ['name'], right: ['actions'] })
     expect(mockState.columnVisibility.value).toEqual({ email: false })
     expect(mockState.density.value).toBe('compact')
 
@@ -702,7 +721,23 @@ describe('CustomersView — column layout (premium tables T9)', () => {
   it('names every column for the «Columnas» panel, never with its id', () => {
     const table = mount(CustomersView).getComponent({ name: 'AppDataTable' })
     const labels = (table.props('columns') as Parameters<typeof columnLabel>[0][]).map(columnLabel)
-    expect(labels).toEqual(['Nombre', 'Correo electrónico', 'Teléfono', 'Lista de precios', 'Acciones'])
+    expect(labels).toEqual([
+      'Cliente',
+      'Deuda',
+      'Vencido desde',
+      'Última compra',
+      'Total comprado',
+      'Mascotas',
+      'Lista de precios',
+      'Correo',
+      'Colonia y ciudad',
+      'RFC',
+      'Alta',
+      'Compras',
+      'Ticket promedio',
+      'De confianza',
+      'Acciones',
+    ])
   })
 })
 
@@ -727,7 +762,7 @@ describe('CustomersView — Mascotas entry', () => {
     await flushPromises()
     const slideover = wrapper.getComponent({ name: 'CustomerPetsSlideover' })
     expect(slideover.props('open')).toBe(true)
-    expect(slideover.props('customer')).toEqual(customerB)
+    expect(slideover.props('customer')).toMatchObject({ id: 'cust-B', fullName: 'Bea B' })
   })
 
   it('opts the edit card into the «Mascotas» tab, never the create form', async () => {
