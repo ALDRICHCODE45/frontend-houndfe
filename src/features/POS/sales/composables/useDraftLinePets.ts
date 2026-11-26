@@ -2,7 +2,7 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
-import { petQueryKeys, usePetsList } from '@/features/POS/customers/pets/usePets'
+import { petQueryKeys, usePetAccess, usePetsList } from '@/features/POS/customers/pets/usePets'
 import { saleApi } from '../api/sale.api'
 import type { Sale } from '../interfaces/sale.types'
 import { readSaleLinePetError } from '../utils/saleLinePet.utils'
@@ -26,6 +26,7 @@ export function useDraftLinePets(
   const tenantId = useSafeTenantId()
   const toast = useToast()
   const petsQuery = usePetsList(customerId, 'ACTIVE')
+  const { canRead: canReadPets } = usePetAccess()
 
   const mutation = useMutation({
     mutationFn: ({ itemId, petId }: { itemId: string; petId: string | null }) =>
@@ -58,6 +59,8 @@ export function useDraftLinePets(
 
   return {
     pets: computed(() => petsQuery.data.value ?? []),
+    /** read:Customer: without it the line pet picker stays hidden (archived-line-pet S2). */
+    canReadPets,
     setLinePet,
     isPending: computed(() => mutation.isPending.value),
   }

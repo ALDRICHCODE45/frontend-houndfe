@@ -266,7 +266,7 @@ const {
 } = useDraftCustomerAssignment(activeDraftId)
 
 // Handoff 27 §5.2: ACTIVE pets of the draft customer for the line pet picker, and its write.
-const { pets: customerPets, setLinePet } = useDraftLinePets(
+const { pets: customerPets, canReadPets, setLinePet } = useDraftLinePets(
   activeDraftId,
   () => activeDraft.value?.customer?.id ?? null,
 )
@@ -1147,6 +1147,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
               :on-remove-discount="handleRemoveDiscount"
               :on-remove-item="handleRemoveItem"
               :customer-pets="customerPets"
+              :can-read-pets="canReadPets"
               :on-set-item-pet="setLinePet"
               :on-apply-global-discount="handleApplyGlobalDiscount"
               :on-remove-global-discount="handleRemoveGlobalDiscount"
@@ -1241,6 +1242,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
               :on-remove-discount="handleRemoveDiscount"
               :on-remove-item="handleRemoveItem"
               :customer-pets="customerPets"
+              :can-read-pets="canReadPets"
               :on-set-item-pet="setLinePet"
               :on-apply-global-discount="handleApplyGlobalDiscount"
               :on-remove-global-discount="handleRemoveGlobalDiscount"

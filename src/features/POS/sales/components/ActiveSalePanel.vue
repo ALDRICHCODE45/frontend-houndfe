@@ -56,6 +56,8 @@ const props = defineProps<{
   canConvertToQuotation?: boolean
   /** Handoff 27 §5.2: ACTIVE pets of the draft customer and the line pet write (SalesView owns both). */
   customerPets?: Pet[]
+  /** read:Customer: the line pet picker needs it (archived-line-pet S2). */
+  canReadPets?: boolean
   onSetItemPet?: (itemId: string, petId: string | null) => Promise<unknown>
 }>()
 
@@ -110,6 +112,7 @@ const pendingPriceListId = ref<string | null>(null)
 
 // A line pet must belong to the sale customer: without a customer no line offers pets.
 const linePets = computed(() => (props.activeDraft?.customer ? (props.customerPets ?? []) : []))
+const canReadLinePets = computed(() => !!props.activeDraft?.customer && props.canReadPets === true)
 
 const hasGlobalDiscount = computed(() =>
   props.activeDraft?.items.some((item) => !!item.discountType) ?? false,
@@ -397,6 +400,7 @@ function handleConfirmPriceListChange() {
           :on-remove-discount="onRemoveDiscount"
           :on-remove-item="onRemoveItem"
           :pets="linePets"
+          :can-read-pets="canReadLinePets"
           :on-set-pet="onSetItemPet"
           @update-qty="(itemId, quantity) => emit('update-qty', itemId, quantity)"
           @remove-promo="(promotionId) => emit('remove-promo', promotionId)"

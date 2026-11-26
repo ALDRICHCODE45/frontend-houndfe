@@ -11,6 +11,7 @@ import { useDraftLinePets } from '../useDraftLinePets'
 import type { Sale, SaleItem } from '../../interfaces/sale.types'
 
 const toastAdd = vi.hoisted(() => vi.fn())
+const auth = vi.hoisted(() => ({ canRead: true }))
 
 vi.mock('../../api/sale.api', () => ({ saleApi: { setItemPet: vi.fn() } }))
 vi.mock('@/features/POS/customers/pets/pet.api', () => ({ petApi: { list: vi.fn() } }))
@@ -18,7 +19,10 @@ vi.mock('@/features/auth/composables/useSafeTenantId', () => ({
   useSafeTenantId: () => ({ value: 'tenant-1' }),
 }))
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
-  useAuthStore: () => ({ userCan: () => true }),
+  useAuthStore: () => ({
+    userCan: (action: string, subject: string) =>
+      action === 'read' && subject === 'Customer' ? auth.canRead : true,
+  }),
 }))
 vi.mock('@nuxt/ui/composables/useToast', () => ({ useToast: () => ({ add: toastAdd }) }))
 
@@ -78,6 +82,7 @@ function mountComposable(customerId: string | null = 'c1') {
 describe('useDraftLinePets', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    auth.canRead = true
     vi.mocked(petApi.list).mockResolvedValue([makePet({ id: 'p1', name: 'Bruno' })])
   })
 
@@ -86,6 +91,16 @@ describe('useDraftLinePets', () => {
 
     await vi.waitFor(() => expect(result.pets.value.map((pet) => pet.name)).toEqual(['Bruno']))
     expect(petApi.list).toHaveBeenCalledWith('c1', 'ACTIVE')
+  })
+
+  // archived-line-pet S2: the line pet picker keeps the read:Customer gate.
+  it('tells whether the user can read pets (read:Customer)', () => {
+    expect(mountComposable().result.canReadPets.value).toBe(true)
+
+    auth.canRead = false
+    const { result } = mountComposable()
+    expect(result.canReadPets.value).toBe(false)
+    expect(petApi.list).toHaveBeenCalledTimes(1)
   })
 
   it('without a customer it asks for no pets and offers none', async () => {

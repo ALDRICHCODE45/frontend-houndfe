@@ -191,7 +191,12 @@ const linePets = vi.hoisted(() => ({
 vi.mock('../../composables/useDraftLinePets', () => ({
   useDraftLinePets: (_saleId: unknown, customerId: () => string | null) => {
     linePets.customerId = customerId
-    return { pets: ref(linePets.pets), setLinePet: linePets.setLinePet, isPending: ref(false) }
+    return {
+      pets: ref(linePets.pets),
+      canReadPets: ref(true),
+      setLinePet: linePets.setLinePet,
+      isPending: ref(false),
+    }
   },
 }))
 vi.mock('../../composables/useDraftCustomerAssignment', () => ({
@@ -240,6 +245,7 @@ const globalStubs = {
       'portalClass',
       'canConvertToQuotation',
       'customerPets',
+      'canReadPets',
       'onSetItemPet',
     ],
     // C.5: `remove-promo` (per-line) is now forwarded from ActiveSalePanel
@@ -1056,6 +1062,7 @@ describe('SalesView C.4 — applicable-promotions data + manual-promo event wiri
 
     expect(panel.props('customerPets')).toEqual(linePets.pets)
     expect(panel.props('onSetItemPet')).toBe(linePets.setLinePet)
+    expect(panel.props('canReadPets')).toBe(true)
     expect(linePets.customerId?.()).toBe(panel.props('activeDraft')?.customer?.id ?? null)
   })
 
