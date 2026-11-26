@@ -655,6 +655,32 @@ describe('CustomerCollectionSlideover — split the debt across methods', () => 
       expect(entryText(1)).toContain('El monto debe ser mayor a 0')
     })
 
+    it('a confirm blocked by something else does not reveal a blank method added later', async () => {
+      // Two open tills and none chosen: the confirm stops at the session check, not at an amount.
+      sessions.value = [session('sess-1'), session('sess-2')]
+      mountSheet()
+      await flushPromises()
+      await pick('cash')
+      q('[data-testid="collection-confirm"]')!.click()
+      await flushPromises()
+      expect(fake.confirm).not.toHaveBeenCalled()
+      await pick('card_credit')
+      expect(amountsSent()).toEqual([140000, 0])
+      expect(entryText(1)).not.toContain('El monto debe ser mayor a 0')
+    })
+
+    it('a blank method revealed by a confirm hides again once removed and added back', async () => {
+      mountSheet()
+      await flushPromises()
+      await pick('cash', 'card_credit')
+      q('[data-testid="collection-confirm"]')!.click()
+      await flushPromises()
+      expect(entryText(1)).toContain('El monto debe ser mayor a 0')
+      expect(fake.confirm).not.toHaveBeenCalled()
+      await pick('card_credit', 'card_credit')
+      expect(entryText(1)).not.toContain('El monto debe ser mayor a 0')
+    })
+
     it('cash already over the debt (change) leaves the new method blank too (S7)', async () => {
       mountSheet()
       await flushPromises()

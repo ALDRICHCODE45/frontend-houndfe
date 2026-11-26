@@ -1,5 +1,4 @@
 import type { CollectionPaymentMethod, PaymentEntry } from '../interfaces/sale.types'
-import { PAYMENT_METHOD } from '../constants/sale.constants' // sdd/magic-string-constants slice 3 — lowercase contract.
 
 export const MAX_PAYMENT_ENTRIES = 5
 
@@ -8,6 +7,9 @@ type PaymentEntryValidation = Partial<Record<'amountCents' | 'reference', string
 
 /**
  * createEntry — sdd custom-payment-methods S4B (REQ-CAT-001 / design §1.3).
+ *
+ * payment-split S5: every method (not only cash) enters with what is still due; 0 when the debt
+ * is already covered (never negative), which the caller shows as a blank amount.
  *
  * The optional `paymentMethodId` is threaded ONLY when provided (custom tiles).
  * Fixed tiles omit it entirely so the legacy wire shape stays byte-identical
@@ -20,7 +22,7 @@ export function createEntry(
 ): PaymentEntry {
   const entry: PaymentEntry = {
     method,
-    amountCents: method === PAYMENT_METHOD.CASH ? remainingCents : 0,
+    amountCents: Math.max(0, remainingCents),
   }
 
   if (paymentMethodId !== undefined) {

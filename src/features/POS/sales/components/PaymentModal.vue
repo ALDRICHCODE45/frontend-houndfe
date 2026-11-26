@@ -33,6 +33,12 @@ import {
   type PaymentMethodTile,
 } from '../utils/paymentMethodTile.utils'
 import { PAYMENT_METHOD_CATEGORY_ICONS } from '@/core/shared/constants/payment-method-category'
+// payment-split T2 (S2-S5, S7): the shared split helper and controls. The target is the sale
+// total (what is due now); whatever stays unpaid is the debt to generate, never a bigger split.
+import TenderSplitControl from '@/core/shared/components/payments/TenderSplitControl.vue'
+import TenderRemainingButton from '@/core/shared/components/payments/TenderRemainingButton.vue'
+import type { SplitControlTender } from '@/core/shared/components/payments/splitControl.types'
+import { remainingDueCents } from '@/core/shared/payments/tenderSplit'
 // T3 (checkout composition): the owned checkout/support-window adapter (sheet,
 // body, footer, supporting windows). It is imported from this statically
 // imported modal so the stylesheet loads with the sales feature only, and every
@@ -255,10 +261,27 @@ const entryDisplays = computed<EntryDisplay[]>(() =>
   entries.value.map((entry) => resolveEntryDisplay(toWireEntry(entry), methodOptions.value)),
 )
 
+// Split helpers see each row with its tile key and label (payment-split S3/S4).
+const splitTenders = computed<SplitControlTender[]>(() =>
+  entries.value.map((entry, index) => ({
+    key: paymentEntryKey(wireEntries.value[index]!),
+    label: entryDisplays.value[index]?.label ?? '',
+    method: entry.method,
+    amountCents: entry.amountCents,
+  })),
+)
+
+// payment-split S5: a new method enters with what the other rows leave pending of the total
+// (the whole total for the first one). When the total is already covered — cash over included —
+// it enters blank (`null`, counts as 0 and is never charged) with no error until typed.
 function createDefaultEntry(tile: PaymentMethodTile): PaymentEntryForm {
+  const pending = remainingDueCents(
+    props.totalCents,
+    entries.value.map((row) => row.amountCents),
+  )
   const entry: PaymentEntryForm = {
     method: tile.value,
-    amountCents: props.totalCents,
+    amountCents: pending > 0 ? pending : null,
     reference: '',
   }
 
@@ -367,6 +390,19 @@ function toggleMethod(tile: PaymentMethodTile) {
       entries.value.push(createDefaultEntry(tile))
     }
   }
+}
+
+// payment-split S2-S4: helper amounts are written exactly like a typed amount (the money field's
+// v-model), so the deep entries watcher mints the new idempotency key and every gate re-runs.
+function setEntryAmount(index: number, amountCents: number) {
+  if (props.isSubmitting) return
+  const entry = entries.value[index]
+  if (entry) entry.amountCents = amountCents
+}
+
+function applySplit(amounts: number[]) {
+  if (props.isSubmitting || amounts.length !== entries.value.length) return
+  amounts.forEach((amountCents, index) => setEntryAmount(index, amountCents))
 }
 
 function removeEntry(index: number) {
@@ -704,6 +740,16 @@ const slideoverUi = computed(() => ({
                     {{ entryDisplays[index]?.label }}
                   </p>
 
+                  <TenderRemainingButton
+                    :data-testid="`payment-fill-remaining-${index}`"
+                    :tenders="entries"
+                    :index="index"
+                    :target-cents="totalCents"
+                    :label="entryDisplays[index]?.label ?? ''"
+                    :disabled="isSubmitting"
+                    @fill="setEntryAmount(index, $event)"
+                  />
+
                   <UButton
                     v-if="entries.length > 1"
                     :data-testid="`remove-payment-entry-${index}`"
@@ -737,6 +783,13 @@ const slideoverUi = computed(() => ({
                 </UFormField>
               </div>
             </div>
+
+            <TenderSplitControl
+              :tenders="splitTenders"
+              :target-cents="totalCents"
+              :disabled="isSubmitting"
+              @apply="applySplit"
+            />
           </section>
 
           <!-- T6/S3: explicit Caja session link. Rendered only when

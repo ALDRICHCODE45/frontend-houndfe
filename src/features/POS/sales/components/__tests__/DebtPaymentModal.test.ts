@@ -715,3 +715,216 @@ describe('DebtPaymentModal — cash session of a counter payment (BE handoff 24 
     expect(submitSafeMock.mock.calls[0]?.[0].payload).not.toHaveProperty('cashSessionId')
   })
 })
+
+/**
+ * payment-split T2 (S2-S5, S7): the sale debt payment splits `debtCents` across its tenders with the
+ * shared helper. Helper amounts go through the same amount handler as typing, so the payload,
+ * the debt cap («El total supera la deuda»), the session rule and the idempotency key are its own.
+ */
+describe('DebtPaymentModal — split the debt across methods (payment-split)', () => {
+  beforeEach(() => {
+    submitSafeMock.mockReset()
+    submitSafeMock.mockResolvedValue({ paymentStatus: 'PAID' })
+    isSubmittingRef.value = false
+    externalErrorCodeRef.value = null
+    shouldCloseRef.value = false
+    catalogClearSignalRef.value = 0
+    projectionData.value = []
+    cashSessions.value = [openSession('sess-1')]
+    cashCanRead.value = true
+    cashFetching.value = false
+    cashSelectedId.value = null
+    cashCanOpen.value = true
+  })
+
+  function mountSplit(debtCents = 607629) {
+    return mount(DebtPaymentModal, {
+      props: { open: true, saleId: 'sale-1', debtCents },
+      global: {
+        stubs: { ...stubs, TenderSplitControl: false, TenderRemainingButton: false },
+        renderStubDefaultSlot: true,
+      },
+      shallow: true,
+    })
+  }
+  type Wrapper = ReturnType<typeof mountSplit>
+  async function pick(wrapper: Wrapper, ...methods: string[]) {
+    for (const method of methods) {
+      await wrapper.get(`[data-testid="payment-method-tile-${method}"]`).trigger('click')
+      await flushPromises()
+    }
+  }
+  async function type(wrapper: Wrapper, selector: string, value: string) {
+    await wrapper.get(selector).setValue(value)
+    await flushPromises()
+  }
+  async function click(wrapper: Wrapper, selector: string) {
+    await wrapper.get(selector).trigger('click')
+    await flushPromises()
+  }
+  const amountText = (wrapper: Wrapper, index: number) =>
+    (wrapper.get(`[data-testid="payment-amount-${index}"]`).element as HTMLInputElement).value
+  const entryText = (wrapper: Wrapper, index: number) =>
+    wrapper.get(`[data-testid="payment-entry-${index}"]`).text()
+  async function pay(wrapper: Wrapper) {
+    await click(wrapper, '[data-testid="confirm-debt-payment"]')
+    expect(submitSafeMock).toHaveBeenCalledTimes(1)
+    const payments = submitSafeMock.mock.calls[0]?.[0].payload.payments as PaymentEntry[]
+    return payments.map((payment) => [payment.method, payment.amountCents])
+  }
+
+  describe('S5 — a new method enters with what is still due', () => {
+    it('a non-cash first method takes the whole debt', async () => {
+      const wrapper = mountSplit()
+      await pick(wrapper, 'card_debit')
+      expect(amountText(wrapper, 0)).toBe('6076.29')
+      expect(await pay(wrapper)).toEqual([['card_debit', 607629]])
+    })
+
+    it('the next method takes what the others leave pending', async () => {
+      const wrapper = mountSplit()
+      await pick(wrapper, 'cash')
+      await type(wrapper, '[data-testid="payment-amount-0"]', '2000')
+      await pick(wrapper, 'transfer')
+      expect(amountText(wrapper, 1)).toBe('4076.29')
+      expect(await pay(wrapper)).toEqual([
+        ['cash', 200000],
+        ['transfer', 407629],
+      ])
+    })
+
+    it('when the debt is covered it enters blank, without an error, until the cashier types', async () => {
+      const wrapper = mountSplit()
+      await pick(wrapper, 'cash', 'card_credit')
+      expect(amountText(wrapper, 1)).toBe('')
+      expect(entryText(wrapper, 1)).not.toContain('El monto debe ser mayor a 0')
+      // A blank amount still cannot be paid: the confirm stays blocked.
+      expect(wrapper.get('[data-testid="confirm-debt-payment"]').attributes('disabled')).toBeDefined()
+      await type(wrapper, '[data-testid="payment-amount-1"]', '0')
+      expect(entryText(wrapper, 1)).toContain('El monto debe ser mayor a 0')
+    })
+
+    it('a failed payment does not make a blank method added later show an error', async () => {
+      submitSafeMock.mockResolvedValue(undefined)
+      const wrapper = mountSplit()
+      await pick(wrapper, 'cash')
+      await click(wrapper, '[data-testid="confirm-debt-payment"]')
+      expect(submitSafeMock).toHaveBeenCalledTimes(1)
+      await pick(wrapper, 'transfer')
+      expect(amountText(wrapper, 1)).toBe('')
+      expect(entryText(wrapper, 1)).not.toContain('El monto debe ser mayor a 0')
+    })
+  })
+
+  describe('S2 — «Lo que falta» on each amount', () => {
+    it('completes the tender with what the others leave pending', async () => {
+      const wrapper = mountSplit()
+      await pick(wrapper, 'cash')
+      await type(wrapper, '[data-testid="payment-amount-0"]', '2000')
+      await pick(wrapper, 'card_debit')
+      await type(wrapper, '[data-testid="payment-amount-1"]', '1000')
+      const fill = wrapper.get('[data-testid="payment-fill-remaining-1"]')
+      expect(fill.text()).toContain('Lo que falta')
+      expect(fill.attributes('aria-label')).toBe(
+        'Completar Tarjeta débito con lo que falta: $4,076.29',
+      )
+      await click(wrapper, '[data-testid="payment-fill-remaining-1"]')
+      expect(amountText(wrapper, 1)).toBe('4076.29')
+      expect(await pay(wrapper)).toEqual([
+        ['cash', 200000],
+        ['card_debit', 407629],
+      ])
+    })
+
+    it('is hidden while the tender already holds what is pending for it', async () => {
+      const wrapper = mountSplit()
+      await pick(wrapper, 'cash')
+      expect(wrapper.find('[data-testid="payment-fill-remaining-0"]').exists()).toBe(false)
+      await type(wrapper, '[data-testid="payment-amount-0"]', '100')
+      expect(wrapper.find('[data-testid="payment-fill-remaining-0"]').exists()).toBe(true)
+    })
+
+    it('brings a card above the debt back to what is pending (cash 2,000 + card 5,000 → 4,076.29)', async () => {
+      const wrapper = mountSplit()
+      await pick(wrapper, 'cash')
+      await type(wrapper, '[data-testid="payment-amount-0"]', '2000')
+      await pick(wrapper, 'card_debit')
+      await type(wrapper, '[data-testid="payment-amount-1"]', '5000')
+      expect(wrapper.text()).toContain('El total supera la deuda')
+      await click(wrapper, '[data-testid="payment-fill-remaining-1"]')
+      expect(amountText(wrapper, 1)).toBe('4076.29')
+      expect(wrapper.text()).not.toContain('El total supera la deuda')
+    })
+  })
+
+  describe('S3 — «Repartir en partes iguales»', () => {
+    it('is offered only with 2 or more methods', async () => {
+      const wrapper = mountSplit()
+      await pick(wrapper, 'cash')
+      expect(wrapper.find('[data-testid="tender-split-equal"]').exists()).toBe(false)
+      await pick(wrapper, 'transfer')
+      expect(wrapper.get('[data-testid="tender-split-equal"]').text()).toContain(
+        'Repartir en partes iguales',
+      )
+    })
+
+    it.each([
+      [607629, [202543, 202543, 202543]],
+      [100000, [33333, 33333, 33334]],
+    ])('splits %i in exact cents, the leftover on the last method', async (debt, amounts) => {
+      const wrapper = mountSplit(debt)
+      await pick(wrapper, 'cash', 'card_credit', 'transfer')
+      await click(wrapper, '[data-testid="tender-split-equal"]')
+      expect(wrapper.text()).not.toContain('El monto debe ser mayor a 0')
+      expect(await pay(wrapper)).toEqual([
+        ['cash', amounts[0]],
+        ['card_credit', amounts[1]],
+        ['transfer', amounts[2]],
+      ])
+    })
+  })
+
+  describe('S4 — «Por porcentaje»', () => {
+    it('applies 50/30/20 in exact cents', async () => {
+      const wrapper = mountSplit()
+      await pick(wrapper, 'cash', 'card_credit', 'transfer')
+      await click(wrapper, '[data-testid="tender-split-percent-toggle"]')
+      await type(wrapper, '[data-testid="tender-split-percent-0"]', '50')
+      await type(wrapper, '[data-testid="tender-split-percent-1"]', '30')
+      await type(wrapper, '[data-testid="tender-split-percent-2"]', '20')
+      await click(wrapper, '[data-testid="tender-split-percent-apply"]')
+      expect(await pay(wrapper)).toEqual([
+        ['cash', 303814],
+        ['card_credit', 182288],
+        ['transfer', 121527],
+      ])
+    })
+  })
+
+  describe('S7 — never more than the debt', () => {
+    it('two non-cash methods completed sum exactly to the debt and go without a session', async () => {
+      const wrapper = mountSplit()
+      await pick(wrapper, 'card_credit', 'transfer')
+      expect(wrapper.find('[data-testid="payment-fill-remaining-1"]').exists()).toBe(false)
+      await type(wrapper, '[data-testid="payment-amount-0"]', '6000')
+      await click(wrapper, '[data-testid="payment-fill-remaining-1"]')
+      expect(await pay(wrapper)).toEqual([
+        ['card_credit', 600000],
+        ['transfer', 7629],
+      ])
+      expect(submitSafeMock.mock.calls[0]?.[0].payload).not.toHaveProperty('cashSessionId')
+    })
+
+    it('the split actions are disabled while the payment is submitting', async () => {
+      const wrapper = mountSplit()
+      await pick(wrapper, 'cash', 'transfer')
+      await type(wrapper, '[data-testid="payment-amount-0"]', '100')
+      isSubmittingRef.value = true
+      await flushPromises()
+      expect(wrapper.get('[data-testid="tender-split-equal"]').attributes('disabled')).toBeDefined()
+      expect(
+        wrapper.get('[data-testid="payment-fill-remaining-1"]').attributes('disabled'),
+      ).toBeDefined()
+    })
+  })
+})

@@ -51,12 +51,15 @@ const percents = computed(() =>
   props.tenders.map((tender) => parsePercentInput(percentText.value[tender.key] ?? '')),
 )
 const percentResult = computed(() => percentSplitCents(props.targetCents, percents.value))
-const percentTotal = computed(() =>
-  percents.value.reduce<number>((acc, value) => acc + (value ?? 0), 0),
+// The total in integer hundredths of a percent (33.33 → 3333): float sums drift (100.00000000000001).
+// `parsePercentInput` only lets through percents with at most 2 decimals, so rounding is exact.
+const percentTotalPoints = computed(() =>
+  percents.value.reduce<number>((acc, value) => acc + Math.round((value ?? 0) * 100), 0),
 )
-const percentTotalLabel = computed(() =>
-  Number.isInteger(percentTotal.value) ? String(percentTotal.value) : percentTotal.value.toFixed(2),
-)
+const percentTotalLabel = computed(() => {
+  const points = percentTotalPoints.value
+  return points % 100 === 0 ? String(points / 100) : (points / 100).toFixed(2)
+})
 const percentMessage = computed(() => {
   const result = percentResult.value
   if (result.ok) return null

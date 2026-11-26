@@ -26,6 +26,11 @@ import {
   type PaymentMethodTile,
 } from '../utils/paymentMethodTile.utils'
 import { PAYMENT_METHOD_CATEGORY_ICONS } from '@/core/shared/constants/payment-method-category'
+// payment-split T2 (S2-S5, S7): the shared split helper and controls, target = `debtCents`.
+import TenderSplitControl from '@/core/shared/components/payments/TenderSplitControl.vue'
+import TenderRemainingButton from '@/core/shared/components/payments/TenderRemainingButton.vue'
+import type { SplitControlTender } from '@/core/shared/components/payments/splitControl.types'
+import { applyTenderAmounts } from '@/core/shared/payments/tenderSplit'
 import HfMoneyInput from '@/core/shared/components/form/HfMoneyInput.vue'
 import { useCashSaleSession } from '@/features/POS/cash-register/composables/useCashSaleSession'
 import { useCashAccess } from '@/features/POS/cash-register/composables/useCashAccess'
@@ -58,6 +63,10 @@ const emit = defineEmits<{
 }>()
 
 const entries = ref<PaymentEntry[]>([])
+// payment-split S5: tenders added once the debt was covered. They show a blank amount and no
+// amount error until the cashier types or a helper fills them; the confirm stays blocked
+// meanwhile (the gate below validates every entry as is).
+const blankKeys = ref<ReadonlySet<string>>(new Set())
 const idempotencyKey = ref('')
 const inlineAggregateError = ref<string | null>(null)
 
@@ -137,6 +146,25 @@ const remainingCents = computed(() => Math.max(0, props.debtCents - receivedCent
 const aggregateError = computed(() => inlineAggregateError.value ?? validateAggregate(entries.value, props.debtCents) ?? null)
 const entryErrors = computed(() => entries.value.map((entry) => validateEntry(entry)))
 const hasEntryErrors = computed(() => entryErrors.value.some((errors) => Object.keys(errors).length > 0))
+const isBlank = (entry: PaymentEntry) => blankKeys.value.has(paymentEntryKey(entry))
+/** What each entry shows: a blank tender (S5) hides its amount error, the gate does not. */
+const shownEntryErrors = computed(() =>
+  entries.value.map((entry, index) => (isBlank(entry) ? {} : (entryErrors.value[index] ?? {}))),
+)
+function unmarkBlank(keys: Iterable<string>) {
+  const next = new Set(blankKeys.value)
+  for (const key of keys) next.delete(key)
+  if (next.size !== blankKeys.value.size) blankKeys.value = next
+}
+const entryLabels = computed(() => entries.value.map((entry) => resolveEntryDisplay(entry, methodOptions.value).label))
+const splitTenders = computed<SplitControlTender[]>(() =>
+  entries.value.map((entry, index) => ({
+    key: paymentEntryKey(entry),
+    label: entryLabels.value[index] ?? '',
+    method: entry.method,
+    amountCents: entry.amountCents,
+  })),
+)
 // The parser error of each typed amount, by entry key; it blocks the payment while present.
 const amountTextErrors = ref<Record<string, string>>({})
 const hasAmountTextErrors = computed(() => entries.value.some((entry) => amountTextErrors.value[paymentEntryKey(entry)]))
@@ -146,6 +174,7 @@ watch(entries, (current) => {
   const live = new Set(current.map(paymentEntryKey))
   const kept = Object.fromEntries(Object.entries(amountTextErrors.value).filter(([key]) => live.has(key)))
   if (Object.keys(kept).length !== Object.keys(amountTextErrors.value).length) amountTextErrors.value = kept
+  unmarkBlank([...blankKeys.value].filter((key) => !live.has(key)))
 })
 const canSubmit = computed(
   () =>
@@ -173,6 +202,7 @@ function entryNeedsReference(method: CollectionPaymentMethod): boolean {
 function resetState() {
   entries.value = []
   amountTextErrors.value = {}
+  blankKeys.value = new Set()
   idempotencyKey.value = newIdempotencyKey()
   inlineAggregateError.value = null
   cashSaleSession.clearSelection()
@@ -193,12 +223,25 @@ function handleMethodToggle(tile: PaymentMethodTile): void {
   if (existingIndex >= 0) {
     entries.value = removeEntry(entries.value, existingIndex)
   } else {
-    entries.value = addEntry(entries.value, tile.value, props.debtCents, tile.paymentMethodId)
+    // payment-split S5: the new method takes what is still due (never more, S7); blank when covered.
+    const next = addEntry(entries.value, tile.value, props.debtCents, tile.paymentMethodId)
+    const added = next.length > entries.value.length ? next[next.length - 1] : undefined
+    if (added && added.amountCents === 0) blankKeys.value = new Set([...blankKeys.value, paymentEntryKey(added)])
+    entries.value = next
   }
 }
 
 function handleAmountChange(index: number, amountCents: number | null): void {
+  const entry = entries.value[index]
+  if (entry) unmarkBlank([paymentEntryKey(entry)])
   entries.value = updateEntry(entries.value, index, { amountCents: Math.max(0, amountCents ?? 0) })
+}
+
+/** Amounts from the split helpers, one per tender: written exactly like typed amounts. */
+function handleSplitApply(amounts: number[]): void {
+  if (isSubmitting.value || amounts.length !== entries.value.length) return
+  unmarkBlank(entries.value.map(paymentEntryKey))
+  entries.value = applyTenderAmounts(entries.value, amounts)
 }
 
 function handleAmountValidation(entry: PaymentEntry, error: string | null): void {
@@ -386,8 +429,18 @@ watch(catalogClearSignal, () => {
                   <UIcon :name="PAYMENT_METHOD_CATEGORY_ICONS[entry.method]" class="hf-pay-entry-icon" />
 
                   <p class="hf-pay-entry-label">
-                    {{ resolveEntryDisplay(entry, methodOptions).label }}
+                    {{ entryLabels[index] }}
                   </p>
+
+                  <TenderRemainingButton
+                    :data-testid="`payment-fill-remaining-${index}`"
+                    :tenders="entries"
+                    :index="index"
+                    :target-cents="debtCents"
+                    :label="entryLabels[index] ?? ''"
+                    :disabled="isSubmitting"
+                    @fill="handleAmountChange(index, $event)"
+                  />
 
                   <UButton
                     :data-testid="`remove-payment-entry-${index}`"
@@ -401,11 +454,11 @@ watch(catalogClearSignal, () => {
                   />
                 </div>
 
-                <UFormField label="Monto" :error="entryErrors[index]?.amountCents">
+                <UFormField label="Monto" :error="shownEntryErrors[index]?.amountCents">
                   <HfMoneyInput
                     :id="`debt-payment-amount-${index}`"
                     :data-testid="`payment-amount-${index}`"
-                    :model-value="entry.amountCents"
+                    :model-value="isBlank(entry) ? null : entry.amountCents"
                     :disabled="isSubmitting"
                     class="w-full"
                     @update:model-value="handleAmountChange(index, $event)"
@@ -416,7 +469,7 @@ watch(catalogClearSignal, () => {
                 <UFormField
                   v-if="entryNeedsReference(entry.method)"
                   label="Referencia"
-                  :error="entryErrors[index]?.reference"
+                  :error="shownEntryErrors[index]?.reference"
                 >
                   <UInput
                     :data-testid="`payment-reference-${index}`"
@@ -428,6 +481,13 @@ watch(catalogClearSignal, () => {
                 </UFormField>
               </div>
             </div>
+
+            <TenderSplitControl
+              :tenders="splitTenders"
+              :target-cents="debtCents"
+              :disabled="isSubmitting"
+              @apply="handleSplitApply"
+            />
           </section>
 
           <!-- BE handoff 24 §3: where the cash goes. Only with a CASH entry. -->

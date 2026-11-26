@@ -2,13 +2,16 @@
 /**
  * TenderRemainingButton — «Lo que falta» on one tender (payment-split S2).
  *
- * Rendered only while the tenders do not cover the target. Emits `fill` with the amount that,
- * with the other tenders as they are, covers the target exactly (never more than the target, so a
- * non-cash tender never exceeds what is due). The owner writes it like a typed amount.
+ * Rendered while the tender's own amount differs from what, with the other tenders as they are,
+ * covers the target exactly: below it (something is pending) or, for a non-cash tender, above it
+ * (cash 2,000 + card 5,000 vs 6,076.29 → card back to 4,076.29). Cash above it is left alone: it
+ * is the only tender that may exceed what is due and gives change (S7). Emits `fill` with that
+ * amount (never more than the target); the owner writes it like a typed amount. Hidden when that
+ * amount would be $0.00 (the other tenders already cover the target).
  * Extra attributes (`data-testid`, …) go to the button.
  */
 import { computed } from 'vue'
-import { fillRemainingCents, remainingDueCents } from '@/core/shared/payments/tenderSplit'
+import { fillRemainingCents } from '@/core/shared/payments/tenderSplit'
 import type { SplitTender } from '@/core/shared/payments/tenderSplit'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import './tender-split.css'
@@ -27,23 +30,30 @@ const props = withDefaults(
 
 const emit = defineEmits<{ fill: [amountCents: number] }>()
 
-const pendingCents = computed(() =>
-  remainingDueCents(
-    props.targetCents,
-    props.tenders.map((tender) => tender.amountCents),
-  ),
-)
+/** The only tender that may exceed what is due (the difference is change). */
+const CASH_METHOD = 'cash'
+
 const fillCents = computed(() => fillRemainingCents(props.targetCents, props.tenders, props.index))
+const visible = computed(() => {
+  const tender = props.tenders[props.index]
+  // Nothing left for this tender (the others already cover the target): filling would write
+  // $0.00, which the screens reject; the cashier removes the tender instead.
+  if (!tender || fillCents.value <= 0) return false
+  const raw = tender.amountCents
+  const own = typeof raw === 'number' && Number.isFinite(raw) && raw > 0 ? Math.trunc(raw) : 0
+  if (own < fillCents.value) return true
+  return own > fillCents.value && tender.method !== CASH_METHOD
+})
 
 function fill() {
-  if (props.disabled || pendingCents.value <= 0) return
+  if (props.disabled || !visible.value) return
   emit('fill', fillCents.value)
 }
 </script>
 
 <template>
   <UButton
-    v-if="pendingCents > 0"
+    v-if="visible"
     type="button"
     color="neutral"
     variant="ghost"

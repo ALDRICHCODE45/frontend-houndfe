@@ -17,9 +17,9 @@
  * tenders with a notice that stays until the cashier edits the tenders or dismisses it.
  *
  * Splitting (payment-split S2-S5): a new method enters with what is still due (blank, without an
- * error until the cashier types or tries to confirm, when the debt is already covered); each
- * amount offers «Lo que falta» while something is pending, and 2+ methods offer «Repartir en partes
- * iguales» / «Por porcentaje». Every helper amount is written to `entries` like a typed one, so it
+ * error until the cashier types, or until a confirm is stopped by that blank amount, when the debt
+ * is already covered); each amount offers «Lo que falta» while it differs from what is pending for
+ * it, and 2+ methods offer «Repartir en partes iguales» / «Por porcentaje». Every helper amount is written to `entries` like a typed one, so it
  * reaches the composable's debounced preview through the same watcher.
  */
 import { computed, ref, watch } from 'vue'
@@ -84,8 +84,8 @@ const entries = ref<PaymentEntry[]>([])
 const amountTextErrors = ref<Record<string, string>>({})
 /** Tenders added once the debt was covered: blank and without an error until typed (S5). */
 const blankKeys = ref<ReadonlySet<string>>(new Set())
-/** A confirm was tried: blank tenders show their amount error from then on. */
-const confirmAttempted = ref(false)
+/** Blank tenders a confirm was stopped by: only these show their amount error (S5). */
+const revealedBlankKeys = ref<ReadonlySet<string>>(new Set())
 /** Names the catalog method(s) dropped after PAYMENT_METHOD_NOT_FOUND / INACTIVE_PAYMENT_METHOD. */
 const catalogNotice = ref<string | null>(null)
 const closeConfirmOpen = ref(false)
@@ -159,11 +159,10 @@ const receipt = useCollectionReceiptDownload(() => result.value?.collectionId)
 const debtCents = computed(() => preview.value?.debtCents ?? 0)
 const tenderedCents = computed(() => paidSum(entries.value))
 const entryErrors = computed(() =>
-  entries.value.map((entry) =>
-    blankKeys.value.has(paymentEntryKey(entry)) && !confirmAttempted.value
-      ? {}
-      : validateEntry(entry),
-  ),
+  entries.value.map((entry) => {
+    const key = paymentEntryKey(entry)
+    return blankKeys.value.has(key) && !revealedBlankKeys.value.has(key) ? {} : validateEntry(entry)
+  }),
 )
 const entryLabels = computed(() =>
   entries.value.map((entry) => resolveEntryDisplay(entry, methodOptions.value).label),
@@ -179,8 +178,13 @@ const splitTenders = computed<SplitControlTender[]>(() =>
 const isBlank = (entry: PaymentEntry) => blankKeys.value.has(paymentEntryKey(entry))
 function unmarkBlank(keys: Iterable<string>) {
   const next = new Set(blankKeys.value)
-  for (const key of keys) next.delete(key)
+  const revealed = new Set(revealedBlankKeys.value)
+  for (const key of keys) {
+    next.delete(key)
+    revealed.delete(key)
+  }
   if (next.size !== blankKeys.value.size) blankKeys.value = next
+  if (revealed.size !== revealedBlankKeys.value.size) revealedBlankKeys.value = revealed
 }
 const hasAmountTextErrors = computed(() =>
   entries.value.some((entry) => amountTextErrors.value[paymentEntryKey(entry)]),
@@ -225,7 +229,7 @@ watch(
     if (entries.value.length > 0) entries.value = []
     amountTextErrors.value = {}
     blankKeys.value = new Set()
-    confirmAttempted.value = false
+    revealedBlankKeys.value = new Set()
     catalogNotice.value = null
     closeConfirmOpen.value = false
     cashSaleSession.clearSelection()
@@ -312,7 +316,13 @@ function handleRemove(index: number) {
 
 async function handleConfirm() {
   if (locked.value) return
-  confirmAttempted.value = true
+  // A blank tender (amount 0) blocks the confirm: reveal only those tenders' errors. A confirm
+  // stopped by anything else never reveals a blank tender added afterwards (S5).
+  const blank = entries.value.map(paymentEntryKey).filter((key) => blankKeys.value.has(key))
+  if (blank.length > 0) {
+    revealedBlankKeys.value = new Set(blank)
+    return
+  }
   if (!canConfirm.value) return
   // Several sessions: the explicit choice is revalidated live right before the money moves.
   if (needsCashSessionPick.value && !cashSaleSession.revalidateSelection()) return
