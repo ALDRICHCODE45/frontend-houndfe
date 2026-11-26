@@ -12,6 +12,7 @@ import { PAYMENT_METHOD } from '../constants/sale.constants' // sdd/magic-string
 import DateFieldPopover from './DateFieldPopover.vue'
 import { newIdempotencyKey } from '../utils/idempotency.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
+import { CHANGE_EXCEEDS_CASH_MESSAGE } from '../utils/salePaymentErrors.utils'
 import { normalizeReferenceInput } from '../utils/paymentEntries.utils'
 import { useSalePaymentMethods } from '../composables/useSalePaymentMethods'
 import { useCashSaleSession } from '@/features/POS/cash-register/composables/useCashSaleSession'
@@ -181,6 +182,14 @@ const changeDueCents = computed(() => {
   if (!hasCashPayment.value || isPartial.value) return 0
   return paidSumCents.value - props.totalCents
 })
+// charge-change-cap S2: change is handed back from the cash drawer, so it can
+// never exceed the cash tendered (the backend rejects it with 422).
+const cashTenderedCents = computed(() =>
+  entries.value
+    .filter((entry) => entry.method === PAYMENT_METHOD.CASH)
+    .reduce((sum, entry) => sum + Math.max(0, entry.amountCents ?? 0), 0),
+)
+const changeExceedsCash = computed(() => changeDueCents.value > cashTenderedCents.value)
 const canAddEntry = computed(() => entries.value.length < MAX_ENTRIES)
 const canSubmit = computed(
   () =>
@@ -188,6 +197,7 @@ const canSubmit = computed(
     (entries.value.length === 0 ? hasCustomer.value : !isPartial.value || canSubmitPartial.value) &&
     !inlineError.value &&
     !bindingError.value &&
+    !changeExceedsCash.value &&
     !entries.value.some((entry) => entry.amountError),
 )
 const confirmButtonLabel = computed(() => {
@@ -905,6 +915,9 @@ const confirmButtonClass = computed(() =>
             </div>
             <p v-if="changeDueCents > 0" class="mt-1">
               Cambio: <span class="font-semibold">{{ formatCentsMXN(changeDueCents) }}</span>
+            </p>
+            <p v-if="changeExceedsCash" data-testid="change-exceeds-cash" class="mt-1 text-error">
+              {{ CHANGE_EXCEEDS_CASH_MESSAGE }}
             </p>
           </div>
 

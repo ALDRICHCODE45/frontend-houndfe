@@ -2062,3 +2062,71 @@ describe('PaymentModal T6 — explicit Caja session binding (cash-register-pesos
     expect(submitted.payload).not.toHaveProperty('cashSessionId')
   })
 })
+
+// charge-change-cap S2: the change handed back can never exceed the cash
+// tendered; the modal blocks it before sending (the backend answers 422
+// CHANGE_EXCEEDS_CASH_TENDERED otherwise). Total $1,000 in every case.
+describe('PaymentModal change never larger than the cash tendered', () => {
+  const CHANGE_CAP_MESSAGE =
+    'El cambio no puede ser mayor que el efectivo entregado. Ajusta los montos.'
+
+  beforeEach(() => {
+    projectionData.value = []
+  })
+
+  async function mountWith(
+    amounts: Array<[method: string, pesos: string]>,
+    customer: { id: string; firstName: string; lastName: null } | null = null,
+  ) {
+    const wrapper = mount(PaymentModal, {
+      props: { open: true, totalCents: 100000, saleId: 'sale-1', customer },
+      global: mountGlobal,
+    })
+    for (const [method] of amounts) {
+      await wrapper.get(`[data-method="${method}"]`).trigger('click')
+    }
+    for (const [index, [, pesos]] of amounts.entries()) {
+      await wrapper.get(`[data-testid="payment-amount-${index}"]`).setValue(pesos)
+    }
+    return wrapper
+  }
+
+  it('blocks card $1,100 + cash $100: shows the message, disables confirm, emits nothing', async () => {
+    const wrapper = await mountWith([
+      ['card_credit', '1100'],
+      ['cash', '100'],
+    ])
+    expect(wrapper.text()).toContain(CHANGE_CAP_MESSAGE)
+    expect(wrapper.get('[data-testid="confirm-charge"]').attributes('disabled')).toBeDefined()
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    expect(wrapper.emitted('submit')).toBeUndefined()
+  })
+
+  it.each<[string, Array<[string, string]>, string | null]>([
+    ['card $900 + cash $200 (change $100 ≤ cash)', [['card_credit', '900'], ['cash', '200']], '$100.00'],
+    ['cash only $1,200 (change $200)', [['cash', '1200']], '$200.00'],
+    ['exact cash $1,000', [['cash', '1000']], null],
+    ['exact card $400 + cash $600', [['card_debit', '400'], ['cash', '600']], null],
+  ])('allows %s', async (_label, amounts, change) => {
+    const wrapper = await mountWith(amounts)
+    expect(wrapper.text()).not.toContain(CHANGE_CAP_MESSAGE)
+    if (change) expect(wrapper.text()).toContain(`Cambio: ${change}`)
+    else expect(wrapper.text()).not.toContain('Cambio:')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    expect(wrapper.emitted('submit')).toHaveLength(1)
+  })
+
+  it('leaves a partial charge with a customer unchanged (card $300 + cash $100)', async () => {
+    const wrapper = await mountWith(
+      [
+        ['card_credit', '300'],
+        ['cash', '100'],
+      ],
+      { id: 'c-1', firstName: 'Ada', lastName: null },
+    )
+    expect(wrapper.text()).not.toContain(CHANGE_CAP_MESSAGE)
+    expect(wrapper.text()).toContain('Deuda a generar:')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    expect(wrapper.emitted('submit')).toHaveLength(1)
+  })
+})
