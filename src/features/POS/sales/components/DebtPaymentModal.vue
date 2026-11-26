@@ -186,6 +186,17 @@ const canSubmit = computed(
     !isSubmitting.value,
 )
 const canAddEntry = computed(() => entries.value.length < MAX_PAYMENT_ENTRIES)
+/**
+ * S5: a blank tender hides its own error, so when blank tenders are the ONLY thing holding the
+ * confirm, a short hint near it says why (the field error still waits for the cashier to type).
+ */
+const entryHasErrors = (index: number) => Object.keys(entryErrors.value[index] ?? {}).length > 0
+const blankOnlyBlocks = computed(() => {
+  if (canSubmit.value || aggregateError.value || hasAmountTextErrors.value) return false
+  if (cashSessionBlocks.value || isSubmitting.value) return false
+  const blocking = entries.value.map((_, index) => index).filter(entryHasErrors)
+  return blocking.length > 0 && blocking.every((index) => isBlank(entries.value[index]!))
+})
 
 // Presentation-only merge: keep the modal's existing width/body overrides and
 // append the optional caller boundary when opted in. An absent prop yields the
@@ -563,6 +574,9 @@ watch(catalogClearSignal, () => {
 
           <!-- Aggregate / inline error -->
           <p v-if="aggregateError" class="text-sm text-(--hf-danger)">{{ aggregateError }}</p>
+          <p v-else-if="blankOnlyBlocks" class="text-xs text-muted" data-testid="debt-blank-tender-hint">
+            Escribe un monto o quita el método vacío.
+          </p>
 
           <!-- Actions -->
           <div class="flex justify-end gap-2">

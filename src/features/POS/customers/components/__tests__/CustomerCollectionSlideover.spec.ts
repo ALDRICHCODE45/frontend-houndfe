@@ -681,6 +681,26 @@ describe('CustomerCollectionSlideover — split the debt across methods', () => 
       expect(entryText(1)).not.toContain('El monto debe ser mayor a 0')
     })
 
+    it('a blank-marked method that already holds an amount does not block the confirm', async () => {
+      // Guard self-consistency: only blank tenders whose amount is still 0 stop the confirm. The
+      // amount is written straight into the sheet state (any path that skips the blank unmark).
+      const sheet = mountSheet()
+      await flushPromises()
+      await pick('cash', 'card_credit')
+      expect(amountsSent()).toEqual([140000, 0])
+      const state = (
+        sheet.vm.$ as unknown as {
+          setupState: { entries: { method: string; amountCents: number }[] }
+        }
+      ).setupState
+      state.entries = [{ method: 'cash', amountCents: 100000 }, { method: 'card_credit', amountCents: 40000 }]
+      await flushPromises()
+      expect(amountsSent()).toEqual([100000, 40000])
+      q('[data-testid="collection-confirm"]')!.click()
+      await flushPromises()
+      expect(fake.confirm).toHaveBeenCalledTimes(1)
+    })
+
     it('cash already over the debt (change) leaves the new method blank too (S7)', async () => {
       mountSheet()
       await flushPromises()

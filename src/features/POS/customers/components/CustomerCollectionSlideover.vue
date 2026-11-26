@@ -316,9 +316,12 @@ function handleRemove(index: number) {
 
 async function handleConfirm() {
   if (locked.value) return
-  // A blank tender (amount 0) blocks the confirm: reveal only those tenders' errors. A confirm
+  // A blank tender still at 0 blocks the confirm: reveal only those tenders' errors. A confirm
   // stopped by anything else never reveals a blank tender added afterwards (S5).
-  const blank = entries.value.map(paymentEntryKey).filter((key) => blankKeys.value.has(key))
+  const blank = entries.value
+    .filter((entry) => !(entry.amountCents > 0))
+    .map(paymentEntryKey)
+    .filter((key) => blankKeys.value.has(key))
   if (blank.length > 0) {
     revealedBlankKeys.value = new Set(blank)
     return

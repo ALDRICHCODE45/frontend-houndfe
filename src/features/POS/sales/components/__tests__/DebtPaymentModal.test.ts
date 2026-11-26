@@ -804,6 +804,57 @@ describe('DebtPaymentModal — split the debt across methods (payment-split)', (
       expect(entryText(wrapper, 1)).toContain('El monto debe ser mayor a 0')
     })
 
+    describe('a blank method blocking the confirm says why', () => {
+      const HINT = 'Escribe un monto o quita el método vacío.'
+      const hint = (wrapper: Wrapper) => wrapper.find('[data-testid="debt-blank-tender-hint"]')
+      const confirmDisabled = (wrapper: Wrapper) =>
+        wrapper.get('[data-testid="confirm-debt-payment"]').attributes('disabled') !== undefined
+
+      it('covered debt + blank method: confirm disabled and a hint near it, no field error', async () => {
+        const wrapper = mountSplit()
+        await pick(wrapper, 'cash', 'card_credit')
+        expect(confirmDisabled(wrapper)).toBe(true)
+        expect(hint(wrapper).exists()).toBe(true)
+        expect(hint(wrapper).text()).toBe(HINT)
+        expect(entryText(wrapper, 1)).not.toContain('El monto debe ser mayor a 0')
+      })
+
+      it('typing an amount in the blank method hides the hint', async () => {
+        const wrapper = mountSplit()
+        await pick(wrapper, 'cash', 'card_credit')
+        await type(wrapper, '[data-testid="payment-amount-0"]', '6000')
+        expect(hint(wrapper).exists()).toBe(true)
+        await type(wrapper, '[data-testid="payment-amount-1"]', '76.29')
+        expect(hint(wrapper).exists()).toBe(false)
+        expect(confirmDisabled(wrapper)).toBe(false)
+      })
+
+      it('typing 0 trades the hint for the field error', async () => {
+        const wrapper = mountSplit()
+        await pick(wrapper, 'cash', 'card_credit')
+        await type(wrapper, '[data-testid="payment-amount-1"]', '0')
+        expect(hint(wrapper).exists()).toBe(false)
+        expect(entryText(wrapper, 1)).toContain('El monto debe ser mayor a 0')
+      })
+
+      it('removing the blank method hides the hint and frees the confirm', async () => {
+        const wrapper = mountSplit()
+        await pick(wrapper, 'cash', 'card_credit')
+        await click(wrapper, '[data-testid="remove-payment-entry-1"]')
+        expect(hint(wrapper).exists()).toBe(false)
+        expect(confirmDisabled(wrapper)).toBe(false)
+      })
+
+      it('is not shown when something else also blocks the confirm', async () => {
+        const wrapper = mountSplit()
+        await pick(wrapper, 'cash', 'card_credit')
+        // Cash over the debt: the aggregate error already explains the block.
+        await type(wrapper, '[data-testid="payment-amount-0"]', '7000')
+        expect(confirmDisabled(wrapper)).toBe(true)
+        expect(hint(wrapper).exists()).toBe(false)
+      })
+    })
+
     it('a failed payment does not make a blank method added later show an error', async () => {
       submitSafeMock.mockResolvedValue(undefined)
       const wrapper = mountSplit()
