@@ -2102,7 +2102,19 @@ describe('PaymentModal change never larger than the cash tendered', () => {
     expect(wrapper.emitted('submit')).toBeUndefined()
   })
 
+  it('blocks a card-only overpay (card $1,100, no cash): shows the message, disables confirm, emits nothing', async () => {
+    const wrapper = await mountWith([['card_credit', '1100']])
+    expect(wrapper.text()).toContain(
+      'Lo pagado con tarjeta, transferencia u otro método no puede superar el total. Ajusta los montos.',
+    )
+    expect(wrapper.text()).not.toContain(CHANGE_CAP_MESSAGE)
+    expect(wrapper.get('[data-testid="confirm-charge"]').attributes('disabled')).toBeDefined()
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    expect(wrapper.emitted('submit')).toBeUndefined()
+  })
+
   it.each<[string, Array<[string, string]>, string | null]>([
+    ['exact card $1,000', [['card_credit', '1000']], null],
     ['card $900 + cash $200 (change $100 ≤ cash)', [['card_credit', '900'], ['cash', '200']], '$100.00'],
     ['cash only $1,200 (change $200)', [['cash', '1200']], '$200.00'],
     ['exact cash $1,000', [['cash', '1000']], null],

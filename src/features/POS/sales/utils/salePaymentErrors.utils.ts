@@ -9,6 +9,10 @@ export interface SalePaymentUxAction {
 }
 
 /** charge-change-cap S2: shared by the PaymentModal pre-send block and the 422 mapping. */
+/** Card, transfer or another method above the total with no cash (backend 422 PAYMENT_AMOUNT_INVALID). */
+export const NON_CASH_EXCEEDS_TOTAL_MESSAGE =
+  'Lo pagado con tarjeta, transferencia u otro método no puede superar el total. Ajusta los montos.'
+
 export const CHANGE_EXCEEDS_CASH_MESSAGE =
   'El cambio no puede ser mayor que el efectivo entregado. Ajusta los montos.'
 
