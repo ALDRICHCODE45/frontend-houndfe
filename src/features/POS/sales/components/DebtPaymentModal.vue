@@ -31,6 +31,9 @@ import { useCashSaleSession } from '@/features/POS/cash-register/composables/use
 import { useCashAccess } from '@/features/POS/cash-register/composables/useCashAccess'
 import { useCashRegisterNames } from '../composables/useCashRegisterNames'
 import CashSaleSessionPicker from './CashSaleSessionPicker.vue'
+// Style-cleanup U2 (owner S3 «una sola pieza»): the shared, marker-free payment-sheet look, so
+// this sheet renders the same from the customer history and from the sale detail.
+import '@/core/shared/components/payments/payment-sheet.css'
 
 const props = defineProps<{
   open: boolean
@@ -322,9 +325,9 @@ watch(catalogClearSignal, () => {
           </div>
 
           <!-- Total banner -->
-          <div class="rounded-xl border border-default bg-(--hf-surface-muted) px-5 py-4 text-center">
-            <p class="text-[13px] font-semibold text-(--hf-muted)">Deuda pendiente</p>
-            <p class="hf-figure mt-1 text-4xl font-semibold text-(--hf-heading)">{{ formatCentsMXN(debtCents) }}</p>
+          <div class="hf-pay-total">
+            <p class="hf-pay-total-label">Deuda pendiente</p>
+            <p class="hf-figure hf-pay-total-value">{{ formatCentsMXN(debtCents) }}</p>
           </div>
         </div>
 
@@ -333,38 +336,27 @@ watch(catalogClearSignal, () => {
           <!-- Method picker grid -->
           <section class="space-y-3">
             <p class="text-sm font-semibold text-highlighted">Métodos de pago</p>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="hf-pay-methods">
               <button
                 v-for="option in methodOptions"
                 :key="paymentMethodTileKey(option)"
                 :data-testid="tileTestId(option)"
                 :aria-pressed="getMethodCount(entries, option) > 0"
                 type="button"
-                class="relative rounded-xl border px-3 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50"
-                :class="
-                  getMethodCount(entries, option) > 0
-                    ? 'border-(--hf-action) bg-(--hf-active-soft)'
-                    : 'border-default bg-elevated hover:border-(--hf-action) hover:bg-(--hf-active-soft)'
-                "
+                class="hf-pay-tile"
                 :disabled="(getMethodCount(entries, option) === 0 && !canAddEntry) || isSubmitting"
                 @click="handleMethodToggle(option)"
               >
-                <UBadge
-                  v-if="getMethodCount(entries, option) > 0"
-                  class="absolute right-2 top-2"
-                  size="sm"
-                  color="neutral"
-                  variant="soft"
-                >
+                <UIcon :name="option.icon" class="hf-pay-tile-icon" />
+                <p class="hf-pay-tile-label">{{ option.label }}</p>
+                <span v-if="getMethodCount(entries, option) > 0" class="hf-pay-tile-count">
                   {{ getMethodCount(entries, option) }}
-                </UBadge>
-                <UIcon :name="option.icon" class="mb-2 size-6 text-(--hf-action)" />
-                <p class="text-sm font-semibold text-highlighted">{{ option.label }}</p>
+                </span>
                 <!-- REQ-PT-007: custom tiles render the subtitle as a grey sub-line (trimmed, when present) -->
                 <p
                   v-if="option.kind === 'custom' && (option.subtitle?.trim() ?? '') !== ''"
                   :data-testid="`payment-method-tile-subtitle-${option.paymentMethodId}`"
-                  class="text-xs text-muted"
+                  class="hf-pay-tile-subtitle text-muted"
                 >
                   {{ option.subtitle }}
                 </p>
@@ -379,67 +371,62 @@ watch(catalogClearSignal, () => {
           <section class="space-y-3">
             <p class="text-sm font-semibold text-highlighted">Pagos agregados</p>
 
-            <div
-              v-if="entries.length === 0"
-              class="rounded-xl border border-dashed border-default bg-elevated px-4 py-6 text-center"
-            >
-              <p class="text-sm text-muted">Selecciona un método de pago arriba</p>
+            <div v-if="entries.length === 0" class="hf-pay-empty">
+              <p>Selecciona un método de pago arriba</p>
             </div>
 
-            <div
-              v-for="(entry, index) in entries"
-              :key="paymentEntryKey(entry)"
-              :data-testid="`payment-entry-${index}`"
-              class="space-y-3 rounded-xl border border-default bg-default px-3 py-3"
-            >
-              <div class="flex items-center gap-3">
-                <UBadge color="neutral" variant="soft" size="lg" class="shrink-0">
-                  <UIcon :name="PAYMENT_METHOD_CATEGORY_ICONS[entry.method]" class="size-4" />
-                </UBadge>
+            <div v-else class="hf-pay-entries">
+              <div
+                v-for="(entry, index) in entries"
+                :key="paymentEntryKey(entry)"
+                :data-testid="`payment-entry-${index}`"
+                class="hf-pay-entry"
+              >
+                <div class="hf-pay-entry-head">
+                  <UIcon :name="PAYMENT_METHOD_CATEGORY_ICONS[entry.method]" class="hf-pay-entry-icon" />
 
-                <div class="min-w-0 flex-1">
-                  <p class="text-sm font-semibold text-highlighted">
+                  <p class="hf-pay-entry-label">
                     {{ resolveEntryDisplay(entry, methodOptions).label }}
                   </p>
+
+                  <UButton
+                    :data-testid="`remove-payment-entry-${index}`"
+                    :aria-label="`Eliminar pago ${index + 1}`"
+                    type="button"
+                    color="error"
+                    variant="ghost"
+                    icon="i-lucide-trash-2"
+                    :disabled="isSubmitting"
+                    @click="handleEntryRemove(index)"
+                  />
                 </div>
 
-                <UButton
-                  :data-testid="`remove-payment-entry-${index}`"
-                  :aria-label="`Eliminar pago ${index + 1}`"
-                  type="button"
-                  color="error"
-                  variant="ghost"
-                  icon="i-lucide-trash-2"
-                  :disabled="isSubmitting"
-                  @click="handleEntryRemove(index)"
-                />
+                <UFormField label="Monto" :error="entryErrors[index]?.amountCents">
+                  <HfMoneyInput
+                    :id="`debt-payment-amount-${index}`"
+                    :data-testid="`payment-amount-${index}`"
+                    :model-value="entry.amountCents"
+                    :disabled="isSubmitting"
+                    class="w-full"
+                    @update:model-value="handleAmountChange(index, $event)"
+                    @validation="handleAmountValidation(entry, $event)"
+                  />
+                </UFormField>
+
+                <UFormField
+                  v-if="entryNeedsReference(entry.method)"
+                  label="Referencia"
+                  :error="entryErrors[index]?.reference"
+                >
+                  <UInput
+                    :data-testid="`payment-reference-${index}`"
+                    :model-value="entry.reference ?? ''"
+                    placeholder="Ej: VOUCHER-123"
+                    :disabled="isSubmitting"
+                    @update:model-value="handleReferenceChange(index, $event)"
+                  />
+                </UFormField>
               </div>
-
-              <UFormField label="Monto" :error="entryErrors[index]?.amountCents">
-                <HfMoneyInput
-                  :id="`debt-payment-amount-${index}`"
-                  :data-testid="`payment-amount-${index}`"
-                  :model-value="entry.amountCents"
-                  :disabled="isSubmitting"
-                  class="w-full"
-                  @update:model-value="handleAmountChange(index, $event)"
-                  @validation="handleAmountValidation(entry, $event)"
-                />
-              </UFormField>
-
-              <UFormField
-                v-if="entryNeedsReference(entry.method)"
-                label="Referencia"
-                :error="entryErrors[index]?.reference"
-              >
-                <UInput
-                  :data-testid="`payment-reference-${index}`"
-                  :model-value="entry.reference ?? ''"
-                  placeholder="Ej: VOUCHER-123"
-                  :disabled="isSubmitting"
-                  @update:model-value="handleReferenceChange(index, $event)"
-                />
-              </UFormField>
             </div>
           </section>
 
@@ -453,7 +440,7 @@ watch(catalogClearSignal, () => {
             </p>
             <div
               v-else-if="cashSessionMissing"
-              class="space-y-2 rounded-xl border border-default bg-elevated px-4 py-3"
+              class="hf-pay-panel space-y-2"
               role="alert"
               data-testid="debt-cash-session-missing"
             >
@@ -502,12 +489,12 @@ watch(catalogClearSignal, () => {
         <!-- Sticky footer -->
         <div class="shrink-0 space-y-3 border-t border-default bg-default px-5 py-4">
           <!-- Totals row -->
-          <div class="rounded-xl border border-default bg-elevated px-4 py-3 text-sm">
-            <div class="flex items-center justify-between gap-2">
-              <p>Recibido: <span class="font-semibold">{{ formatCentsMXN(receivedCents) }}</span></p>
+          <div class="hf-pay-summary">
+            <div class="hf-pay-summary-row">
+              <p>Recibido: <span class="hf-pay-summary-value">{{ formatCentsMXN(receivedCents) }}</span></p>
               <p>
                 Restante:
-                <span class="font-semibold" :class="remainingCents > 0 ? 'text-(--hf-warning)' : 'text-(--hf-success)'">
+                <span class="hf-pay-summary-value" :class="remainingCents > 0 ? 'text-(--hf-warning)' : 'text-(--hf-success)'">
                   {{ formatCentsMXN(remainingCents) }}
                 </span>
               </p>

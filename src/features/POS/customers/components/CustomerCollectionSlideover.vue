@@ -58,6 +58,7 @@ import { useCustomerCollection } from '../collection/useCustomerCollection'
 import { useCollectionReceiptDownload } from '../collection/useCollectionReceiptDownload'
 import type { CollectionTender } from '../collection/collection.types'
 import CustomerCollectionSaleList from './CustomerCollectionSaleList.vue'
+import '@/core/shared/components/payments/payment-sheet.css'
 import '../styles/customer-collection.css'
 
 const props = withDefaults(
@@ -370,9 +371,9 @@ function closeAnyway() {
               @click="close"
             />
           </div>
-          <div v-if="!result" class="customer-collection-total">
-            <p>Deuda total</p>
-            <p data-testid="collection-total-debt" class="hf-figure">
+          <div v-if="!result" class="hf-pay-total">
+            <p class="hf-pay-total-label">Deuda total</p>
+            <p data-testid="collection-total-debt" class="hf-figure hf-pay-total-value">
               <USkeleton v-if="!preview" class="mx-auto h-8 w-32 !rounded" />
               <template v-else>{{ formatCentsMXN(preview.debtCents) }}</template>
             </p>
@@ -396,20 +397,20 @@ function closeAnyway() {
             :sales="result.sales"
             caption="Ventas abonadas en este cobro"
           />
-          <dl class="customer-collection-summary grid gap-2 text-sm">
-            <div class="flex items-center justify-between gap-2">
+          <dl class="hf-pay-summary">
+            <div class="hf-pay-summary-row">
               <dt>Recibido</dt>
-              <dd class="hf-figure font-semibold">{{ formatCentsMXN(result.tenderedCents) }}</dd>
+              <dd class="hf-figure hf-pay-summary-value">{{ formatCentsMXN(result.tenderedCents) }}</dd>
             </div>
-            <div class="flex items-center justify-between gap-2">
+            <div class="hf-pay-summary-row">
               <dt>Cambio</dt>
-              <dd data-testid="collection-result-change" class="hf-figure font-semibold">
+              <dd data-testid="collection-result-change" class="hf-figure hf-pay-summary-value">
                 {{ formatCentsMXN(result.changeDueCents) }}
               </dd>
             </div>
-            <div class="flex items-center justify-between gap-2">
+            <div class="hf-pay-summary-row">
               <dt>Deuda restante del cliente</dt>
-              <dd data-testid="collection-result-remaining" class="hf-figure font-semibold">
+              <dd data-testid="collection-result-remaining" class="hf-figure hf-pay-summary-value">
                 {{
                   result.remainingCustomerDebtCents === null
                     ? 'No disponible'
@@ -476,7 +477,7 @@ function closeAnyway() {
             data-testid="collection-uncertain"
             role="alert"
             data-tone="warning"
-            class="customer-collection-panel space-y-2 text-sm"
+            class="hf-pay-panel space-y-2 text-sm"
           >
             <p class="flex items-center gap-2 font-semibold text-(--hf-warning)">
               <UIcon name="i-lucide-triangle-alert" class="size-5 shrink-0" aria-hidden="true" />
@@ -530,7 +531,7 @@ function closeAnyway() {
 
           <section class="space-y-3">
             <p class="text-sm font-semibold text-highlighted">Métodos de pago</p>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="hf-pay-methods">
               <button
                 v-for="option in methodOptions"
                 :key="paymentMethodTileKey(option)"
@@ -541,7 +542,7 @@ function closeAnyway() {
                 "
                 :aria-pressed="getMethodCount(entries, option) > 0"
                 type="button"
-                class="customer-collection-method-tile transition disabled:cursor-not-allowed disabled:opacity-50"
+                class="hf-pay-tile"
                 :disabled="
                   (getMethodCount(entries, option) === 0 && !canAddEntry) ||
                   inputsDisabled ||
@@ -551,20 +552,20 @@ function closeAnyway() {
               >
                 <UIcon
                   :name="option.icon"
-                  class="customer-collection-method-icon"
+                  class="hf-pay-tile-icon"
                   aria-hidden="true"
                 />
-                <p class="customer-collection-method-label">{{ option.label }}</p>
+                <p class="hf-pay-tile-label">{{ option.label }}</p>
                 <span
                   v-if="getMethodCount(entries, option) > 0"
-                  class="customer-collection-method-count"
+                  class="hf-pay-tile-count"
                   aria-hidden="true"
                 >
                   {{ getMethodCount(entries, option) }}
                 </span>
                 <p
                   v-if="option.kind === 'custom' && (option.subtitle?.trim() ?? '') !== ''"
-                  class="customer-collection-method-subtitle"
+                  class="hf-pay-tile-subtitle"
                 >
                   {{ option.subtitle }}
                 </p>
@@ -578,15 +579,15 @@ function closeAnyway() {
               v-for="(entry, index) in entries"
               :key="paymentEntryKey(entry)"
               :data-testid="`collection-entry-${index}`"
-              class="customer-collection-entry space-y-3"
+              class="hf-pay-entry"
             >
-              <div class="flex items-center gap-3">
+              <div class="hf-pay-entry-head">
                 <UIcon
                   :name="PAYMENT_METHOD_CATEGORY_ICONS[entry.method]"
-                  class="size-4 shrink-0 text-(--hf-muted)"
+                  class="hf-pay-entry-icon"
                   aria-hidden="true"
                 />
-                <p class="min-w-0 flex-1 text-sm font-semibold text-highlighted">
+                <p class="hf-pay-entry-label">
                   {{ entryLabels[index] }}
                 </p>
                 <TenderRemainingButton
@@ -658,7 +659,7 @@ function closeAnyway() {
             <div
               v-else-if="cashSessionMissing"
               data-testid="collection-session-missing"
-              class="customer-collection-panel space-y-2"
+              class="hf-pay-panel space-y-2"
               role="alert"
             >
               <p v-if="canOpenCashSession" class="text-sm font-semibold text-(--hf-warning)">
@@ -704,22 +705,22 @@ function closeAnyway() {
         <!-- Footer -->
         <div class="shrink-0 space-y-3 border-t border-default bg-default px-5 py-4">
           <template v-if="!result">
-            <dl class="customer-collection-summary grid gap-1.5 text-sm" aria-live="polite">
-              <div class="flex items-center justify-between gap-2">
+            <dl class="hf-pay-summary" aria-live="polite">
+              <div class="hf-pay-summary-row">
                 <dt>Recibido</dt>
-                <dd class="hf-figure font-semibold">{{ formatCentsMXN(tenderedCents) }}</dd>
+                <dd class="hf-figure hf-pay-summary-value">{{ formatCentsMXN(tenderedCents) }}</dd>
               </div>
-              <div class="flex items-center justify-between gap-2">
+              <div class="hf-pay-summary-row">
                 <dt>Cambio</dt>
-                <dd data-testid="collection-change" class="hf-figure font-semibold">
+                <dd data-testid="collection-change" class="hf-figure hf-pay-summary-value">
                   {{ formatCentsMXN(preview?.changeDueCents ?? 0) }}
                 </dd>
               </div>
-              <div class="flex items-center justify-between gap-2">
+              <div class="hf-pay-summary-row">
                 <dt>Queda debiendo</dt>
                 <dd
                   data-testid="collection-remaining"
-                  class="hf-figure font-semibold text-(--hf-warning)"
+                  class="hf-figure hf-pay-summary-value text-(--hf-warning)"
                 >
                   {{ formatCentsMXN(preview?.remainingCustomerDebtCents ?? 0) }}
                 </dd>
@@ -753,7 +754,7 @@ function closeAnyway() {
               role="alertdialog"
               aria-labelledby="collection-close-confirm-title"
               data-tone="warning"
-              class="customer-collection-panel space-y-2 text-sm"
+              class="hf-pay-panel space-y-2 text-sm"
             >
               <p id="collection-close-confirm-title" class="font-semibold">
                 Aún no sabemos si el cobro se registró.
