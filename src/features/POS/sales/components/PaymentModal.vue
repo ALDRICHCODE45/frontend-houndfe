@@ -12,7 +12,10 @@ import { PAYMENT_METHOD } from '../constants/sale.constants' // sdd/magic-string
 import DateFieldPopover from './DateFieldPopover.vue'
 import { newIdempotencyKey } from '../utils/idempotency.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
-import { CHANGE_EXCEEDS_CASH_MESSAGE } from '../utils/salePaymentErrors.utils'
+import {
+  CHANGE_EXCEEDS_CASH_MESSAGE,
+  NON_CASH_EXCEEDS_TOTAL_MESSAGE,
+} from '../utils/salePaymentErrors.utils'
 import { normalizeReferenceInput } from '../utils/paymentEntries.utils'
 import { useSalePaymentMethods } from '../composables/useSalePaymentMethods'
 import { useCashSaleSession } from '@/features/POS/cash-register/composables/useCashSaleSession'
@@ -190,6 +193,11 @@ const cashTenderedCents = computed(() =>
     .reduce((sum, entry) => sum + Math.max(0, entry.amountCents ?? 0), 0),
 )
 const changeExceedsCash = computed(() => changeDueCents.value > cashTenderedCents.value)
+// Without cash there is no change: paying more than the total by card, transfer or
+// another method is refused by the backend (422 PAYMENT_AMOUNT_INVALID); block it here.
+const nonCashExceedsTotal = computed(
+  () => !hasCashPayment.value && paidSumCents.value - cashTenderedCents.value > props.totalCents,
+)
 const canAddEntry = computed(() => entries.value.length < MAX_ENTRIES)
 const canSubmit = computed(
   () =>
@@ -198,6 +206,7 @@ const canSubmit = computed(
     !inlineError.value &&
     !bindingError.value &&
     !changeExceedsCash.value &&
+    !nonCashExceedsTotal.value &&
     !entries.value.some((entry) => entry.amountError),
 )
 const confirmButtonLabel = computed(() => {
@@ -918,6 +927,9 @@ const confirmButtonClass = computed(() =>
             </p>
             <p v-if="changeExceedsCash" data-testid="change-exceeds-cash" class="mt-1 text-error">
               {{ CHANGE_EXCEEDS_CASH_MESSAGE }}
+            </p>
+            <p v-if="nonCashExceedsTotal" data-testid="non-cash-exceeds-total" class="mt-1 text-error">
+              {{ NON_CASH_EXCEEDS_TOTAL_MESSAGE }}
             </p>
           </div>
 
