@@ -289,6 +289,24 @@ describe('CustomerPetsSection', () => {
     expect(field.textContent).toContain('El motivo admite hasta 280 caracteres.')
   })
 
+  it('reopening the archive dialog drops a stale server error on the reason', async () => {
+    api.archive.mockRejectedValue(fieldError('reason'))
+    const wrapper = mountSection()
+    await flushPromises()
+    await wrapper.get('[data-testid="pet-row-p1"] [data-action="archive"]').trigger('click')
+    await wrapper.get('[data-testid="pet-archive-reason"]').setValue('x')
+    await wrapper.get('[data-testid="pet-archive-confirm"]').trigger('click')
+    await flushPromises()
+    const cancel = wrapper.findAll('button').find((button) => button.text() === 'Cancelar')!
+    await cancel.trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="pet-row-p1"] [data-action="archive"]').trigger('click')
+    await flushPromises()
+    const field = wrapper.get('[data-testid="pet-archive-reason"]').element.closest('label')!
+    expect(field.textContent).not.toContain('El motivo admite hasta 280 caracteres.')
+  })
+
   it('«Sin tamaño» clears a set size (PATCH sends size null)', async () => {
     api.update.mockResolvedValue({ ...makePet({ size: null, version: 4 }), warnings: [] })
     const wrapper = mountSection()
