@@ -14,7 +14,7 @@ Owner wants help splitting what is due across several tenders in the three charg
 ## Tasks
 - [x] T1 S1-S5, S7 Shared split helper (cents math: remaining, equal split with leftover cent on the last, percent split) + shared control, wired into «Cobrar todo» — worker
 - [x] T2 S6-S7 Wire the same helper/control into the counter checkout (PaymentModal) and the sale debt payment (DebtPaymentModal) — worker
-- [ ] T3 Full suite, preview check vs :3003, owner browser check — parent
+- [x] T3 Full suite, preview check vs :3003, owner browser check — parent
 
 ## Log
 - L1 Owner (2026-11-26): S1 verbatim; answers S2-S6 via structured question.
@@ -24,3 +24,4 @@ Owner wants help splitting what is due across several tenders in the three charg
 - L5 Native review of 693fd2c8 alone (base e6a76412, risk+reliability): APPROVED, authority burned (review-3979c9be14660cb2). Advisories fixed next: R3-collection-confirm-blank-guard-ignores-amount (CustomerCollectionSlideover.vue:319-325, early return counts blank keys even with an amount); R3-debt-blank-tender-silent-block (DebtPaymentModal.vue:150-154, blank tender disables confirm with no visible reason).
 - L6 L5 advisories fixed (worker mwxlnrq3-9-nc3m): «Cobrar todo» confirm guard counts only blank-marked tenders still at 0; DebtPaymentModal shows «Escribe un monto o quita el método vacío.» next to confirm when blank tenders are the only blocker (field error still hidden until typing). RED collection 1 failed, debt 2 failed; GREEN 44/44, 55/55; related 40 files / 500 tests; lint, type-check clean.
 - L7 T3: full suite 1127 files / 18857 tests green (867d7721). Preview rebuilt on :4173 against :3003. Waiting for the owner's browser check.
+- L-merge Owner (2026-11-26): «merge». Merged --no-ff to local main (fabc7275 customer-collection, 2cfe5423 payment-split); branches deleted; owner pushes.

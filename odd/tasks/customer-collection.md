@@ -14,7 +14,7 @@ The backend built «Cobrar todo» (one payment for several sales of a customer) 
 - [x] T1 S1-S5 «Cobrar todo» in the customer history: API, types, error mapping, slideover/modal with live preview, tenders, cash session, confirm with idempotency, 409 refresh, result + receipt PDF — worker
 - [x] T2 Independent verification (Risk: item 1 money writes / idempotency) + native review — parent
 - [x] T4 S6 «Cobrar todo» slideover to the design system (12px cards / 6px controls, sales as a plain table with dividers, counter-style method tiles, plain summary rows, no nested cards) — worker
-- [ ] T3 Full suite, browser check vs :3003, merge — parent
+- [x] T3 Full suite, browser check vs :3003, merge — parent
 
 ## Log
 - L1 Owner (2026-11-26): «Como lo recomiendes.» (pending items) after approving the contract decisions above; backend: «"Cobrar todo" ya está implementado, verificado … y mergeado en main local del backend (8fcbaff8 …). Dev :3003 ya lo sirve, con la migración aplicada».
@@ -28,3 +28,4 @@ The backend built «Cobrar todo» (one payment for several sales of a customer) 
 - L9 Full suite after T2d: 1120 files / 18744 tests green. Waiting for the owner's browser check against :3003.
 - L10 Owner browser check (2026-11-26) on preview :4173: S6 quote above. Read-only audit (mwxilcrd-1-joi2): Tailwind `rounded-xl` = 28px here (`src/assets/main.css:86`; `.hf-ui` remaps only md/lg); slideover copied `DebtPaymentModal.vue` raw classes, which look right on the counter only through the `.sales-pos-checkout` marker that this portal never gets (`CustomerCollectionSlideover.vue:60`). Deviations: total `:313`, sale cards `CustomerCollectionSaleList.vue:28`, tiles `:483`, entries `:518`, summary `:629`/`:343`, alerts/panels `:422`, `:582`, `:679`, skeleton `:459`. No design guard checks radius. Out of scope (noted): `DebtPaymentModal` and sales history `rounded-xl` uses.
 - L11 T4 (worker mwxio4z2-2-a97i): scoped `styles/customer-collection.css` under the slideover root (same tokens as the counter, `.sales-pos-checkout` untouched); sales as one `.hf-plain-table` surface (stacks with hairlines under a 26rem container); one-line method tiles; plain summary rows; 12px panels. Guard `CustomerCollection.design.spec.ts` (4 tests: no rounded-xl/2xl, table at desktop). Related 33 files / 320 tests (re-run by parent), design guards 188, oxlint/eslint/type-check clean. Behaviour, copy and testids unchanged. Browser check pending.
+- L-merge Owner (2026-11-26): «merge». Merged --no-ff to local main (fabc7275 customer-collection, 2cfe5423 payment-split); branches deleted; owner pushes.
