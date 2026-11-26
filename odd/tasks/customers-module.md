@@ -1,0 +1,20 @@
+# Customers module — richer table, advanced filters, customer page
+
+Owner items 1-3 of `odd/pending-owner-ideas.md` (then the cash picker bug, then the style cleanup leftovers). Design proposals first; implementation after the owner chooses. Backend changes go through a contract with the backend session.
+
+## Specs
+- S1 Owner (2026-11-26, verbatim): «Estaria muy bien, tener en la tabla de clientes todo lo que se tiene en la tabla de ventas por ejemplo, la tabla de clientes no es tan completa como la de ventas o productos, eso primero, y despues, este "modulo" del sistema, esta creciendo mucho, los clientes ya tienen mas "cosas" o funcionalidades, me gustaria tener muchos mas filtros, como por ejemplo esto, ahora para buscar un cliente, tengo que buscarlo cliente por cliente, me gustaria poder filtrar por "que cliente tiene deuda, y de cuanto y de cuando.. "» … «me parece que el "historial de ventas" es lo suficientemente grande como para meterlo en una pagina propia.. ooo hacer el slideOver todavia mas grande, es que cuando abro el slideOver, me siento "encerrado"»
+- S2 Owner (2026-11-26, verbatim): «todo por orden en que lo mencionaste hermano, mis ideas, el bug de la caja y la limpieza. sobre mis ideas, la tabla mas completa si, pero los filtros me quede corto, no solo quiero filtros por deuda, quiero mas filrtros, avanzados que se puedan aplicar a la tabla de clientes, escucho propuestas, y el historial en una pagina propia si esta bien, igualmente escucho propuestas, de diseno y si conviene agregar mas cosas ya que tenemos una pagina propia.»
+- S3 (pending owner choice) Filters, columns and saved views for the customers table.
+- S4 (pending owner choice) Customer page direction and its sections.
+
+## Tasks
+- [ ] T1 Design proposals: customers table with advanced filters + customer page directions + mobile (design/customers-module/) — worker
+- [ ] T2 Owner chooses filters/columns/page direction (S3-S4) — owner
+- [ ] T3 Backend contract for the new customers list endpoint (+ collections by customer if chosen) — parent ↔ backend
+- [ ] T4+ Implementation tasks (after T2-T3)
+
+## Log
+- L1 Owner: S1 (pending ideas note) and S2.
+- L2 FE map (explore mwxtb7qu-a-vhih): customers table = 5 columns (Nombre, Correo, Teléfono, Lista de precios, Acciones) on `useServerTable` + `AppDataTable` (layout persistence, density, mobile cards) but no filters, no saved views, no totals, no sort select, no money/date columns; row click opens the editor; no customer detail route (only `/pos/customers`). Sales list has `DataTableFilters` (sections, multiEnum/multiAsync/numericRange/dateRange, URL-synced), `DataTableViews` saved views, totals, sort select, 13 columns with hidden defaults — all reusable. History drawer = `CustomerSalesHistorySlideover` (`max(45vw,640px)`).
+- L3 Backend inventory (backend session 01a217ad-71d6, read-only): `GET /customers` only `search`, flat array createdAt desc, no paging/sort/filters (customers.controller.ts:38-42, customers.service.ts:99-137); rows carry full customer (fiscal, preferredPaymentMethod, createdAt), globalPriceList, addresses[], matchedPetName. In DB not exposed on the list: openDebtCents/dueDate per sale (debt, overdue), sales count/total/average (derivable), last purchase (Sale.confirmedAt), pets (species, size, status, createdVia), Customer.isTrusted. Delivery zone only by zip code. Do not exist: credit limit, tags/groups, birthdate, active/inactive, assigned seller. Chatbot: ChatbotRequest.customerId exists; conversations only by phone. Ready for a customer page: GET /sales?customerId= (paging, sort, overdue, petId, summary/counts), sales-monthly, statement PDF, pets, GET /quotations?customerId=. Collections by customer: no list endpoint but the index exists (cheap). Recommendation: new endpoint (array → {data, pagination} would break consumers), read-time aggregates with LEFT JOIN LATERAL + a partial covering index on sales(tenantId, customerId) WHERE CONFIRMED, same overdue rule as GET /sales; no denormalized stats table.
