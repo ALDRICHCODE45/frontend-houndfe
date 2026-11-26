@@ -12,9 +12,10 @@ Owner wants help splitting what is due across several tenders in the three charg
 - S7 Keep every existing money rule of each screen: amounts in cents (no float drift, splits sum exactly to the target), non-cash tenders never exceed what is due (only cash can exceed and gives change), tender limits (1–5 in «Cobrar todo»), idempotency/confirm logic untouched. The design system applies (`design/system.md`, `docs/design-system.md`: 12px cards, 6px controls, no nested cards).
 
 ## Tasks
-- [ ] T1 S1-S5, S7 Shared split helper (cents math: remaining, equal split with leftover cent on the last, percent split) + shared control, wired into «Cobrar todo» — worker
+- [x] T1 S1-S5, S7 Shared split helper (cents math: remaining, equal split with leftover cent on the last, percent split) + shared control, wired into «Cobrar todo» — worker
 - [ ] T2 S6-S7 Wire the same helper/control into the counter checkout (PaymentModal) and the sale debt payment (DebtPaymentModal) — worker
 - [ ] T3 Full suite, preview check vs :3003, owner browser check — parent
 
 ## Log
 - L1 Owner (2026-11-26): S1 verbatim; answers S2-S6 via structured question.
+- L2 T1 (worker mwxjkwq5-4-mskq): `src/core/shared/payments/tenderSplit.ts` (remainingDueCents, fillRemainingCents, equalSplitCents, percentSplitCents in basis points, parsePercentInput, applyTenderAmounts) + `TenderSplitControl.vue` / `TenderRemainingButton.vue` (shared CSS, tokens, 6px). «Cobrar todo»: new tender = remaining (blank without error when covered), «Lo que falta» per tender, equal/percent split with 2+ tenders; amounts flow through the same entries watcher → debounced preview; idempotency/confirm/lock untouched. RED observed (helper missing; slideover 10 failed), GREEN helper 20/20, slideover 40/40; customers+payments 50 files / 594 tests; related 34/355; lint, type-check clean. Examples: 6,076.29÷3 = 2,025.43×3; 1,000.00÷3 → 333.33/333.33/333.34; 6,076.29 at 50/30/20 → 3,038.14/1,822.88/1,215.27. T2 API recorded in the worker report.

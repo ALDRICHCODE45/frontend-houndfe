@@ -15,13 +15,18 @@
  * only actions are «Reintentar con los mismos datos» (same key and body) and «Revisar historial»,
  * and closing asks first. A catalog method the backend no longer accepts is dropped from the
  * tenders with a notice that stays until the cashier edits the tenders or dismisses it.
+ *
+ * Splitting (payment-split S2-S5): a new method enters with what is still due (blank, without an
+ * error until the cashier types or tries to confirm, when the debt is already covered); each
+ * amount offers «Lo que falta» while something is pending, and 2+ methods offer «Repartir en partes
+ * iguales» / «Por porcentaje». Every helper amount is written to `entries` like a typed one, so it
+ * reaches the composable's debounced preview through the same watcher.
  */
 import { computed, ref, watch } from 'vue'
 import type { PaymentEntry } from '@/features/POS/sales/interfaces/sale.types'
 import { PAYMENT_METHOD } from '@/features/POS/sales/constants/sale.constants'
 import {
   MAX_PAYMENT_ENTRIES,
-  addEntry,
   normalizeReferenceInput,
   paidSum,
   removeEntry,
@@ -44,6 +49,10 @@ import { useCashSaleSession } from '@/features/POS/cash-register/composables/use
 import { useCashAccess } from '@/features/POS/cash-register/composables/useCashAccess'
 import { PAYMENT_METHOD_CATEGORY_ICONS } from '@/core/shared/constants/payment-method-category'
 import HfMoneyInput from '@/core/shared/components/form/HfMoneyInput.vue'
+import TenderSplitControl from '@/core/shared/components/payments/TenderSplitControl.vue'
+import TenderRemainingButton from '@/core/shared/components/payments/TenderRemainingButton.vue'
+import type { SplitControlTender } from '@/core/shared/components/payments/splitControl.types'
+import { applyTenderAmounts, remainingDueCents } from '@/core/shared/payments/tenderSplit'
 import { formatCentsMXN } from '@/features/POS/sales/utils/currency.utils'
 import { useCustomerCollection } from '../collection/useCustomerCollection'
 import { useCollectionReceiptDownload } from '../collection/useCollectionReceiptDownload'
@@ -72,6 +81,10 @@ const CATALOG_CODES: ReadonlySet<string> = new Set([
 
 const entries = ref<PaymentEntry[]>([])
 const amountTextErrors = ref<Record<string, string>>({})
+/** Tenders added once the debt was covered: blank and without an error until typed (S5). */
+const blankKeys = ref<ReadonlySet<string>>(new Set())
+/** A confirm was tried: blank tenders show their amount error from then on. */
+const confirmAttempted = ref(false)
 /** Names the catalog method(s) dropped after PAYMENT_METHOD_NOT_FOUND / INACTIVE_PAYMENT_METHOD. */
 const catalogNotice = ref<string | null>(null)
 const closeConfirmOpen = ref(false)
@@ -144,7 +157,30 @@ const receipt = useCollectionReceiptDownload(() => result.value?.collectionId)
 
 const debtCents = computed(() => preview.value?.debtCents ?? 0)
 const tenderedCents = computed(() => paidSum(entries.value))
-const entryErrors = computed(() => entries.value.map((entry) => validateEntry(entry)))
+const entryErrors = computed(() =>
+  entries.value.map((entry) =>
+    blankKeys.value.has(paymentEntryKey(entry)) && !confirmAttempted.value
+      ? {}
+      : validateEntry(entry),
+  ),
+)
+const entryLabels = computed(() =>
+  entries.value.map((entry) => resolveEntryDisplay(entry, methodOptions.value).label),
+)
+const splitTenders = computed<SplitControlTender[]>(() =>
+  entries.value.map((entry, index) => ({
+    key: paymentEntryKey(entry),
+    label: entryLabels.value[index] ?? '',
+    method: entry.method,
+    amountCents: entry.amountCents,
+  })),
+)
+const isBlank = (entry: PaymentEntry) => blankKeys.value.has(paymentEntryKey(entry))
+function unmarkBlank(keys: Iterable<string>) {
+  const next = new Set(blankKeys.value)
+  for (const key of keys) next.delete(key)
+  if (next.size !== blankKeys.value.size) blankKeys.value = next
+}
 const hasAmountTextErrors = computed(() =>
   entries.value.some((entry) => amountTextErrors.value[paymentEntryKey(entry)]),
 )
@@ -174,6 +210,7 @@ watch(
     )
     if (Object.keys(kept).length !== Object.keys(amountTextErrors.value).length)
       amountTextErrors.value = kept
+    unmarkBlank([...blankKeys.value].filter((key) => !live.has(key)))
     collection.setPayments(current.map(toTender))
   },
   { deep: true },
@@ -186,6 +223,8 @@ watch(
     // The composable previews without tenders on open; only a reopened sheet has entries to drop.
     if (entries.value.length > 0) entries.value = []
     amountTextErrors.value = {}
+    blankKeys.value = new Set()
+    confirmAttempted.value = false
     catalogNotice.value = null
     closeConfirmOpen.value = false
     cashSaleSession.clearSelection()
@@ -220,16 +259,36 @@ function handleMethodToggle(tile: PaymentMethodTile) {
   if (inputsDisabled.value) return
   catalogNotice.value = null
   const index = findEntryIndex(entries.value, tile)
-  entries.value =
-    index >= 0
-      ? removeEntry(entries.value, index)
-      : addEntry(entries.value, tile.value, debtCents.value, tile.paymentMethodId)
+  if (index >= 0) {
+    entries.value = removeEntry(entries.value, index)
+    return
+  }
+  if (!canAddEntry.value) return
+  // S5: the new method takes what is still due (never more, S7); blank when all is covered.
+  const amountCents = remainingDueCents(
+    debtCents.value,
+    entries.value.map((entry) => entry.amountCents),
+  )
+  const entry: PaymentEntry = { method: tile.value, amountCents }
+  if (tile.paymentMethodId !== undefined) entry.paymentMethodId = tile.paymentMethodId
+  if (amountCents === 0) blankKeys.value = new Set([...blankKeys.value, paymentEntryKey(entry)])
+  entries.value = [...entries.value, entry]
 }
 
 function handleAmountChange(index: number, amountCents: number | null) {
   if (inputsDisabled.value) return
   catalogNotice.value = null
+  const entry = entries.value[index]
+  if (entry) unmarkBlank([paymentEntryKey(entry)])
   entries.value = updateEntry(entries.value, index, { amountCents: Math.max(0, amountCents ?? 0) })
+}
+
+/** Amounts from the split helpers, one per tender: written exactly like typed amounts. */
+function handleSplitApply(amounts: number[]) {
+  if (inputsDisabled.value || amounts.length !== entries.value.length) return
+  catalogNotice.value = null
+  unmarkBlank(entries.value.map(paymentEntryKey))
+  entries.value = applyTenderAmounts(entries.value, amounts)
 }
 
 function handleAmountValidation(entry: PaymentEntry, error: string | null) {
@@ -251,7 +310,9 @@ function handleRemove(index: number) {
 }
 
 async function handleConfirm() {
-  if (locked.value || !canConfirm.value) return
+  if (locked.value) return
+  confirmAttempted.value = true
+  if (!canConfirm.value) return
   // Several sessions: the explicit choice is revalidated live right before the money moves.
   if (needsCashSessionPick.value && !cashSaleSession.revalidateSelection()) return
   await collection.confirm()
@@ -526,8 +587,17 @@ function closeAnyway() {
                   aria-hidden="true"
                 />
                 <p class="min-w-0 flex-1 text-sm font-semibold text-highlighted">
-                  {{ resolveEntryDisplay(entry, methodOptions).label }}
+                  {{ entryLabels[index] }}
                 </p>
+                <TenderRemainingButton
+                  :data-testid="`collection-fill-remaining-${index}`"
+                  :tenders="entries"
+                  :index="index"
+                  :target-cents="debtCents"
+                  :label="entryLabels[index] ?? ''"
+                  :disabled="inputsDisabled"
+                  @fill="handleAmountChange(index, $event)"
+                />
                 <UButton
                   :aria-label="`Quitar pago ${index + 1}`"
                   type="button"
@@ -543,7 +613,7 @@ function closeAnyway() {
                 <HfMoneyInput
                   :id="`collection-amount-${index}`"
                   :data-testid="`collection-amount-${index}`"
-                  :model-value="entry.amountCents"
+                  :model-value="isBlank(entry) ? null : entry.amountCents"
                   :disabled="inputsDisabled"
                   class="w-full"
                   @update:model-value="handleAmountChange(index, $event)"
@@ -562,6 +632,13 @@ function closeAnyway() {
                 />
               </UFormField>
             </div>
+
+            <TenderSplitControl
+              :tenders="splitTenders"
+              :target-cents="debtCents"
+              :disabled="inputsDisabled || !preview"
+              @apply="handleSplitApply"
+            />
           </section>
 
           <section class="space-y-2" data-testid="collection-session" aria-label="Caja del cobro">
