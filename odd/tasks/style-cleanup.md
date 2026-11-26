@@ -1,0 +1,19 @@
+# Legacy style cleanup — POS
+
+Owner asked to find and clean code that still carries the old style. Read-only audit (explore mwxjikyn-3-xl6k, 2026-11-26) found the root cause and a plan. Branch feat/payment-split (same branch as the payment split; units 2-3 run before payment-split T2).
+
+## Specs
+- S1 Owner (2026-11-26, verbatim): «no entiendo por que al principio no seguia el system design, me hace pensar que hay cosas en el codigo que aun hagan referencia al estilo viejo, hay que revisar eso y hacer limpiezas necesarias en el codigo para dejarlo todo ordenado»
+- S2 Root cause: `rounded-xl` = `--radius-xl: 28px` (`src/assets/main.css:86`); `src/core/shared/design-system/houndfe-ui.css:62-63` fixes only md (6px) and lg (12px); 14 feature stylesheets each re-fix xl/2xl under their own marker (`products-visual.css:18-24`, `clients-visual.css:10-16`, users/employees/roles/tenants/payment-methods/payment-details/promotions/delivery-routes `*-visual.css`, `dashboard-visual.css:17-20`, `quotations-workspace-visual.css:20-22`, `sales-entry-visual.css:27-29`, `sales-detail-visual.css:30-33`, `sales-list-visual.css:23-27`). Rules: `design/system.md:83` «`--hf-radius-card` 12px, `--hf-radius-control` 6px»; `:130` «No nested decorative cards.»
+- S3 Owner decisions (structured question): order «Limpieza 1-3 antes de T2 (Recomendado)»; debt modal «Sí, una sola pieza (Recomendado)» — «Mostrador, abono y «Cobrar todo» comparten el mismo aspecto y piezas; menos código duplicado.»; mobile bottom sheets «Dejarlas en 16px (Recomendado)» — «se agrega como excepción al test»; copy «Reescribir sin «legacy» (Recomendado)» — «Ej. «Sin caja» y «Cobrar sin vincular a caja»; misma función, texto entendible.»
+- S4 No behaviour change except the S3 copy rewrite; every existing test stays green (update only class/snapshot assertions that pin the removed legacy markup). A guard test prevents each removed pattern from coming back.
+
+## Tasks
+- [ ] U1 S2, S4 Radius at the root: `--radius-xl` (and 2xl/3xl) resolve to the card token app-wide (decide where: `houndfe-ui.css` vs `main.css`, mind the always-light public catalog); delete the 14 per-feature copies and their stale comments; fix still-28px skeletons (cash ×3, ProductDetailSkeleton, catalog) for free; radius guard spec (blocks `rounded-(xl|2xl|3xl)` re-definitions in feature CSS, asserts computed card radius; allowlist mobile `rounded-t-2xl` sheets per S3) — worker
+- [ ] U2 S3 «una sola pieza»: customer history drawer + DebtPaymentModal share the checkout payment look without depending on the `.sales-pos-checkout` marker (shared `hf-*` payment classes/components), no nested cards — worker, after payment-split T1
+- [ ] U3 S3, S4 Counter checkout: collapse the 4 dead opt-in branches (`PaymentModal.vue:616-620`, `PaymentSuccessModal.vue:59-63`, `PromotionCapacityRequoteModal.vue:59-63`, `SaleTotalsFooter.vue:61-65`, `ActiveSalePanel.vue:124-135`) onto the modern markup; remove redundant `--ui-*` (`sales-pos-checkout.css:32-34`); copy «(legacy)» rewrite (`CashSaleSessionPicker.vue:98,130`, `PaymentModal.vue:831`) — worker, after U2
+- [ ] U4 Sales workspace 16px cards (`SalesView.vue`, `SaleItemRow:89`, `ProductSearchResult*`, `ActiveSalePanel:374`, `PaymentSuccessModal:76`) — later
+- [ ] U5 Dead tokens/comments (`--brand-*`, `--light-surface-page`, `hf-global-roles.spec.ts:72-80,133`), palette guard fails on `--brand-*` definitions — later
+
+## Log
+- L1 Owner (2026-11-26): S1 verbatim; audit findings S2; decisions S3.
