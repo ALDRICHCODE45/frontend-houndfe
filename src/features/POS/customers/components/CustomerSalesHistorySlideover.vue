@@ -27,8 +27,12 @@ import SalesHistoryMonthlyChart from './SalesHistoryMonthlyChart.vue'
 import SalesHistoryPetFilter from './SalesHistoryPetFilter.vue'
 import SalesHistoryStatusFilter from './SalesHistoryStatusFilter.vue'
 import CustomerStatementDownload from './CustomerStatementDownload.vue'
+import CustomerCollectionSlideover from './CustomerCollectionSlideover.vue'
+import { hasUnresolvedCollection } from '../collection/useCustomerCollection'
 
-declare const useToast: () => { add: (options: { title: string; description?: string; color?: 'error' }) => void }
+declare const useToast: () => {
+  add: (options: { title: string; description?: string; color?: 'error' | 'warning' }) => void
+}
 
 const props = defineProps<{ open: boolean; customer: Customer | null }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
@@ -67,6 +71,7 @@ watch(() => props.customer?.id, () => {
   petNotice.value = null
   status.value = 'all'
   chargeRequest.value = null
+  collectionOpen.value = false
 }, { flush: 'sync' })
 
 watch(petId, (selected) => {
@@ -173,10 +178,26 @@ const overdueLabel = computed(() => {
   }
   return parts.join(' · ')
 })
-const showDebtBanner = computed(() => listLayout.value === 'cards' && (hasDebt.value || !!overdueLabel.value))
+// A «Cobrar todo» whose outcome is unknown stays reachable (to retry it) even if the debt is gone.
+const collectionUnresolved = computed(() =>
+  hasUnresolvedCollection(authStore.currentTenantId, props.customer?.id),
+)
+const collectActionLabel = computed(() =>
+  collectionUnresolved.value ? 'Cobro sin confirmar' : 'Cobrar todo',
+)
+const showDebtBanner = computed(() =>
+  listLayout.value === 'cards' && (hasDebt.value || !!overdueLabel.value || collectionUnresolved.value),
+)
 const showMonthlyChart = computed(() => monthlyCanRead.value && !customerHasNoSales.value)
 // Handoff 29: the statement PDF needs read:Sale, the same check as the monthly chart.
 const showStatementDownload = computed(() => monthlyCanRead.value && !!props.customer?.id)
+// «Cobrar todo» (handoff 30 §1): collecting needs update:Sale, and only a customer with open debt.
+const canCollect = computed(
+  () => typeof authStore.userCan === 'function' && authStore.userCan('update', 'Sale'),
+)
+const showCollectAction = computed(
+  () => canCollect.value && (hasDebt.value || collectionUnresolved.value) && !!props.customer?.id,
+)
 const pendingPaymentsLabel = computed(() => {
   const count = customerCounts.value?.pendingPayments ?? 0
   return count > 0 ? `${count} ${count === 1 ? 'venta' : 'ventas'} por cobrar` : null
@@ -253,6 +274,22 @@ function onCharge(request: SaleHistoryChargeRequest) {
   chargeRequest.value = request
 }
 
+// «Cobrar todo»: its own open state, so the sheet survives the refreshed history losing its debt.
+// The collection itself refreshes the history, monthly chart, sales lists and sale details.
+const collectionOpen = shallowRef(false)
+
+// The parent may switch customer under an unresolved collection; its key survives (module scope),
+// so say whose collection to reopen to retry it with the same data.
+watch(() => props.customer, (current, previous) => {
+  if (!previous || previous.id === current?.id) return
+  if (!hasUnresolvedCollection(authStore.currentTenantId, previous.id)) return
+  toast.add({
+    title: 'Cobro sin confirmar',
+    description: `No sabemos si el cobro a ${previous.fullName} se registró. Vuelve a abrir «Cobrar todo» de ese cliente para reintentarlo con los mismos datos.`,
+    color: 'warning',
+  })
+})
+
 function onChargeSuccess() {
   chargeRequest.value = null
   const customerId = props.customer?.id
@@ -301,8 +338,20 @@ function onChargeSuccess() {
             <span class="hf-figure">{{ phone.label }}</span>
           </a>
         </div>
-        <div v-if="showStatementDownload && customer" class="ml-auto shrink-0">
-          <CustomerStatementDownload :key="customer.id" :customer-id="customer.id" />
+        <div
+          v-if="(showStatementDownload || (showCollectAction && listLayout === 'table')) && customer"
+          class="ml-auto flex shrink-0 items-center gap-2"
+        >
+          <UButton
+            v-if="showCollectAction && listLayout === 'table'"
+            data-testid="history-collect-all"
+            icon="i-lucide-hand-coins"
+            class="hf-primary-control"
+            @click="collectionOpen = true"
+          >
+            {{ collectActionLabel }}
+          </UButton>
+          <CustomerStatementDownload v-if="showStatementDownload" :key="customer.id" :customer-id="customer.id" />
         </div>
       </div>
     </template>
@@ -382,28 +431,39 @@ function onChargeSuccess() {
                 class="hf-figure font-semibold text-[var(--hf-warning)]"
               >{{ overdueLabel }}</span>
             </div>
-            <UButton
-              v-if="overdueLabel && status !== 'overdue'"
-              size="sm"
-              color="neutral"
-              variant="outline"
-              class="min-h-11 shrink-0"
-              aria-label="Ver las ventas vencidas"
-              @click="status = 'overdue'"
-            >
-              Ver vencidas
-            </UButton>
-            <UButton
-              v-else-if="!overdueLabel"
-              size="sm"
-              color="neutral"
-              variant="outline"
-              class="min-h-11 shrink-0"
-              :aria-label="'Ver las ventas con saldo'"
-              @click="status = 'with-debt'"
-            >
-              Ver
-            </UButton>
+            <div class="flex shrink-0 flex-col items-stretch gap-2">
+              <UButton
+                v-if="showCollectAction"
+                data-testid="history-collect-all-banner"
+                size="sm"
+                class="hf-primary-control min-h-11 justify-center"
+                @click="collectionOpen = true"
+              >
+                {{ collectActionLabel }}
+              </UButton>
+              <UButton
+                v-if="overdueLabel && status !== 'overdue'"
+                size="sm"
+                color="neutral"
+                variant="outline"
+                class="min-h-11 shrink-0 justify-center"
+                aria-label="Ver las ventas vencidas"
+                @click="status = 'overdue'"
+              >
+                Ver vencidas
+              </UButton>
+              <UButton
+                v-else-if="!overdueLabel"
+                size="sm"
+                color="neutral"
+                variant="outline"
+                class="min-h-11 shrink-0 justify-center"
+                :aria-label="'Ver las ventas con saldo'"
+                @click="status = 'with-debt'"
+              >
+                Ver
+              </UButton>
+            </div>
           </div>
 
           <SalesHistoryMetrics v-if="customerSummary" :summary="customerSummary" :counts="customerCounts" />
@@ -521,6 +581,14 @@ function onChargeSuccess() {
         :debt-cents="chargeRequest.debtCents"
         portal-class="hf-theme hf-ui hf-form-overlay"
         @success="onChargeSuccess"
+      />
+
+      <CustomerCollectionSlideover
+        v-if="collectionOpen && customer"
+        :key="customer.id"
+        v-model:open="collectionOpen"
+        :customer-id="customer.id"
+        :customer-name="customer.fullName"
       />
     </template>
 

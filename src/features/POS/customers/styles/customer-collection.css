@@ -1,0 +1,297 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+/*
+ * «Cobrar todo» (customer collection) — presentation adapter (S6).
+ *
+ * Same look as the counter checkout (`sales-pos-checkout.css`) without its marker: a neutral
+ * total panel on the page tone, sales as ONE bordered surface holding a `.hf-plain-table`,
+ * one-line method tiles, muted payment entries and plain summary rows. Cards and panels take
+ * `--hf-radius-card` (12px), controls `--hf-radius-control` (6px); nothing nests a decorative card.
+ *
+ * Every rule is governed by the owned root `.customer-collection` (the slideover content root,
+ * which also hosts the sale list), so the counter checkout and every other consumer are untouched.
+ * No palette literal, no `:root`, no `!important`.
+ */
+
+/* ── Neutral total panel (counter `sales-pos-checkout-total`) ───────────── */
+
+.customer-collection .customer-collection-total {
+  padding: 0.75rem 1.25rem;
+  text-align: center;
+  background-color: var(--hf-page);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+}
+
+.customer-collection .customer-collection-total > p:first-child {
+  color: var(--hf-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.customer-collection .customer-collection-total > p:last-child {
+  margin-top: 0.25rem;
+  color: var(--hf-heading);
+  font-size: 2.25rem;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Panels, alerts and skeleton: 12px card radius ──────────────────────── */
+
+.customer-collection .customer-collection-panel {
+  padding: 0.75rem 1rem;
+  background-color: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+}
+
+.customer-collection .customer-collection-panel[data-tone='warning'] {
+  background-color: var(--hf-warning-soft);
+  border-color: color-mix(in srgb, var(--hf-warning) 40%, var(--hf-border));
+}
+
+.customer-collection .customer-collection-skeleton {
+  border-radius: var(--hf-radius-card);
+}
+
+/* ── Sales with debt: one surface, a plain table, hairline rows ─────────── */
+
+.customer-collection .customer-collection-sales {
+  container-type: inline-size;
+  min-width: 0;
+  overflow: hidden;
+  background-color: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+}
+
+.customer-collection .customer-collection-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.customer-collection .customer-collection-table :is(th, td) {
+  padding: 0.625rem 0.5rem;
+  vertical-align: top;
+}
+
+.customer-collection .customer-collection-table thead th {
+  height: 2.5rem;
+  padding-block: 0;
+  vertical-align: middle;
+  text-align: left;
+}
+
+.customer-collection .customer-collection-table :is(th, td):first-child {
+  padding-left: 0.75rem;
+}
+
+.customer-collection .customer-collection-table :is(th, td):last-child {
+  padding-right: 0.75rem;
+}
+
+.customer-collection .customer-collection-table .customer-collection-col-due {
+  width: 6rem;
+}
+
+.customer-collection .customer-collection-table .customer-collection-col-amount {
+  width: 5.75rem;
+}
+
+.customer-collection .customer-collection-table :is(th, td).customer-collection-figure {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.customer-collection .customer-collection-sale {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.customer-collection .customer-collection-sale-folio {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.customer-collection .customer-collection-due {
+  color: var(--hf-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.customer-collection .customer-collection-cell-label {
+  display: none;
+}
+
+/* Narrow sheet (390px phones): rows stack inside the same surface, divided by hairlines —
+ * no sideways scroll and no card per sale. The header hides visually; each figure carries
+ * its own label. */
+@container (max-width: 26rem) {
+  .customer-collection .customer-collection-table,
+  .customer-collection .customer-collection-table tbody {
+    display: block;
+  }
+
+  .customer-collection .customer-collection-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .customer-collection .customer-collection-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-areas:
+      'sale sale due'
+      'debt applied remaining';
+    gap: 0.5rem;
+    padding: 0.625rem 0.75rem;
+    border-bottom: 1px solid var(--hf-border);
+  }
+
+  .customer-collection .customer-collection-table tbody tr:last-child {
+    border-bottom: 0;
+  }
+
+  .customer-collection .customer-collection-table tbody td {
+    display: block;
+    min-width: 0;
+    padding: 0;
+    border-bottom: 0;
+  }
+
+  .customer-collection .customer-collection-table tbody td:nth-child(1) {
+    grid-area: sale;
+  }
+
+  .customer-collection .customer-collection-table tbody td:nth-child(2) {
+    grid-area: due;
+    text-align: right;
+  }
+
+  .customer-collection .customer-collection-table tbody td:nth-child(3) {
+    grid-area: debt;
+  }
+
+  .customer-collection .customer-collection-table tbody td:nth-child(4) {
+    grid-area: applied;
+  }
+
+  .customer-collection .customer-collection-table tbody td:nth-child(5) {
+    grid-area: remaining;
+  }
+
+  .customer-collection .customer-collection-table tbody :is(th, td).customer-collection-figure {
+    text-align: left;
+  }
+
+  .customer-collection .customer-collection-sale {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 0.5rem;
+  }
+
+  .customer-collection .customer-collection-cell-label {
+    display: block;
+    color: var(--hf-muted);
+    font-weight: 400;
+  }
+}
+
+/* ── Method tiles: one horizontal line (counter v0) ─────────────────────── */
+
+.customer-collection .customer-collection-method-tile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.5rem;
+  min-height: var(--hf-control-height);
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+  background-color: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+}
+
+.customer-collection .customer-collection-method-tile > svg,
+.customer-collection .customer-collection-method-tile > .customer-collection-method-icon {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--hf-muted);
+}
+
+.customer-collection .customer-collection-method-label {
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.customer-collection .customer-collection-method-count {
+  order: 3;
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--hf-active);
+}
+
+/* Custom-method subtitle wraps under the label instead of squeezing it. */
+.customer-collection .customer-collection-method-subtitle {
+  flex-basis: 100%;
+  order: 4;
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+}
+
+.customer-collection .customer-collection-method-tile:is(:hover, :focus-visible):not(:disabled) {
+  background-color: color-mix(in srgb, var(--hf-action) 4%, var(--hf-surface));
+  border-color: color-mix(in srgb, var(--hf-action) 40%, var(--hf-border));
+}
+
+.customer-collection .customer-collection-method-tile[aria-pressed='true'] {
+  background-color: var(--hf-active-soft);
+  border-color: var(--hf-action);
+}
+
+/* ── Payment entries (counter `sales-pos-checkout-payment-entry`) ───────── */
+
+.customer-collection .customer-collection-entry {
+  padding: 0.75rem;
+  background-color: var(--hf-surface-muted);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+}
+
+.customer-collection .customer-collection-entry input {
+  font-size: 0.9375rem;
+}
+
+/* ── Summary rows: plain, tabular, no box ───────────────────────────────── */
+
+.customer-collection .customer-collection-summary {
+  padding: 0;
+  background-color: transparent;
+  border: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.customer-collection .customer-collection-summary dt {
+  color: var(--hf-muted);
+}
