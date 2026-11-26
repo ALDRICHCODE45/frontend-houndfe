@@ -6,9 +6,9 @@
  *   the latest request is dropped, and the preview counts as loading from the first keystroke.
  * - Confirm is off while the preview loads or failed, without valid tenders (1-5, ≥ 1 cent) or
  *   without the caller's open cash session.
- * - One idempotency key per submission. It is reused only to resend the very same body after a
- *   network failure or `IDEMPOTENCY_KEY_IN_FLIGHT`; any server answer, a tender change or a
- *   different session/expected debt gives the next submission a new key.
+ * - One idempotency key per submission. It is reused only to resend the very same body after an
+ *   uncertain outcome (network failure, `IDEMPOTENCY_KEY_IN_FLIGHT`, any 5xx or an unknown code);
+ *   a documented 4xx, a tender change or a different session/expected debt gives a new key.
  * - `409 COLLECTION_DEBT_CHANGED`: «La deuda del cliente cambió», the screen shows `body.preview`
  *   and a new confirm is required. `IDEMPOTENCY_KEY_IN_FLIGHT`: a short wait and one retry with
  *   the same key and body. Any other answer: its message, and the preview is refreshed.
@@ -47,6 +47,31 @@ const isValidTender = (tender: CollectionTender) =>
 const readonly = <T>(state: ShallowRef<T>): Readonly<Ref<T>> => state
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+
+const UNCERTAIN =
+  'No sabemos si el cobro se registró. Vuelve a confirmar con los mismos montos; no se duplicará.'
+
+/** Apply answers that guarantee nothing was written (handoff 30 §5, §8): the key is free. */
+const DEFINITIVE_CODES: ReadonlySet<string> = new Set([
+  'VALIDATION',
+  'FORBIDDEN',
+  'IDEMPOTENCY_KEY_REQUIRED',
+  'IDEMPOTENCY_KEY_CONFLICT',
+  'COLLECTION_DEBT_CHANGED',
+  'COLLECTION_EXCEEDS_DEBT',
+  'COLLECTION_NO_OPEN_DEBT',
+  'COLLECTION_SALE_NOT_ELIGIBLE',
+  'CUSTOMER_NOT_FOUND',
+  'PAYMENT_METHOD_NOT_FOUND',
+  'INACTIVE_PAYMENT_METHOD',
+  'PAYMENT_METHOD_CATEGORY_MISMATCH',
+  'CASH_SESSION_REQUIRED',
+  'CASH_SESSION_NOT_FOUND',
+  'CASH_SESSION_NOT_OWNED',
+  'CASH_SESSION_NOT_WRITABLE',
+  'CASH_ACTOR_INACTIVE',
+  'CASH_TENANT_MEMBERSHIP_REQUIRED',
+])
 
 export function useCustomerCollection(options: UseCustomerCollectionOptions) {
   const debounceMs = options.debounceMs ?? 300
@@ -174,7 +199,14 @@ export function useCustomerCollection(options: UseCustomerCollectionOptions) {
       applyError.value = failure
       return
     }
-    // The backend answered and wrote nothing: the key is free, the next confirm gets a new one.
+    const status = failure.status ?? 0
+    if (status < 400 || status >= 500 || !DEFINITIVE_CODES.has(failure.code)) {
+      // 5xx or unknown answer: maybe committed. Keep the key and body; no refresh, which could
+      // lower expectedDebtCents and turn the retry into a second collection.
+      applyError.value = { ...failure, message: UNCERTAIN }
+      return
+    }
+    // A documented 4xx: nothing was written, the key is free, the next confirm gets a new one.
     pending = null
     if (failure.code === 'COLLECTION_DEBT_CHANGED') {
       notice.value = failure.message

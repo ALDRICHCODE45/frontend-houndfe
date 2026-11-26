@@ -377,6 +377,52 @@ describe('useCustomerCollection — apply', () => {
     expect(apply.mock.calls[1]![2]).not.toBe(apply.mock.calls[0]![2])
   })
 
+  it.each([
+    ['a gateway 502', httpError(502, '<html>Bad Gateway</html>')],
+    ['a 500 after commit', httpError(500, { statusCode: 500, message: 'Internal' })],
+    ['an unknown 4xx code', httpError(409, { error: 'SOMETHING_NEW' })],
+  ])('%s is uncertain: same key and body next, no preview refresh', async (_, error) => {
+    const api = await ready()
+    const previewCalls = preview.mock.calls.length
+    apply.mockRejectedValueOnce(error)
+    await api.confirm()
+    await vi.advanceTimersByTimeAsync(1000)
+    await flushPromises()
+    expect(api.applyError.value?.message).toBe(
+      'No sabemos si el cobro se registró. Vuelve a confirmar con los mismos montos; no se duplicará.',
+    )
+    expect(preview.mock.calls.length).toBe(previewCalls)
+    apply.mockResolvedValueOnce(makeResult())
+    await api.confirm()
+    expect(apply.mock.calls[1]![2]).toBe('key-1')
+    expect(apply.mock.calls[1]![1]).toEqual(apply.mock.calls[0]![1])
+    expect(apply.mock.calls[1]![1]).toMatchObject({ expectedDebtCents: 140000 })
+  })
+
+  it('a network failure keeps its message and does not refresh the preview', async () => {
+    const api = await ready()
+    const previewCalls = preview.mock.calls.length
+    apply.mockRejectedValueOnce(networkError())
+    await api.confirm()
+    await flushPromises()
+    expect(api.applyError.value?.code).toBe('NETWORK')
+    expect(api.applyError.value?.message).toContain('No hubo conexión')
+    expect(preview.mock.calls.length).toBe(previewCalls)
+  })
+
+  it('a documented 422 frees the key and refreshes the preview', async () => {
+    const api = await ready()
+    preview.mockResolvedValue(makePreview({ tenderedCents: 30000, appliedCents: 30000 }))
+    apply.mockRejectedValueOnce(httpError(422, { error: 'COLLECTION_EXCEEDS_DEBT' }))
+    const previewCalls = preview.mock.calls.length
+    await api.confirm()
+    await flushPromises()
+    expect(preview.mock.calls.length).toBe(previewCalls + 1)
+    apply.mockResolvedValueOnce(makeResult())
+    await api.confirm()
+    expect(apply.mock.calls[1]![2]).toBe('key-2')
+  })
+
   it('success keeps the result and refreshes the customer history, monthly, sales lists and each sale', async () => {
     const api = await ready()
     apply.mockResolvedValue(makeResult())
