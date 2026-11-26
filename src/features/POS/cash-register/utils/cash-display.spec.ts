@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
-import { cashSessionPeriod, custodyOrigin } from './cash-display'
+import { cashRegisterBusyLabel, cashSessionPeriod, custodyOrigin } from './cash-display'
 
 const OPENED = '2026-11-05T15:02:11.000Z'
 const CLOSED_SAME_DAY = '2026-11-05T22:45:30.000Z'
@@ -52,5 +52,39 @@ describe('custodyOrigin', () => {
   it('says nothing when both names are missing, and never falls back to an id', () => {
     expect(custodyOrigin({ senderDisplayName: null, sourceRegisterName: null })).toBe('')
     expect(custodyOrigin({ senderDisplayName: '  ', sourceRegisterName: undefined })).toBe('')
+  })
+})
+
+describe('cashRegisterBusyLabel', () => {
+  const held = {
+    status: 'OPEN' as const,
+    cashierUserId: 'cashier-1',
+    cashierDisplayName: 'Cajero Centro',
+    openedAt: OPENED,
+  }
+  const since = formatShortDateTime(OPENED)
+
+  it('names the state, who holds the drawer and since when', () => {
+    expect(cashRegisterBusyLabel(held, 'me')).toBe(
+      `Ocupada: sesión abierta de Cajero Centro desde ${since}`,
+    )
+    expect(cashRegisterBusyLabel({ ...held, status: 'COUNTING' }, 'me')).toBe(
+      `Ocupada: conteo en curso de Cajero Centro desde ${since}`,
+    )
+    expect(cashRegisterBusyLabel({ ...held, status: 'SUBMITTED' }, 'me')).toBe(
+      `Ocupada: conteo por verificar de Cajero Centro desde ${since}`,
+    )
+    expect(cashRegisterBusyLabel({ ...held, status: 'CLOSED' }, 'me')).toBe(
+      `Ocupada: cajón sin liberar de Cajero Centro desde ${since}`,
+    )
+  })
+
+  it('says «tu» for the current user and drops what it does not know, never an id', () => {
+    expect(cashRegisterBusyLabel({ ...held, cashierUserId: 'me' }, 'me')).toBe(
+      `Ocupada: tu sesión abierta desde ${since}`,
+    )
+    expect(
+      cashRegisterBusyLabel({ ...held, cashierDisplayName: null, openedAt: undefined }, 'me'),
+    ).toBe('Ocupada: sesión abierta')
   })
 })

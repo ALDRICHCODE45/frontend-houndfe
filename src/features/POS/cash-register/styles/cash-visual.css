@@ -679,6 +679,37 @@
   text-decoration: underline;
 }
 
+/* «Ver la sesión» after a refused open: a link-styled action, 44px target. */
+.cash-err-summary-action {
+  min-height: 2.75rem;
+  padding: 0 0.25rem;
+  color: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.cash-err-summary-action:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+/* Busy registers: one line per register held by a session, no extra card. */
+.cash-busy-links {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cash-busy-links li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+}
+
 .cash-inline-error {
   display: flex;
   align-items: flex-start;

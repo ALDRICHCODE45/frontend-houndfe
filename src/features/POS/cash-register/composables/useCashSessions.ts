@@ -169,6 +169,72 @@ export function useCashOwnShift() {
   }
 }
 
+/** The backend list cap (`CASH_LIST_MAX_LIMIT`): one page holds every held drawer. */
+const HELD_DRAWERS_LIMIT = 100
+
+/**
+ * Registers that cannot be opened (cash-picker-unreleased S2/S3): the backend
+ * refuses `POST /cash-sessions` with `CASH_REGISTER_UNRELEASED_SESSION` while
+ * ANY session of the register has `drawerReleasedAt = null` (OPEN, COUNTING,
+ * SUBMITTED…). `GET /cash-sessions?drawerOpen=true&limit=100` lists exactly those,
+ * newest first, so the first row per register is the one to show.
+ *
+ * Visibility follows the list scope: with `read:CashSessionAudit` it is the
+ * branch (`complete`), without it only the caller's own sessions — another
+ * person's held drawer stays invisible and the server remains the judge. A
+ * truncated page (`total` above the rows) is likewise not complete. Only read
+ * while the user may open (`create:CashSession`), the one place it is shown.
+ */
+export function useCashUnreleasedSessions() {
+  const access = useCashAccess()
+
+  const params: CashSessionListParams = { drawerOpen: true, limit: HELD_DRAWERS_LIMIT }
+
+  const query = useQuery<CashSessionListResponse>({
+    queryKey: computed(() => cashQueryKeys.sessionsList(access.identity.value, params)),
+    queryFn: () => cashApi.listSessions(params),
+    enabled: computed(
+      () =>
+        access.canReadSessions.value &&
+        access.canOpenSession.value &&
+        access.identityReady.value &&
+        access.permissionsLoaded.value,
+    ),
+    refetchOnWindowFocus: false,
+    staleTime: 15_000,
+  })
+
+  /** registerId → its newest session still holding the drawer. */
+  const byRegister = computed<Record<string, CashSession>>(() => {
+    const map: Record<string, CashSession> = {}
+    for (const item of query.data.value?.items ?? []) {
+      if (item.drawerReleasedAt !== null) continue
+      if (!map[item.registerId]) map[item.registerId] = item
+    }
+    return map
+  })
+
+  const sessionIds = computed(
+    () => new Set((query.data.value?.items ?? []).map((item) => item.id)),
+  )
+
+  return {
+    byRegister,
+    /** The held-drawer session is in the caller's visible list (its detail is reachable). */
+    isVisible: (sessionId: string) => sessionIds.value.has(sessionId),
+    /** Every held drawer of the branch is known (branch scope and one full page). */
+    complete: computed(() => {
+      const data = query.data.value
+      if (!data || !access.canAuditSessions.value) return false
+      return data.total <= data.items.length
+    }),
+    /** The read ran for the current key: a register missing from it is free (as far as known). */
+    known: computed(() => query.isSuccess.value),
+    isLoading: computed(() => query.isLoading.value),
+    refetch: query.refetch,
+  }
+}
+
 export function useCashSessionDetail(sessionId: MaybeRefOrGetter<string | null>) {
   const access = useCashAccess()
   const id = computed(() => toValue(sessionId))

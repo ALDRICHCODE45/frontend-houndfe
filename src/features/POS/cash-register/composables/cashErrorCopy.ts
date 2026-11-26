@@ -140,6 +140,30 @@ export function cashErrorInfo(error: unknown, fallback = CASH_GENERIC_ERROR): Ca
   return { code, message: normalized.message }
 }
 
+/** The session that keeps a register from opening, as far as the body says. */
+export interface CashUnreleasedSessionRef {
+  registerId: string | null
+  sessionId: string | null
+}
+
+function idDetail(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null
+}
+
+/**
+ * A refused open because the register still has a session with the drawer held
+ * (`CASH_REGISTER_UNRELEASED_SESSION`). The backend spreads `{ registerId,
+ * sessionId }` flat into the 422 envelope; either may be missing in an older
+ * payload, so each is `null` rather than guessed. Any other failure is `null`.
+ */
+export function cashUnreleasedSessionRef(error: unknown): CashUnreleasedSessionRef | null {
+  const data = (error as { response?: { data?: unknown } } | null)?.response?.data
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null
+  const body = data as Record<string, unknown>
+  if (body.error !== 'CASH_REGISTER_UNRELEASED_SESSION') return null
+  return { registerId: idDetail(body.registerId), sessionId: idDetail(body.sessionId) }
+}
+
 // ─── Close (handoff 25 §5) ───────────────────────────────────────────────────
 
 export const CASH_CLOSE_GENERIC_ERROR = 'No pudimos cerrar la caja.'

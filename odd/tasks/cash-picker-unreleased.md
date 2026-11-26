@@ -6,8 +6,9 @@
 - S3 Expected: the «Abrir caja» picker never offers a register that the backend will refuse; it shows it as busy with who/since and a way to reach the blocking session (verify/close/release, per the user's permissions), and the error message after a refused open points to that session too.
 
 ## Tasks
-- [ ] T1 S1-S3 Fix availability in the opening picker + actionable message — worker
+- [x] T1 S1-S3 Fix availability in the opening picker + actionable message — worker
 - [ ] T2 Full suite, preview check, owner check, merge — parent
 
 ## Log
 - L1 Owner report S1 with screenshots (Caja Express «Disponible para abrir» → refused). DB check by parent: 4 of 5 active registers held unreleased sessions.
+- L2 T1 (worker mwxvt0zy-c-t7tn): root cause `CashOpeningPanel.vue:71-72` labelled availability only from `register.isActive`. Fix reads `GET /cash-sessions?drawerOpen=true&limit=100` (drawerReleasedAt null) via `useCashUnreleasedSessions` (needs read+create:CashSession): busy registers disabled with «Ocupada: sesión abierta / conteo en curso / conteo por verificar / cajón sin liberar de X desde …» and «Ver la sesión»; «Comprobando si está libre…» while loading; refused open (422 body {registerId, sessionId}) names the register and offers «Ver la sesión» when reachable, else asks for a supervisor. RED 11 tests; GREEN cash-register 43 files / 683 tests, related 63 / 1077; lint, type-check clean. Limit: without read:CashSessionAudit another person's held drawer is invisible → backend asked (2026-11-26) to expose per-register `heldBy`/`drawerHeld` on GET /cash-registers. Risk: item 6 (was uncovered; now 14 tests).
