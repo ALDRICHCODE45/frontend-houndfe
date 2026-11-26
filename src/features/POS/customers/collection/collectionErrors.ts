@@ -14,6 +14,8 @@ export interface CollectionFailure {
   status?: number
   /** No response at all: the request may or may not have reached the backend. */
   network: boolean
+  /** The answer carried a parseable JSON error body (not an HTML gateway page or empty). */
+  hasBody?: boolean
   /** The current preview carried by `409 COLLECTION_DEBT_CHANGED`. */
   preview?: CollectionPreview
 }
@@ -91,6 +93,7 @@ export function readCollectionError(error: unknown): CollectionFailure {
     message: MESSAGES[code] ?? DEFAULT_MESSAGE,
     status,
     network: false,
+    hasBody: body !== undefined,
   }
   if (
     code === 'COLLECTION_DEBT_CHANGED' &&

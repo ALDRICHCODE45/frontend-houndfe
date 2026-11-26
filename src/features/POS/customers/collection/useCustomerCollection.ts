@@ -7,10 +7,12 @@
  * - Confirm is off while the preview loads or failed, without valid tenders (1-5, ≥ 1 cent) or
  *   without the caller's open cash session.
  * - One idempotency key per submission. After an uncertain outcome (network failure,
- *   `IDEMPOTENCY_KEY_IN_FLIGHT`, any 5xx or an unknown code) the key AND body stay unresolved per
- *   customer at module scope, so closing, reopening or remounting the sheet keeps them: tender
- *   edits are ignored and confirm/`retry()` resend exactly that submission until a definitive
- *   answer (success or a documented 4xx) frees it. A documented 4xx gives the next confirm a new key.
+ *   `IDEMPOTENCY_KEY_IN_FLIGHT`, any 5xx, a non-4xx status or a 4xx without a JSON body) the key
+ *   AND body stay unresolved per signed-in user + tenant + customer at module scope, so closing,
+ *   reopening or remounting the sheet keeps them: tender edits are ignored and confirm/`retry()`
+ *   resend exactly that submission until a definitive answer (success or any 4xx with a JSON
+ *   body) frees it; that 4xx gives the next confirm a new key. A user change or a sign-out drops
+ *   every unresolved submission: another cashier never resends one with someone else's session.
  * - `409 COLLECTION_DEBT_CHANGED`: «La deuda del cliente cambió», the screen shows `body.preview`
  *   and a new confirm is required. `IDEMPOTENCY_KEY_IN_FLIGHT`: a short wait and one retry with
  *   the same key and body. Any other answer: its message, and the preview is refreshed.
@@ -19,6 +21,7 @@
  */
 import {
   computed,
+  effectScope,
   getCurrentScope,
   onScopeDispose,
   reactive,
@@ -61,27 +64,21 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 const UNCERTAIN =
   'No sabemos si el cobro se registró. Vuelve a confirmar con los mismos montos; no se duplicará.'
 
-/** Apply answers that guarantee nothing was written (handoff 30 §5, §8): the key is free. */
-const DEFINITIVE_CODES: ReadonlySet<string> = new Set([
-  'VALIDATION',
-  'FORBIDDEN',
-  'IDEMPOTENCY_KEY_REQUIRED',
-  'IDEMPOTENCY_KEY_CONFLICT',
-  'COLLECTION_DEBT_CHANGED',
-  'COLLECTION_EXCEEDS_DEBT',
-  'COLLECTION_NO_OPEN_DEBT',
-  'COLLECTION_SALE_NOT_ELIGIBLE',
-  'CUSTOMER_NOT_FOUND',
-  'PAYMENT_METHOD_NOT_FOUND',
-  'INACTIVE_PAYMENT_METHOD',
-  'PAYMENT_METHOD_CATEGORY_MISMATCH',
-  'CASH_SESSION_REQUIRED',
-  'CASH_SESSION_NOT_FOUND',
-  'CASH_SESSION_NOT_OWNED',
-  'CASH_SESSION_NOT_WRITABLE',
-  'CASH_ACTOR_INACTIVE',
-  'CASH_TENANT_MEMBERSHIP_REQUIRED',
-])
+/**
+ * Whether an apply answer guarantees nothing was written, so the key is free: any 4xx with a JSON
+ * error body (handoff 30 §5.2, §8: every 4xx is decided before or instead of the write), except
+ * `IDEMPOTENCY_KEY_IN_FLIGHT`, which means the same key is still being processed.
+ */
+const isDefinitive = (failure: CollectionFailure) => {
+  const status = failure.status ?? 0
+  return (
+    !failure.network &&
+    failure.code !== 'IDEMPOTENCY_KEY_IN_FLIGHT' &&
+    status >= 400 &&
+    status < 500 &&
+    !!failure.hasBody
+  )
+}
 
 interface UnresolvedSubmission {
   key: string
@@ -89,18 +86,42 @@ interface UnresolvedSubmission {
 }
 
 /**
- * Submissions whose outcome is unknown, per `tenantId:customerId`. Module scope on purpose: the
- * sheet may unmount (close, customer change) and a fresh key would risk a second collection.
+ * Submissions whose outcome is unknown, per `userId:tenantId:customerId`. Module scope on purpose:
+ * the sheet may unmount (close, customer change) and a fresh key would risk a second collection.
  */
 const unresolved = reactive(new Map<string, UnresolvedSubmission>())
+
+/** Id of the signed-in user, `''` when nobody is (or the auth store is not available). */
+function signedInUserId(): string {
+  try {
+    return useAuthStore().user?.id ?? ''
+  } catch {
+    return ''
+  }
+}
+
+let watchingSession = false
+/**
+ * One module-level watcher (it outlives every sheet): a user change or a sign-out drops every
+ * unresolved submission, even with no sheet mounted. Same approach as the live chat stores.
+ */
+function watchSession() {
+  if (watchingSession) return
+  watchingSession = true
+  effectScope(true).run(() => {
+    watch(signedInUserId, () => unresolved.clear(), { flush: 'sync' })
+  })
+}
+
 const scopeOf = (tenantId: string | null | undefined, customerId: string) =>
-  `${tenantId ?? ''}:${customerId}`
+  `${signedInUserId()}:${tenantId ?? ''}:${customerId}`
 
 /** Whether `customerId` has a collection whose outcome is still unknown (reactive). */
 export function hasUnresolvedCollection(
   tenantId: string | null | undefined,
   customerId: string | null | undefined,
 ): boolean {
+  watchSession()
   return !!customerId && unresolved.has(scopeOf(tenantId, customerId))
 }
 
@@ -120,6 +141,7 @@ export function useCustomerCollection(options: UseCustomerCollectionOptions) {
   const inFlightRetryMs = options.inFlightRetryMs ?? 1500
   const queryClient = useQueryClient()
   const authStore = useAuthStore()
+  watchSession()
 
   const payments = shallowRef<CollectionTender[]>([])
   const preview = shallowRef<CollectionPreview | null>(null)
@@ -264,14 +286,7 @@ export function useCustomerCollection(options: UseCustomerCollectionOptions) {
   }
 
   function onApplyFailure(failure: CollectionFailure, submission: string, customerId: string) {
-    const status = failure.status ?? 0
-    const maybeWritten =
-      failure.network ||
-      failure.code === 'IDEMPOTENCY_KEY_IN_FLIGHT' ||
-      status < 400 ||
-      status >= 500 ||
-      !DEFINITIVE_CODES.has(failure.code)
-    if (maybeWritten) {
+    if (!isDefinitive(failure)) {
       // Maybe committed: keep the key and body (stored before sending); no preview refresh, which
       // could lower expectedDebtCents and turn the retry into a second collection.
       const network = failure.network || failure.code === 'IDEMPOTENCY_KEY_IN_FLIGHT'
@@ -279,7 +294,7 @@ export function useCustomerCollection(options: UseCustomerCollectionOptions) {
       refreshHistory(customerId)
       return
     }
-    // A documented 4xx: nothing was written, the key is free, the next confirm gets a new one.
+    // A 4xx with a JSON body: nothing was written, the key is free, the next confirm gets a new one.
     unresolved.delete(submission)
     if (failure.code === 'COLLECTION_DEBT_CHANGED') {
       notice.value = failure.message

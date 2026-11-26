@@ -5,7 +5,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
-import { defineComponent, h, shallowRef } from 'vue'
+import { defineComponent, h, nextTick, shallowRef } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import type { CollectionPreview, CollectionResult, CollectionTender } from '../collection.types'
 
@@ -19,17 +19,20 @@ vi.mock('../collection.api', () => ({
     getReceiptPdf: vi.fn(),
   },
 }))
+const auth = await vi.hoisted(async () => {
+  const { reactive } = await import('vue')
+  return reactive({ currentTenantId: 'tenant-1', user: { id: 'u-1' } as { id: string } | null })
+})
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
-  useAuthStore: () => ({ currentTenantId: 'tenant-1' }),
+  useAuthStore: () => auth,
 }))
 let keyCounter = 0
 vi.mock('@/features/POS/sales/utils/idempotency.utils', () => ({
   newIdempotencyKey: () => `key-${++keyCounter}`,
 }))
 
-const { useCustomerCollection, clearUnresolvedCollections } = await import(
-  '../useCustomerCollection'
-)
+const { useCustomerCollection, clearUnresolvedCollections } =
+  await import('../useCustomerCollection')
 
 function makePreview(overrides: Partial<CollectionPreview> = {}): CollectionPreview {
   return {
@@ -158,6 +161,8 @@ beforeEach(() => {
   apply.mockReset()
   keyCounter = 0
   clearUnresolvedCollections()
+  auth.user = { id: 'u-1' }
+  auth.currentTenantId = 'tenant-1'
   open.value = true
   cashSessionId.value = 'sess-1'
 })
@@ -384,8 +389,9 @@ describe('useCustomerCollection — apply', () => {
 
   it.each([
     ['a gateway 502', httpError(502, '<html>Bad Gateway</html>')],
+    ['a 502 with a JSON body', httpError(502, { statusCode: 502, error: 'Bad Gateway' })],
     ['a 500 after commit', httpError(500, { statusCode: 500, message: 'Internal' })],
-    ['an unknown 4xx code', httpError(409, { error: 'SOMETHING_NEW' })],
+    ['a 4xx without a parseable body', httpError(409, '<html>Conflict</html>')],
   ])('%s is uncertain: same key and body next, no preview refresh', async (_, error) => {
     const api = await ready()
     const previewCalls = preview.mock.calls.length
@@ -402,6 +408,51 @@ describe('useCustomerCollection — apply', () => {
     expect(apply.mock.calls[1]![2]).toBe('key-1')
     expect(apply.mock.calls[1]![1]).toEqual(apply.mock.calls[0]![1])
     expect(apply.mock.calls[1]![1]).toMatchObject({ expectedDebtCents: 140000 })
+  })
+
+  it.each([
+    [
+      'a 403 after a permission change',
+      httpError(403, { statusCode: 403, message: 'Forbidden', error: 'Forbidden' }),
+      'No tienes permiso para cobrar ventas.',
+    ],
+    [
+      'an unlisted 400',
+      httpError(400, { statusCode: 400, error: 'SOMETHING_NEW', message: 'English' }),
+      'No se pudo completar el cobro. Intenta de nuevo.',
+    ],
+    [
+      'an unknown 409 code',
+      httpError(409, { statusCode: 409, error: 'SOMETHING_NEW' }),
+      'No se pudo completar el cobro. Intenta de nuevo.',
+    ],
+  ])(
+    '%s with a JSON body is definitive: unlocks and the next confirm uses a new key',
+    async (_, error, message) => {
+      const api = await ready()
+      preview.mockResolvedValue(makePreview({ tenderedCents: 30000, appliedCents: 30000 }))
+      apply.mockRejectedValueOnce(error)
+      await api.confirm()
+      await flushPromises()
+      expect(api.uncertain.value).toBe(false)
+      expect(api.applyError.value?.message).toBe(message)
+      expect(api.canConfirm.value).toBe(true)
+      apply.mockResolvedValueOnce(makeResult())
+      await api.confirm()
+      expect(apply).toHaveBeenCalledTimes(2)
+      expect(apply.mock.calls[1]![2]).toBe('key-2')
+    },
+  )
+
+  it('an unlisted 400 with a JSON body refreshes the preview', async () => {
+    const api = await ready()
+    preview.mockResolvedValue(makePreview({ debtCents: 90000 }))
+    const previewCalls = preview.mock.calls.length
+    apply.mockRejectedValueOnce(httpError(400, { error: 'SOMETHING_NEW' }))
+    await api.confirm()
+    await flushPromises()
+    expect(preview.mock.calls.length).toBe(previewCalls + 1)
+    expect(api.preview.value?.debtCents).toBe(90000)
   })
 
   it('a network failure keeps its message and does not refresh the preview', async () => {
@@ -611,5 +662,64 @@ describe('useCustomerCollection — unresolved submission lock (R1/R4)', () => {
     await api.confirm()
     expect(hasUnresolvedCollection('tenant-1', 'c-1')).toBe(true)
     expect(hasUnresolvedCollection('tenant-1', 'c-2')).toBe(false)
+  })
+})
+
+describe('useCustomerCollection — unresolved submission per signed-in user (R1)', () => {
+  async function leaveUnresolved(): Promise<Api> {
+    const api = await ready()
+    apply.mockRejectedValueOnce(networkError())
+    await api.confirm()
+    expect(api.uncertain.value).toBe(true)
+    return api
+  }
+
+  it("another user on the same tab neither sees nor resends the previous user's submission", async () => {
+    const { hasUnresolvedCollection } = await import('../useCustomerCollection')
+    const api = await leaveUnresolved()
+    auth.user = { id: 'u-2' }
+    await nextTick()
+    expect(api.uncertain.value).toBe(false)
+    expect(api.pendingPayments.value).toBeNull()
+    expect(api.pendingCashSessionId.value).toBeNull()
+    expect(hasUnresolvedCollection('tenant-1', 'c-1')).toBe(false)
+    expect(await api.retry()).toBeNull()
+    expect(apply).toHaveBeenCalledTimes(1)
+  })
+
+  it('a fresh sheet for the next user starts with a new key and its own cash session', async () => {
+    await leaveUnresolved()
+    wrapper!.unmount()
+    wrapper = undefined
+    auth.user = { id: 'u-2' }
+    cashSessionId.value = 'sess-2'
+    const api = await ready()
+    expect(api.uncertain.value).toBe(false)
+    apply.mockResolvedValueOnce(makeResult())
+    await api.confirm()
+    expect(apply.mock.calls[1]![2]).toBe('key-2')
+    expect(apply.mock.calls[1]![1]).toMatchObject({ cashSessionId: 'sess-2' })
+  })
+
+  it('the user change clears the map: switching back does not restore the old submission', async () => {
+    const { hasUnresolvedCollection } = await import('../useCustomerCollection')
+    await leaveUnresolved()
+    auth.user = { id: 'u-2' }
+    await nextTick()
+    auth.user = { id: 'u-1' }
+    await nextTick()
+    expect(hasUnresolvedCollection('tenant-1', 'c-1')).toBe(false)
+  })
+
+  it('a logout clears it, even with no sheet mounted', async () => {
+    const { hasUnresolvedCollection } = await import('../useCustomerCollection')
+    await leaveUnresolved()
+    wrapper!.unmount()
+    wrapper = undefined
+    auth.user = null
+    await nextTick()
+    auth.user = { id: 'u-1' }
+    await nextTick()
+    expect(hasUnresolvedCollection('tenant-1', 'c-1')).toBe(false)
   })
 })

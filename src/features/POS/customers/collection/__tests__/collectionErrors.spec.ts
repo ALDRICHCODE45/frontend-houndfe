@@ -110,4 +110,16 @@ describe('readCollectionError', () => {
     )
     expect(failure.preview).toEqual(preview)
   })
+
+  it.each([
+    ['a JSON body', { error: 'SOMETHING_NEW' }, true],
+    ['an HTML page', '<html>Bad Gateway</html>', false],
+    ['no body', undefined, false],
+  ])('reports whether the answer carried %s', (_, data, hasBody) => {
+    expect(readCollectionError(httpError(400, data)).hasBody).toBe(hasBody)
+  })
+
+  it('a network failure has no body', () => {
+    expect(readCollectionError({ message: 'Network Error' }).hasBody).toBeUndefined()
+  })
 })
