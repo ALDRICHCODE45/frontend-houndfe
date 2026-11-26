@@ -184,8 +184,13 @@ const HELD_DRAWERS_LIMIT = 100
  * person's held drawer stays invisible and the server remains the judge. A
  * truncated page (`total` above the rows) is likewise not complete. Only read
  * while the user may open (`create:CashSession`), the one place it is shown.
+ *
+ * Fallback only (handoff 31): GET /cash-registers now reports `drawerHeld` per
+ * register for every caller, which is the source of truth. `needed` is true
+ * only while the registers read lacks that field (an older backend), so a
+ * current backend never pays for this extra read.
  */
-export function useCashUnreleasedSessions() {
+export function useCashUnreleasedSessions(needed: MaybeRefOrGetter<boolean> = true) {
   const access = useCashAccess()
 
   const params: CashSessionListParams = { drawerOpen: true, limit: HELD_DRAWERS_LIMIT }
@@ -195,6 +200,7 @@ export function useCashUnreleasedSessions() {
     queryFn: () => cashApi.listSessions(params),
     enabled: computed(
       () =>
+        toValue(needed) &&
         access.canReadSessions.value &&
         access.canOpenSession.value &&
         access.identityReady.value &&

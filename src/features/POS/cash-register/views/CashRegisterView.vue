@@ -153,9 +153,22 @@ const detailQuery = useCashSessionDetail(selectedSessionId)
 
 /**
  * Held drawers (cash-picker-unreleased): registers the server would refuse to
- * open, shown busy in the picker with a way to their session.
+ * open, shown busy in the picker with a way to their session. GET
+ * /cash-registers reports `drawerHeld` per register (handoff 31) and is the
+ * source of truth; the held-drawer sessions read runs only as a fallback while
+ * a loaded register lacks that field (an older backend).
  */
-const heldDrawers = useCashUnreleasedSessions()
+const registersReportHeld = computed(() =>
+  registers.registers.value.every((register) => typeof register.drawerHeld === 'boolean'),
+)
+const needsHeldFallback = computed(
+  () =>
+    !registers.isLoading.value &&
+    !registers.isError.value &&
+    registers.registers.value.length > 0 &&
+    !registersReportHeld.value,
+)
+const heldDrawers = useCashUnreleasedSessions(needsHeldFallback)
 const busyScope = computed<'branch' | 'own' | 'none'>(() => {
   if (!heldDrawers.known.value) return 'none'
   return heldDrawers.complete.value ? 'branch' : 'own'
@@ -251,6 +264,7 @@ const openErrorSessionId = computed<string | null>(() => {
   const sessionId = openRefusal.value?.sessionId
   if (!sessionId || !errorFor('open')) return null
   const reachable =
+    registers.registers.value.some((register) => register.heldBy?.sessionId === sessionId) ||
     heldDrawers.isVisible(sessionId) ||
     (access.canReadSessions.value && access.canAuditSessions.value)
   return reachable ? sessionId : null
@@ -593,8 +607,10 @@ function handleOpenSession(payload: { openingCents: number; openingHandoverId?: 
       const refusal = cashUnreleasedSessionRef(error)
       if (refusal) {
         openRefusal.value = { ...refusal, registerId: refusal.registerId ?? registerId }
-        // The picker learns the held drawer (when the user may read it).
-        if (access.canReadSessions.value) void heldDrawers.refetch()
+        // The picker learns the held drawer: the registers carry it (handoff
+        // 31); an older backend needs the held-drawer sessions read too.
+        void registers.refetch()
+        if (needsHeldFallback.value && access.canReadSessions.value) void heldDrawers.refetch()
       }
       throw error
     }
