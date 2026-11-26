@@ -5,25 +5,12 @@ import { formatCentsMXN } from '../utils/currency.utils'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-const props = withDefaults(
-  defineProps<{
-    sale: Sale
-    isChargePending?: boolean
-    /**
-     * Presentation-only opt-in used by the Sales entry boundary. When false
-     * (the default) the charge action keeps the exact prior legacy classes.
-     */
-    themed?: boolean
-    /** Optional native tooltip boundary; independent of the charge styling. */
-    portalClass?: string
-    /**
-     * Presentation-only opt-in for the exact v0 cart composition (T11). False
-     * by default, so the totals keep the previous labels and paint.
-     */
-    composition?: boolean
-  }>(),
-  { themed: false, composition: false },
-)
+const props = defineProps<{
+  sale: Sale
+  isChargePending?: boolean
+  /** Optional native tooltip boundary; independent of the charge styling. */
+  portalClass?: string
+}>()
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
 
@@ -55,15 +42,6 @@ const chargeTooltip = computed(() => {
   return ''
 })
 
-// T3: the caller opts into the shared action foreground pairing, so the forced
-// legacy gold utility is replaced only when requested. Omission keeps the
-// previous class string byte-identical.
-const chargeButtonClass = computed(() =>
-  props.themed
-    ? 'relative sales-entry-primary-action sales-pos-charge-button rounded-xl font-semibold shadow-sm w-full'
-    : 'relative hf-primary-control w-full',
-)
-
 const subtotalFormatted = computed(() => formatCentsMXN(subtotalCents.value))
 const discountFormatted = computed(() => formatCentsMXN(discountCents.value))
 const totalFormatted = computed(() => formatCentsMXN(totalCents.value))
@@ -81,13 +59,10 @@ function handleRemoveOrderPromo() {
 </script>
 
 <template>
-  <div
-    class="mt-auto px-5 py-4 sales-pos-totals"
-    :class="{ 'sales-pos-totals-composition': composition }"
-  >
-    <!-- Phase 14b: items/units count line. The exact cart composition reads the
-         accepted v0 wording; the omitted opt-in keeps the prior string. -->
-    <div v-if="composition" data-testid="totals-summary" class="sales-pos-totals-summary">
+  <div class="mt-auto px-5 py-4 sales-pos-totals sales-pos-totals-composition">
+    <!-- Phase 14b: items/units count line in the accepted v0 wording, beside the
+         single «Vaciar» clear action. -->
+    <div data-testid="totals-summary" class="sales-pos-totals-summary">
       <p data-testid="totals-count" class="text-xs text-muted sales-pos-totals-count">
         {{ lineCount }} {{ lineCount === 1 ? 'artículo' : 'artículos' }} · {{ totalQuantity }} {{ totalQuantity === 1 ? 'unidad' : 'unidades' }}
       </p>
@@ -101,9 +76,6 @@ function handleRemoveOrderPromo() {
         @click="emit('clear-click')"
       >Vaciar</UButton>
     </div>
-    <p v-else data-testid="totals-count" class="text-xs text-muted mb-3 sales-pos-totals-count">
-      {{ lineCount }} Artic · {{ totalQuantity }} Unidad
-    </p>
 
     <!-- Subtotal row -->
     <div class="flex items-center justify-between mb-1.5">
@@ -129,7 +101,6 @@ function handleRemoveOrderPromo() {
           Total a cobrar
         </p>
         <span
-          v-if="composition"
           data-testid="totals-currency"
           class="sales-pos-totals-currency text-muted"
         >Moneda MXN</span>
@@ -175,7 +146,7 @@ function handleRemoveOrderPromo() {
           size="xl"
           :loading="isChargePending"
           :disabled="isChargeDisabled"
-          :class="chargeButtonClass"
+          class="relative sales-entry-primary-action sales-pos-charge-button rounded-xl font-semibold shadow-sm w-full"
           @click="emit('charge-click')"
         >
           <template #leading>

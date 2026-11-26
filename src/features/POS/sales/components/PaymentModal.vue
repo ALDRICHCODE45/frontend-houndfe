@@ -33,11 +33,15 @@ import {
   type PaymentMethodTile,
 } from '../utils/paymentMethodTile.utils'
 import { PAYMENT_METHOD_CATEGORY_ICONS } from '@/core/shared/constants/payment-method-category'
-// T3 (checkout composition): the owned checkout/support-window adapter. It is
-// imported from this statically imported modal so the stylesheet loads with the
-// sales feature only, and every rule is scoped to the `.sales-pos-checkout`
-// marker each checkout caller appends to its opt-in portal class.
+// T3 (checkout composition): the owned checkout/support-window adapter (sheet,
+// body, footer, supporting windows). It is imported from this statically
+// imported modal so the stylesheet loads with the sales feature only, and every
+// rule is scoped to the `.sales-pos-checkout` marker on the content root.
 import '../styles/sales-pos-checkout.css'
+// style-cleanup U3 (owner S3 «una sola pieza»): total, method tiles, entries,
+// summary and panels share the marker-free `hf-pay-*` payment sheet with the
+// debt payment and «Cobrar todo».
+import '@/core/shared/components/payments/payment-sheet.css'
 
 const props = defineProps<{
   open: boolean
@@ -69,10 +73,9 @@ const props = defineProps<{
   // current logical-attempt key is reused.
   requoteAcceptSignal?: number
   /**
-   * Optional teleport boundary marker. Forwarded to the installed slideover
-   * content root, to the shared DateFieldPopover and to the owned
-   * CashSaleSessionPicker. Absent by default, so the sheet, the date popover
-   * and the session listbox keep their prior `ui` values and native defaults.
+   * Teleport boundary marker (Venta passes the sales entry portal). Forwarded to
+   * the slideover content root, to the shared DateFieldPopover and to the owned
+   * CashSaleSessionPicker.
    */
   portalClass?: string
 }>()
@@ -600,24 +603,14 @@ watch(
   },
 )
 
-// T3: the prior content/body geometry is preserved; an opt-in appends the
-// inherited marker plus the owned checkout composition marker to the same
-// native content root. Omission keeps the previous string exactly.
+// The content root carries the caller's portal marker (Venta passes the sales
+// entry portal) plus the owned checkout composition marker.
 const slideoverUi = computed(() => ({
-  content: props.portalClass
-    ? `sm:max-w-lg overflow-hidden ${props.portalClass} sales-pos-checkout`
-    : 'sm:max-w-lg overflow-hidden',
+  content: ['sm:max-w-lg overflow-hidden', props.portalClass, 'sales-pos-checkout']
+    .filter(Boolean)
+    .join(' '),
   body: 'p-0 flex flex-col h-full',
 }))
-
-// The Venta opt-in pairs the action colors through its owned class; any other
-// caller takes the shared primary control. The existing Caja binding
-// logic and payload shape below are untouched.
-const confirmButtonClass = computed(() =>
-  props.portalClass
-    ? 'w-full justify-center sales-entry-primary-action rounded-xl font-semibold shadow-sm sm:w-auto'
-    : 'w-full justify-center sm:w-auto hf-primary-control',
-)
 </script>
 
 <template>
@@ -645,63 +638,41 @@ const confirmButtonClass = computed(() =>
             />
           </div>
 
-          <div
-            class="rounded-xl border border-default bg-(--hf-surface-muted) px-5 py-4 text-center sales-pos-checkout-total"
-          >
-            <p class="text-xs font-semibold text-muted">
-              Total a cobrar
-            </p>
-            <p class="mt-1 text-4xl font-semibold tabular-nums text-highlighted">
-              {{ totalFormatted }}
-            </p>
+          <div class="hf-pay-total">
+            <p class="hf-pay-total-label">Total a cobrar</p>
+            <p class="hf-figure hf-pay-total-value">{{ totalFormatted }}</p>
           </div>
         </div>
 
         <!-- Scrollable body -->
         <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4 sales-pos-checkout-body">
           <!-- Method picker grid -->
-          <section class="space-y-3 sales-pos-checkout-methods">
+          <section class="space-y-3">
             <p class="text-sm font-semibold text-highlighted">Métodos de pago</p>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="hf-pay-methods">
               <button
                 v-for="option in methodOptions"
                 :key="paymentMethodTileKey(option)"
                 :data-testid="tileTestId(option)"
                 :data-method="option.value"
-                :data-sales-pos-checkout-state="
-                  getMethodCount(wireEntries, option) > 0 ? 'selected' : 'idle'
-                "
+                :aria-pressed="getMethodCount(wireEntries, option) > 0"
                 type="button"
-                class="relative rounded-xl border px-3 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50 sales-pos-checkout-method-tile"
-                :class="
-                  getMethodCount(wireEntries, option) > 0
-                    ? 'border-(--hf-action) bg-(--hf-active-soft)'
-                    : 'border-default bg-elevated hover:border-(--hf-action) hover:bg-(--hf-active-soft)'
-                "
+                class="hf-pay-tile"
                 :disabled="
                   (getMethodCount(wireEntries, option) === 0 && !canAddEntry) || isSubmitting
                 "
                 @click="toggleMethod(option)"
               >
-                <UBadge
-                  v-if="getMethodCount(wireEntries, option) > 0"
-                  class="absolute right-2 top-2"
-                  size="sm"
-                  color="neutral"
-                  variant="soft"
-                >
+                <UIcon :name="option.icon" class="hf-pay-tile-icon" />
+                <p class="hf-pay-tile-label">{{ option.label }}</p>
+                <span v-if="getMethodCount(wireEntries, option) > 0" class="hf-pay-tile-count">
                   {{ getMethodCount(wireEntries, option) }}
-                </UBadge>
-                <UIcon
-                  :name="option.icon"
-                  class="mb-2 size-6 text-(--hf-action)"
-                />
-                <p class="text-sm font-semibold text-highlighted">{{ option.label }}</p>
+                </span>
                 <!-- REQ-PT-007: custom tiles render the subtitle as a grey sub-line (trimmed, when present) -->
                 <p
                   v-if="option.kind === 'custom' && (option.subtitle?.trim() ?? '') !== ''"
                   :data-testid="`payment-method-tile-subtitle-${option.paymentMethodId}`"
-                  class="text-xs text-muted"
+                  class="hf-pay-tile-subtitle"
                 >
                   {{ option.subtitle }}
                 </p>
@@ -712,72 +683,59 @@ const confirmButtonClass = computed(() =>
           <USeparator />
 
           <!-- Payment entries -->
-          <section class="space-y-3 sales-pos-checkout-entries">
+          <section class="space-y-3">
             <p class="text-sm font-semibold text-highlighted">Pagos agregados</p>
 
-            <div
-              v-if="entries.length === 0"
-              class="rounded-xl border border-dashed border-default bg-elevated px-4 py-6 text-center"
-            >
-              <p class="text-sm text-muted">Selecciona un método de pago arriba</p>
+            <div v-if="entries.length === 0" class="hf-pay-empty">
+              <p>Selecciona un método de pago arriba</p>
             </div>
 
-            <div
-              v-for="(entry, index) in entries"
-              :key="paymentEntryKey(wireEntries[index]!)"
-              :data-testid="`payment-entry-${index}`"
-              class="space-y-3 rounded-xl border border-default bg-default px-3 py-3 sales-pos-checkout-payment-entry"
-            >
-              <div class="flex items-center gap-3">
-                <UBadge
-                  color="neutral"
-                  variant="soft"
-                  size="lg"
-                  class="shrink-0"
-                >
-                  <UIcon :name="PAYMENT_METHOD_CATEGORY_ICONS[entry.method]" class="size-4" />
-                </UBadge>
+            <div v-else class="hf-pay-entries">
+              <div
+                v-for="(entry, index) in entries"
+                :key="paymentEntryKey(wireEntries[index]!)"
+                :data-testid="`payment-entry-${index}`"
+                class="hf-pay-entry"
+              >
+                <div class="hf-pay-entry-head">
+                  <UIcon :name="PAYMENT_METHOD_CATEGORY_ICONS[entry.method]" class="hf-pay-entry-icon" />
 
-                <div class="min-w-0 flex-1">
-                  <p
-                    :data-testid="`payment-method-${index}`"
-                    class="text-sm font-semibold text-highlighted"
-                  >
+                  <p :data-testid="`payment-method-${index}`" class="hf-pay-entry-label">
                     {{ entryDisplays[index]?.label }}
                   </p>
+
+                  <UButton
+                    v-if="entries.length > 1"
+                    :data-testid="`remove-payment-entry-${index}`"
+                    type="button"
+                    color="error"
+                    variant="ghost"
+                    icon="i-lucide-trash-2"
+                    :disabled="isSubmitting"
+                    @click="removeEntry(index)"
+                  />
                 </div>
 
-                <UButton
-                  v-if="entries.length > 1"
-                  :data-testid="`remove-payment-entry-${index}`"
-                  type="button"
-                  color="error"
-                  variant="ghost"
-                  icon="i-lucide-trash-2"
-                  :disabled="isSubmitting"
-                  @click="removeEntry(index)"
-                />
+                <UFormField label="Monto recibido">
+                  <HfMoneyInput
+                    :id="`payment-amount-${index}`"
+                    v-model="entry.amountCents"
+                    :data-testid="`payment-amount-${index}`"
+                    :disabled="isSubmitting"
+                    class="w-full"
+                    @validation="entry.amountError = $event"
+                  />
+                </UFormField>
+
+                <UFormField v-if="entryNeedsReference(entry.method)" label="Referencia (opcional)">
+                  <UInput
+                    :data-testid="`payment-reference-${index}`"
+                    v-model="entry.reference"
+                    placeholder="Ej: VOUCHER-123"
+                    :disabled="isSubmitting"
+                  />
+                </UFormField>
               </div>
-
-              <UFormField label="Monto recibido">
-                <HfMoneyInput
-                  :id="`payment-amount-${index}`"
-                  v-model="entry.amountCents"
-                  :data-testid="`payment-amount-${index}`"
-                  :disabled="isSubmitting"
-                  class="w-full"
-                  @validation="entry.amountError = $event"
-                />
-              </UFormField>
-
-              <UFormField v-if="entryNeedsReference(entry.method)" label="Referencia (opcional)">
-                <UInput
-                  :data-testid="`payment-reference-${index}`"
-                  v-model="entry.reference"
-                  placeholder="Ej: VOUCHER-123"
-                  :disabled="isSubmitting"
-                />
-              </UFormField>
             </div>
           </section>
 
@@ -813,7 +771,8 @@ const confirmButtonClass = computed(() =>
           <section
             v-if="needsBindingDecision"
             data-testid="cash-session-binding-lost"
-            class="space-y-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-3 sales-pos-checkout-binding-lost"
+            data-tone="warning"
+            class="hf-pay-panel space-y-2"
           >
             <p class="text-xs text-warning">
               La sesión de caja vinculada ya no está disponible. Elige otra sesión o cobra sin
@@ -828,7 +787,7 @@ const confirmButtonClass = computed(() =>
               :disabled="isSubmitting"
               @click="optOutBinding"
             >
-              Cobrar sin vincular (legacy)
+              Cobrar sin vincular a caja
             </UButton>
           </section>
 
@@ -912,23 +871,23 @@ const confirmButtonClass = computed(() =>
 
         <!-- Sticky footer -->
         <div class="shrink-0 space-y-3 border-t border-default bg-default px-5 py-4 sales-pos-checkout-footer">
-          <div class="rounded-xl border border-default bg-elevated px-4 py-3 text-sm sales-pos-checkout-summary">
-            <div class="flex items-center justify-between gap-2">
+          <div class="hf-pay-summary">
+            <div class="hf-pay-summary-row">
               <p>
-                Recibido: <span class="font-semibold">{{ formatCentsMXN(paidSumCents) }}</span>
+                Recibido: <span class="hf-pay-summary-value">{{ formatCentsMXN(paidSumCents) }}</span>
               </p>
               <p>
                 Restante:
-                <span class="font-semibold">{{ formatCentsMXN(Math.max(remainingCents, 0)) }}</span>
+                <span class="hf-pay-summary-value">{{ formatCentsMXN(Math.max(remainingCents, 0)) }}</span>
               </p>
             </div>
-            <p v-if="changeDueCents > 0" class="mt-1">
-              Cambio: <span class="font-semibold">{{ formatCentsMXN(changeDueCents) }}</span>
+            <p v-if="changeDueCents > 0">
+              Cambio: <span class="hf-pay-summary-value">{{ formatCentsMXN(changeDueCents) }}</span>
             </p>
-            <p v-if="changeExceedsCash" data-testid="change-exceeds-cash" class="mt-1 text-error">
+            <p v-if="changeExceedsCash" data-testid="change-exceeds-cash" class="text-error">
               {{ CHANGE_EXCEEDS_CASH_MESSAGE }}
             </p>
-            <p v-if="nonCashExceedsTotal" data-testid="non-cash-exceeds-total" class="mt-1 text-error">
+            <p v-if="nonCashExceedsTotal" data-testid="non-cash-exceeds-total" class="text-error">
               {{ NON_CASH_EXCEEDS_TOTAL_MESSAGE }}
             </p>
           </div>
@@ -956,7 +915,8 @@ const confirmButtonClass = computed(() =>
 
           <div
             v-if="(isPartial || entries.length === 0) && hasCustomer"
-            class="flex items-center justify-between gap-2 rounded-xl border border-warning/20 bg-warning/10 px-4 py-3 text-sm"
+            data-tone="warning"
+            class="hf-pay-panel flex items-center justify-between gap-2 text-sm"
           >
             <p class="text-highlighted">
               Deuda a generar:
@@ -983,7 +943,7 @@ const confirmButtonClass = computed(() =>
               color="primary"
               :loading="isSubmitting"
               :disabled="!canSubmit"
-              :class="confirmButtonClass"
+              class="w-full justify-center sales-entry-primary-action rounded-xl font-semibold shadow-sm sm:w-auto"
               @click="handleSubmit"
             >
               {{ confirmButtonLabel }}

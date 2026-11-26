@@ -157,8 +157,8 @@ function oweLabel(sale: ConfirmedSaleRow): string {
         {{ isOpen(sale) ? 'Ocultar detalle' : 'Ver productos y detalle' }}
         <span class="sr-only">de la venta {{ folio(sale) }}</span>
       </button>
-      <div v-if="isOpen(sale)" :id="detailId(sale)" class="px-2 pb-2">
-        <SaleHistoryRowDetail :sale-id="sale.id" :allow-charge="allowCharge" @charge="emit('charge', $event)" />
+      <div v-if="isOpen(sale)" :id="detailId(sale)" class="border-t border-[var(--hf-border)]">
+        <SaleHistoryRowDetail embedded :sale-id="sale.id" :allow-charge="allowCharge" @charge="emit('charge', $event)" />
       </div>
     </li>
   </ul>
@@ -232,8 +232,8 @@ function oweLabel(sale: ConfirmedSaleRow): string {
             </td>
           </tr>
           <tr v-if="isOpen(sale)" :id="detailId(sale)">
-            <td colspan="5" class="bg-[var(--hf-surface-muted)] p-2">
-              <SaleHistoryRowDetail :sale-id="sale.id" :allow-charge="allowCharge" @charge="emit('charge', $event)" />
+            <td colspan="5" class="bg-[var(--hf-surface-muted)] p-0">
+              <SaleHistoryRowDetail embedded :sale-id="sale.id" :allow-charge="allowCharge" @charge="emit('charge', $event)" />
             </td>
           </tr>
         </template>

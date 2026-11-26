@@ -140,10 +140,11 @@ describe('CashSaleSessionPicker', () => {
     expect(wrapper.text()).not.toContain(OPEN_UUID)
   })
 
-  it('keeps the legacy unbound choice for the POS charge by default', () => {
+  it('keeps the unbound choice for the POS charge by default, worded without «legacy» (owner S3)', () => {
     const wrapper = mountPicker({ selectedId: OPEN_UUID, isSelectionEligible: true })
-    expect(wrapper.get('[data-testid="cash-session-select"]').attributes('data-placeholder')).toBe('Sin caja (legacy)')
-    expect(wrapper.get('[data-testid="cash-session-clear"]').text()).toContain('Cobrar sin vincular (legacy)')
+    expect(wrapper.get('[data-testid="cash-session-select"]').attributes('data-placeholder')).toBe('Sin caja')
+    expect(wrapper.get('[data-testid="cash-session-clear"]').text()).toContain('Cobrar sin vincular a caja')
+    expect(wrapper.text()).not.toMatch(/legacy/i)
   })
 
   it('without the unbound choice never offers to charge without a till', () => {

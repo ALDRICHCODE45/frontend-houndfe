@@ -95,7 +95,7 @@ function clear() {
           :items="selectItems"
           :disabled="isFetching"
           :ui="portalClass ? { content: portalClass } : undefined"
-          :placeholder="allowUnbound ? 'Sin caja (legacy)' : 'Elige una caja'"
+          :placeholder="allowUnbound ? 'Sin caja' : 'Elige una caja'"
           @update:model-value="selectValue = $event"
         />
 
@@ -127,7 +127,7 @@ function clear() {
           size="xs"
           @click="clear"
         >
-          Cobrar sin vincular (legacy)
+          Cobrar sin vincular a caja
         </UButton>
       </div>
     </UFormField>

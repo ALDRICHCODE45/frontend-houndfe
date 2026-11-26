@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { hasSalesEntryToken } from '../utils/salesEntryPortal'
 import { ref, computed, useId } from 'vue'
 import SaleItemRow from './SaleItemRow.vue'
 import SaleTotalsFooter from './SaleTotalsFooter.vue'
@@ -43,9 +42,8 @@ const props = defineProps<{
   /** Presentation-only density flag for the mobile bottom-sheet instance. */
   mobileSheet?: boolean
   /**
-   * Optional teleport boundary marker. Forwarded to the owned row menus and
-   * dialogs (and to the shared PriceListSelector's existing opt-in). Absent by
-   * default, so every consumer keeps its native defaults and prior paint.
+   * Teleport boundary marker (Venta passes the sales entry portal). Forwarded to
+   * the owned row menus and dialogs and to the shared PriceListSelector.
    */
   portalClass?: string
   /**
@@ -116,23 +114,6 @@ const canReadLinePets = computed(() => !!props.activeDraft?.customer && props.ca
 
 const hasGlobalDiscount = computed(() =>
   props.activeDraft?.items.some((item) => !!item.discountType) ?? false,
-)
-
-// T3: the same optional marker is the single "this panel is rendered inside the
-// sales entry boundary" signal, so the owned children reuse it instead of
-// growing a second flag. Absent marker → false → every prior class is kept.
-const isThemed = computed(() => Boolean(props.portalClass))
-const isSalesEntryCustomer = computed(() =>
-  hasSalesEntryToken(props.portalClass),
-)
-
-// T11 (unit B): the new cart composition is gated by the EXACT sales entry
-// token, not by the legacy advisory `Boolean(portalClass)`. An omitted or
-// unrelated opt-in keeps the previous presentation and behavior; the mobile
-// drawer forwards the same token (plus `sales-pos-cart`), so the composition
-// applies on desktop and mobile alike.
-const isSalesEntryComposition = computed(() =>
-  hasSalesEntryToken(props.portalClass),
 )
 
 // Real cart context for the heading band: derived from the active draft only.
@@ -253,16 +234,11 @@ function handleConfirmPriceListChange() {
 
 <template>
   <div
-    class="h-full flex flex-col min-w-0 sales-pos-cart-panel"
-    :class="{
-      'sales-pos-cart-composition': isSalesEntryComposition,
-      'sales-pos-cart-composition-sheet': isSalesEntryComposition && mobileSheet,
-    }"
+    class="h-full flex flex-col min-w-0 sales-pos-cart-panel sales-pos-cart-composition"
+    :class="{ 'sales-pos-cart-composition-sheet': mobileSheet }"
   >
-    <!-- Exact v0 cart heading (opt-in only): Tu venta + the real count over a
-         supporting line. Omitted/unrelated opt-ins render the prior panel. -->
+    <!-- Exact v0 cart heading: Tu venta + the real count over a supporting line. -->
     <header
-      v-if="isSalesEntryComposition"
       data-testid="cart-heading"
       class="shrink-0 sales-pos-cart-heading"
     >
@@ -314,8 +290,7 @@ function handleConfirmPriceListChange() {
            are never visually overlapped). -->
     <section
       data-testid="cart-header"
-      class="shrink-0 flex flex-col md:flex-row md:flex-wrap md:items-center md:gap-2 md:px-2 md:py-2 sales-pos-cart-header"
-      :class="{ 'sales-pos-price-list-band': isSalesEntryComposition }"
+      class="shrink-0 flex flex-col md:flex-row md:flex-wrap md:items-center md:gap-2 md:px-2 md:py-2 sales-pos-cart-header sales-pos-price-list-band"
     >
       <!-- Group 1 (T2 quotation-sale-conversion): the old disabled
            Venta/Pedido tabs became the «Pedido» flow itself, one real button
@@ -393,7 +368,7 @@ function handleConfirmPriceListChange() {
           :image-url="itemImageMap?.[item.variantId ? `${item.productId}:${item.variantId}` : item.productId] ?? null"
           :is-updating="isMutating"
           :mobile-sheet="mobileSheet"
-          :composition="isSalesEntryComposition"
+          :composition="true"
           :portal-class="portalClass"
           :on-submit-price-override="onSubmitPriceOverride"
           :on-apply-discount="onApplyDiscount"
@@ -408,9 +383,9 @@ function handleConfirmPriceListChange() {
       </div>
 
       <!-- Venta composition: eligible promotions scroll with the items and
-           precede customer context. The legacy footer keeps its own branch. -->
+           precede customer context. -->
       <PromocionesDisponiblesAccordion
-        v-if="isSalesEntryComposition && (applicablePromotions?.length ?? 0) > 0"
+        v-if="(applicablePromotions?.length ?? 0) > 0"
         :promotions="applicablePromotions ?? []"
         :loading="isLoadingPromotions ?? false"
         :applied-ids="appliedManualPromotionIds ?? []"
@@ -426,14 +401,12 @@ function handleConfirmPriceListChange() {
     <section data-testid="cart-footer" class="shrink-0 flex flex-col sales-pos-cart-footer">
       <!-- Customer slot (slim line above totals) -->
       <div
-        class="px-4 py-2 flex items-center justify-between gap-3 text-sm"
-        :class="{ 'sales-pos-customer-summary': isSalesEntryCustomer }"
+        class="px-4 py-2 flex items-center justify-between gap-3 text-sm sales-pos-customer-summary"
       >
         <div v-if="!activeDraft?.customer" class="sales-pos-customer-state flex items-center gap-2">
           <USkeleton v-if="isCustomerMutationPending" class="h-4 w-32" data-testid="customer-slot-loading" />
           <template v-else>
             <UIcon
-              v-if="isSalesEntryCustomer"
               name="i-lucide-user-round"
               class="sales-pos-customer-icon size-4 shrink-0 text-muted"
               data-testid="customer-state-icon"
@@ -443,8 +416,8 @@ function handleConfirmPriceListChange() {
             <UButton
               data-testid="assign-customer-trigger"
               class="sales-pos-customer-trigger"
-              :color="isSalesEntryCustomer ? 'neutral' : 'primary'"
-              :variant="isSalesEntryCustomer ? 'outline' : undefined"
+              color="neutral"
+              variant="outline"
               size="sm"
               label="Asignar cliente"
               @click="emit('open-customer-assignment')"
@@ -454,7 +427,6 @@ function handleConfirmPriceListChange() {
         <div v-else class="sales-pos-customer-state sales-pos-customer-state-assigned flex items-center justify-between gap-3 w-full">
           <div class="sales-pos-customer-identity flex min-w-0 items-center gap-2">
             <UIcon
-              v-if="isSalesEntryCustomer"
               name="i-lucide-user-round"
               class="sales-pos-customer-icon size-4 shrink-0 text-muted"
               data-testid="customer-state-icon"
@@ -471,7 +443,6 @@ function handleConfirmPriceListChange() {
                   class="sales-pos-customer-address text-xs text-muted truncate"
                 >
                   <UIcon
-                    v-if="isSalesEntryCustomer"
                     name="i-lucide-map-pin"
                     class="sales-pos-customer-address-icon size-3.5 shrink-0"
                     data-testid="customer-address-icon"
@@ -479,7 +450,7 @@ function handleConfirmPriceListChange() {
                   Dirección: {{ customerAddressSummary }}
                 </p>
                 <p
-                  v-else-if="isSalesEntryCustomer"
+                  v-else
                   class="sales-pos-customer-address sales-pos-customer-empty-address text-xs text-muted"
                   data-testid="customer-address-empty"
                 >
@@ -513,60 +484,12 @@ function handleConfirmPriceListChange() {
         </div>
       </div>
 
-      <!-- Promociones disponibles (C.4) — manual-promo accordion mounted
-           above the totals footer. The outer v-if ensures the section hides
-           when there are no applicable promos; the inner component also
-           guards with v-if on its own. -->
-      <PromocionesDisponiblesAccordion
-        v-if="!isSalesEntryComposition && (applicablePromotions?.length ?? 0) > 0"
-        :promotions="applicablePromotions ?? []"
-        :loading="isLoadingPromotions ?? false"
-        :applied-ids="appliedManualPromotionIds ?? []"
-        @apply="(promotionId) => emit('apply-manual-promo', promotionId)"
-        @remove="(promotionId) => emit('remove-manual-promo', promotionId)"
-      />
-
-      <!-- Phase 14b: Cart actions toolbar at bottom before totals -->
-      <div
-        v-if="!isSalesEntryComposition && activeDraft && activeDraft.items.length > 0"
-        data-testid="cart-actions-toolbar"
-        class="px-4 pb-2 flex items-center justify-end gap-1 sales-pos-cart-toolbar"
-      >
-        <UTooltip
-          :text="'Vaciar venta'"
-          :ui="portalClass ? { content: portalClass } : undefined"
-        >
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-trash-2"
-            size="xs"
-            :disabled="isMutating"
-            @click="handleTrashClick"
-          />
-        </UTooltip>
-        <UDropdownMenu
-          :items="moreMenuItems"
-          :ui="portalClass ? { content: portalClass } : undefined"
-        >
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-ellipsis"
-            size="xs"
-            :disabled="isMutating"
-          />
-        </UDropdownMenu>
-      </div>
-
       <!-- Totals footer (sticky bottom) — B.2 binds the full sale so the
            footer can read backend totals + appliedOrderPromotion directly. -->
       <SaleTotalsFooter
         v-if="activeDraft"
         :sale="activeDraft"
         :is-charge-pending="isMutating"
-        :themed="isThemed"
-        :composition="isSalesEntryComposition"
         :portal-class="portalClass"
         @charge-click="emit('charge-click')"
         @clear-click="handleTrashClick"

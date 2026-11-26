@@ -630,13 +630,15 @@ function mountPanel(activeDraft: Sale | null, isCustomerMutationPending = false,
 }
 
 describe('SalesPosCustomer summary — cart trigger and assigned state', () => {
-  it('preserves the unthemed customer slot when the sale opt-in is omitted', () => {
+  // style-cleanup U3: SalesView (the only caller) always passes the sales entry portal, so the
+  // themed customer summary is the only presentation; the unthemed branch is gone.
+  it('renders the themed customer summary even without a portal class', () => {
     const wrapper = mountPanel(makeDraft())
     const footer = wrapper.get('[data-testid="cart-footer"]')
-    expect(footer.find('.sales-pos-customer-summary').exists()).toBe(false)
-    expect(footer.find('[data-testid="customer-state-icon"]').exists()).toBe(false)
+    expect(footer.find('.sales-pos-customer-summary').exists()).toBe(true)
+    expect(footer.find('[data-testid="customer-state-icon"]').exists()).toBe(true)
     const trigger = footer.get('[data-testid="assign-customer-trigger"]')
-    expect(trigger.classes().join(' ')).toContain('bg-primary')
+    expect(trigger.classes().join(' ')).not.toContain('bg-primary')
     expect(footer.text()).toContain('Sin asignar')
   })
 

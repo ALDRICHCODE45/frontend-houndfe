@@ -80,7 +80,7 @@ describe('legacy semantic roles consume the HF foundation', () => {
     expect(value(document.body, '--color-coco-900')).toBe('#080e31')
   })
 
-  it.each(['light', 'dark'])('paints the unthemed charge action as the shared primary and keeps its behavior in %s', async theme => {
+  it.each(['light', 'dark'])('paints the charge action as the sales entry primary and keeps its behavior in %s', async theme => {
     document.documentElement.className = theme
     document.body.className = 'hf-theme hf-ui hf-app'
     installFoundation()
@@ -97,17 +97,18 @@ describe('legacy semantic roles consume the HF foundation', () => {
     })
     wrappers.push(host)
     const wrapper = host.getComponent(SaleTotalsFooter)
-    const button = wrapper.get('button')
-    // The unthemed charge action is the shared primary control now; the legacy
-    // forced gold paint (!bg-(--brand-action) !text-black) is retired.
-    expect(button.classes()).toContain('hf-primary-control')
+    const button = wrapper.get('button.sales-pos-charge-button')
+    // The footer has a single (v0) layout: «Cobrar» is the sales entry primary
+    // action; the legacy forced gold paint (!bg-(--brand-action) !text-black)
+    // stays retired.
+    expect(button.classes()).toContain('sales-entry-primary-action')
     expect(button.classes()).not.toContain('!bg-(--brand-action)')
     expect(button.classes()).not.toContain('!text-black')
     await button.trigger('click')
     expect(wrapper.emitted('charge-click')).toHaveLength(1)
     props.isChargePending = true
     await wrapper.vm.$nextTick()
-    expect(wrapper.get('button').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('button.sales-pos-charge-button').attributes('disabled')).toBeDefined()
 
   })
 

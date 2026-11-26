@@ -68,11 +68,13 @@ describe('PaymentSuccessModal', () => {
     expect(cambioRow.text()).toContain('$5.00')
   })
 
-  it('Cerrar button takes the shared primary control [PMT-REQ-004]', () => {
+  // style-cleanup U3: Venta (the only caller) always passes the sales entry portal, so Cerrar
+  // is the portal's paired primary action; the unused fallback branch is gone.
+  it('Cerrar button takes the Venta paired primary action [PMT-REQ-004]', () => {
     const wrapper = mountModal()
 
     const closeButton = wrapper.get('button')
-    expect(closeButton.classes()).toContain('hf-primary-control')
+    expect(closeButton.classes()).toContain('sales-entry-primary-action')
     expect(closeButton.classes()).not.toContain('!bg-(--brand-action)')
   })
 })

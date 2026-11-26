@@ -735,7 +735,9 @@ describe('PaymentModal', () => {
     expect(submitted?.payload).not.toHaveProperty('dueDate')
   })
 
-  it('confirm-charge button takes the shared primary control [PMT-REQ-004]', () => {
+  // style-cleanup U3: Venta (the only caller) always passes the sales entry portal, so the
+  // confirm action is the portal's paired primary action; the unused fallback branch is gone.
+  it('confirm-charge button takes the Venta paired primary action [PMT-REQ-004]', () => {
     const wrapper = mount(PaymentModal, {
       props: {
         open: true,
@@ -746,7 +748,7 @@ describe('PaymentModal', () => {
     })
 
     const confirmButton = wrapper.get('[data-testid="confirm-charge"]')
-    expect(confirmButton.classes()).toContain('hf-primary-control')
+    expect(confirmButton.classes()).toContain('sales-entry-primary-action')
     expect(confirmButton.classes()).not.toContain('!bg-(--brand-action)')
   })
 
@@ -763,8 +765,9 @@ describe('PaymentModal', () => {
     const cashTile = wrapper.get('[data-testid="add-payment-entry"]')
     await cashTile.trigger('click')
 
-    expect(cashTile.classes()).toContain('border-(--hf-action)')
-    expect(cashTile.classes()).toContain('bg-(--hf-active-soft)')
+    // The shared payment sheet paints the selection from `aria-pressed` (style-cleanup U3).
+    expect(cashTile.classes()).toContain('hf-pay-tile')
+    expect(cashTile.attributes('aria-pressed')).toBe('true')
   })
 })
 
@@ -816,7 +819,7 @@ describe('PaymentModal S4B — custom payment method tiles (sdd custom-payment-m
 
     const sub = wrapper.get(`[data-testid="payment-method-tile-subtitle-${UUID_A}"]`)
     expect(sub.text()).toContain('Link')
-    expect(sub.classes()).toContain('text-muted')
+    expect(sub.classes()).toContain('hf-pay-tile-subtitle')
   })
 
   it('REQ-PT-007 — null subtitle hides the sub-line', () => {
