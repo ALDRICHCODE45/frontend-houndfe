@@ -8,10 +8,11 @@
 ## Tasks
 - [x] T1 S1-S3 Fix availability in the opening picker + actionable message — worker
 - [x] T1b S3 Use `drawerHeld`/`drawerHeldStatus`/`drawerHeldSince`/`heldBy` from GET /cash-registers (handoff 31) as the source of truth — worker
-- [ ] T2 Full suite, preview check, owner check, merge — parent
+- [x] T2 Full suite, preview check, owner check, merge — parent
 
 ## Log
 - L1 Owner report S1 with screenshots (Caja Express «Disponible para abrir» → refused). DB check by parent: 4 of 5 active registers held unreleased sessions.
 - L2 T1 (worker mwxvt0zy-c-t7tn): root cause `CashOpeningPanel.vue:71-72` labelled availability only from `register.isActive`. Fix reads `GET /cash-sessions?drawerOpen=true&limit=100` (drawerReleasedAt null) via `useCashUnreleasedSessions` (needs read+create:CashSession): busy registers disabled with «Ocupada: sesión abierta / conteo en curso / conteo por verificar / cajón sin liberar de X desde …» and «Ver la sesión»; «Comprobando si está libre…» while loading; refused open (422 body {registerId, sessionId}) names the register and offers «Ver la sesión» when reachable, else asks for a supervisor. RED 11 tests; GREEN cash-register 43 files / 683 tests, related 63 / 1077; lint, type-check clean. Limit: without read:CashSessionAudit another person's held drawer is invisible → backend asked (2026-11-26) to expose per-register `heldBy`/`drawerHeld` on GET /cash-registers. Risk: item 6 (was uncovered; now 14 tests).
 - L3 Backend handoff 31 (699d79f2 + 9cbf0d02, dev :3003): GET /cash-registers items carry drawerHeld (always), drawerHeldStatus/Since (non-null when held, no name), heldBy (only own session or audit, with read:CashSession). Copied verbatim to odd/handoff/31-cash-register-held-by.md.
 - L4 T1b (worker mwxxg4o5-f-3uw1): `drawerHeld` from GET /cash-registers decides busy/disabled for every user (`cashRegisterHold` / `cashRegisterHeldLabel`): «Ocupada · en conteo desde 09:12» (no name), «Ocupada por <nombre> desde …» (heldBy), «Tu sesión · … desde …» (byMe); «Ver la sesión» via heldBy.sessionId, incl. inactive held registers; notice without hedge when the field is known; 422 refetches registers. The GET /cash-sessions?drawerOpen=true read only runs as a fallback for an older backend without the field (delete after 699d79f2 is everywhere). RED display 8 failed, view 5 failed; GREEN cash-register 43 files / 697 tests, related 29 / 378; lint, type-check clean.
+- L5 Owner check on the combined preview (2026-11-26): no cash issue reported; owner «merge». Merged to local main with feat/customers-module.
