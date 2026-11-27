@@ -19,7 +19,7 @@ import type {
 } from '@/features/POS/sales/interfaces/sale.types'
 import { makePet } from '../../pets/__tests__/pet.fixture'
 import type { Pet } from '../../pets/pet.types'
-import CustomerSalesHistorySlideover from '../CustomerSalesHistorySlideover.vue'
+import CustomerSalesHistoryHarness from './CustomerSalesHistoryHarness'
 
 vi.mock('vue-router', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -159,9 +159,9 @@ function stubViewport(mobile: boolean) {
 }
 
 let wrapper: VueWrapper | undefined
-function mountSlideover(props: { customer?: Customer } = {}) {
+function mountHistory(props: { customer?: Customer } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
-  wrapper = mountWithUApp(CustomerSalesHistorySlideover, {
+  wrapper = mountWithUApp(CustomerSalesHistoryHarness, {
     props: { open: true, customer: customer(), ...props },
     attachTo: document.body,
     global: { plugins: [[VueQueryPlugin, { queryClient }]] },
@@ -181,7 +181,7 @@ const buttonWith = (label: string, root: ParentNode = document.body) => {
   return found
 }
 
-describe('CustomerSalesHistorySlideover — backend data (handoff 28)', () => {
+describe('CustomerSalesHistoryBody — backend data (handoff 28)', () => {
   beforeEach(() => {
     stubViewport(false)
     customerWide.value = WIDE
@@ -205,13 +205,13 @@ describe('CustomerSalesHistorySlideover — backend data (handoff 28)', () => {
   })
 
   it('shows «Ticket promedio» from the customer-wide summary', async () => {
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     expect(text(q('[data-testid="metric-average-ticket"]'))).toContain('$1,310.36')
   })
 
   it('desktop: an overdue warning with count, debt and the oldest due day from the string', async () => {
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     const warning = q('[data-testid="history-overdue-warning"]')!
     expect(text(warning)).toContain('2 vencidas · $610.00 · la más antigua el 10/11/2026')
@@ -225,7 +225,7 @@ describe('CustomerSalesHistorySlideover — backend data (handoff 28)', () => {
       summary: { ...WIDE.summary, overdueDebtCents: 45_000 },
       counts: { ...WIDE.counts, overdue: 1 },
     }
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     expect(text(q('[data-testid="history-overdue-warning"]'))).toContain(
       '1 vencida · $450.00 · la más antigua el 10/11/2026',
@@ -237,7 +237,7 @@ describe('CustomerSalesHistorySlideover — backend data (handoff 28)', () => {
       summary: { ...WIDE.summary, overdueDebtCents: 0, oldestOverdueDueDate: null },
       counts: { ...WIDE.counts, overdue: 0 },
     }
-    const mounted = mountSlideover()
+    const mounted = mountHistory()
     await flushPromises()
     expect(q('[data-testid="history-overdue-warning"]')).toBeNull()
     mounted.vm.$root?.$?.appContext.app.unmount()
@@ -247,14 +247,14 @@ describe('CustomerSalesHistorySlideover — backend data (handoff 28)', () => {
       summary: { salesCount: 14, totalSoldCents: 1_834_500, outstandingDebtCents: 98_000 },
       counts: { all: 14, pendingPayments: 3, notDelivered: 1 },
     }
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     expect(q('[data-testid="history-overdue-warning"]')).toBeNull()
     expect(text(q('[data-testid="history-status-filter"]'))).not.toContain('Vencidas')
   })
 
   it('«Ver vencidas» applies the «Vencidas» filter, back to page 1, KPIs unchanged', async () => {
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     options!.page.value = 2
     buttonWith('Ver vencidas', q('[data-testid="history-overdue-warning"]')!).click()
@@ -284,7 +284,7 @@ describe('CustomerSalesHistorySlideover — backend data (handoff 28)', () => {
 
   it('the «Vencidas» chip has its count and combines with the pet', async () => {
     pets.value = [makePet({ id: 'p1', name: 'Bruno' })]
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     const chip = buttonWith('Vencidas', q('[data-testid="history-status-filter"]')!)
     expect(text(chip)).toBe('Vencidas 2')
@@ -298,7 +298,7 @@ describe('CustomerSalesHistorySlideover — backend data (handoff 28)', () => {
   })
 
   it('empty «Vencidas»: says so and offers «Ver todas»', async () => {
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     buttonWith('Vencidas', q('[data-testid="history-status-filter"]')!).click()
     await nextTick()
@@ -315,7 +315,7 @@ describe('CustomerSalesHistorySlideover — backend data (handoff 28)', () => {
 
   it('390: one banner merges the debt and the overdue warning; its action applies «Vencidas»', async () => {
     stubViewport(true)
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     expect(all('[data-testid="history-debt-banner"]')).toHaveLength(1)
     expect(q('[data-testid="history-overdue-warning"]')).toBeNull()
@@ -336,7 +336,7 @@ describe('CustomerSalesHistorySlideover — backend data (handoff 28)', () => {
       summary: { ...WIDE.summary, overdueDebtCents: 0, oldestOverdueDueDate: null },
       counts: { ...WIDE.counts, overdue: 0 },
     }
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     const banner = q('[data-testid="history-debt-banner"]')!
     expect(text(banner)).not.toContain('vencida')
@@ -346,7 +346,7 @@ describe('CustomerSalesHistorySlideover — backend data (handoff 28)', () => {
   })
 
   it('shows the monthly chart of the customer (12 months)', async () => {
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     expect(read(monthlyOptions!.customerId)).toBe('customer-1')
     expect(read(monthlyOptions!.open)).toBe(true)
@@ -358,7 +358,7 @@ describe('CustomerSalesHistorySlideover — backend data (handoff 28)', () => {
 
   it('hides the chart without read:Sale or while it has no data', async () => {
     monthly.canRead.value = false
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     expect(q('[data-testid="history-monthly-chart"]')).toBeNull()
     expect(q('[data-testid="monthly-retry"]')).toBeNull()
@@ -371,7 +371,7 @@ describe('CustomerSalesHistorySlideover — backend data (handoff 28)', () => {
   it('a monthly error (e.g. 404 CUSTOMER_NOT_FOUND) hides the chart with a small retry; the history stays', async () => {
     monthly.months.value = undefined
     monthly.isError.value = true
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     expect(q('[data-testid="history-monthly-chart"] ol')).toBeNull()
     expect(q('table')).not.toBeNull()
@@ -401,7 +401,7 @@ describe('CustomerSalesHistorySlideover — backend data (handoff 28)', () => {
       pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
       ...customerWide.value,
     })
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     expect(q('[data-testid="history-monthly-chart"]')).toBeNull()
     expect(text(q('[data-testid="metric-average-ticket"]'))).toContain('$0.00')

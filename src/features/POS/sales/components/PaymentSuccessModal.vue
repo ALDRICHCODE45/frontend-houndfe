@@ -57,7 +57,7 @@ const modalUi = computed(() => ({
   >
     <template #body>
       <div class="space-y-4 sales-pos-checkout-success">
-        <div class="flex items-center gap-3 rounded-2xl border border-success/20 bg-success/10 p-4">
+        <div class="flex items-center gap-3">
           <span class="flex h-11 w-11 items-center justify-center rounded-full bg-success text-(--hf-on-action)">
             <UIcon name="i-lucide-check" class="h-6 w-6" />
           </span>

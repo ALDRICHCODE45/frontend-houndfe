@@ -10,19 +10,15 @@ const ROOT = 'src'
 
 // Paths (files, or folders ending in '/') that may keep legacy or raw palette values.
 const ALLOWED = [
-  // Defines the coco scales Nuxt UI uses and the legacy variable aliases.
+  // Defines the coco scales Nuxt UI uses (no legacy --brand-* / --light-* variables since U5).
   'src/assets/main.css',
   // Always-light catalog palette (public catalog, not themed by the app shell).
   'src/features/catalog/',
 ]
 
 // Single legacy names kept on purpose outside those paths, keyed `file :: name`.
-const ALLOWED_HITS = new Set([
-  // The .hf-ui boundary rebinds the root --brand-* compatibility vocabulary to HF tokens.
-  'src/core/shared/design-system/houndfe-ui.css :: --brand-primary',
-  'src/core/shared/design-system/houndfe-ui.css :: --brand-action',
-  'src/core/shared/design-system/houndfe-ui.css :: --brand-accent',
-])
+// Empty since style-cleanup U5 removed the .hf-ui --brand-* rebinding.
+const ALLOWED_HITS = new Set<string>([])
 
 const COCO = /\bcoco-[a-z0-9-]+/g
 const LEGACY_VARIABLE = /--(?:brand|light)-[a-z0-9-]+/g
@@ -40,6 +36,13 @@ function files(dir: string): string[] {
 
 function isAllowed(path: string) {
   return ALLOWED.some((allowed) => (allowed.endsWith('/') ? path.startsWith(allowed) : path === allowed))
+}
+
+/** `--brand-primary: …` / `--light-surface-page: …`: a legacy variable being (re)defined. */
+const LEGACY_DEFINITION = /--(?:brand|light)-[a-z0-9-]+(?=\s*:)/g
+
+function legacyDefinitionsIn(source: string): string[] {
+  return source.match(LEGACY_DEFINITION) ?? []
 }
 
 export function legacyPaletteIn(source: string): string[] {
@@ -87,6 +90,25 @@ describe('legacy palette guard (A3)', () => {
     expect(scanned.some((path) => path.endsWith('.ts'))).toBe(true)
     expect(scanned.some((path) => path.endsWith('.vue'))).toBe(true)
     expect(scanned.filter((path) => /\.(spec|test)\.ts$|\.d\.ts$/.test(path))).toEqual([])
+  })
+
+  // style-cleanup U5: the --brand-* / --light-* vocabulary had no consumers left and was deleted;
+  // no file (main.css and the .hf-ui boundary included) may define it again.
+  it('detects legacy variable definitions but not their mere mention', () => {
+    expect(legacyDefinitionsIn('  --brand-primary: var(--hf-action);\n  --light-surface-page:    #f5f4f6;')).toEqual([
+      '--brand-primary',
+      '--light-surface-page',
+    ])
+    expect(legacyDefinitionsIn('color: var(--brand-primary); --hf-action: #2442f6;')).toEqual([])
+  })
+
+  it('no stylesheet or component defines a --brand-* or --light-* variable', () => {
+    const offenders = files(ROOT).flatMap((path) =>
+      readFileSync(path, 'utf8')
+        .split('\n')
+        .flatMap((line, index) => legacyDefinitionsIn(line).map((hit) => `${path}:${index + 1} :: ${hit}`)),
+    )
+    expect(offenders).toEqual([])
   })
 
   it('no screen or stylesheet paints with the legacy or raw palette', () => {

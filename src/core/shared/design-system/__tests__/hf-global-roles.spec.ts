@@ -64,16 +64,13 @@ afterEach(() => {
 })
 
 describe('legacy semantic roles consume the HF foundation', () => {
-  it.each(['light', 'dark'])('resolves the brand roles in %s without flattening status or scales', theme => {
+  it.each(['light', 'dark'])('keeps status roles and coco scales distinct in %s, with no legacy brand vocabulary', theme => {
     document.documentElement.className = theme
     document.body.className = 'hf-theme hf-ui hf-app'
     installFoundation()
-    const roles = {
-      '--brand-primary': '--hf-action', '--brand-accent': '--hf-active',
-    }
-    for (const [legacy, hf] of Object.entries(roles))
-      expect(value(document.body, legacy), legacy).toBe(value(document.body, hf))
-    expect(value(document.body, '--brand-danger')).toBe('#ef4444')
+    // style-cleanup U5: the unused --brand-* / --light-surface-page aliases were deleted.
+    for (const legacy of ['--brand-primary', '--brand-action', '--brand-accent', '--brand-danger', '--light-surface-page'])
+      expect({ [legacy]: value(document.body, legacy) }).toEqual({ [legacy]: undefined })
     expect(value(document.body, '--hf-warning')).not.toBe(value(document.body, '--hf-action'))
     expect(value(document.body, '--hf-success')).not.toBe(value(document.body, '--hf-action'))
     expect(value(document.body, '--color-coco-500')).toBe('#2442f6')
@@ -127,11 +124,10 @@ describe('legacy semantic roles consume the HF foundation', () => {
     expect(document.body.hasAttribute('data-catalog-theme')).toBe(false)
   })
 
-  it('keeps stylesheet-only imports inert and the isolated legacy gold fallback available', () => {
+  it('keeps stylesheet-only imports inert', () => {
     installFoundation()
     expect(value(document.body, '--hf-page')).toBeUndefined()
     expect(value(document.body, 'background-color')).toBeUndefined()
-    expect(value(document.body, '--brand-action')).toBe('#f6bb13')
     expect(adapter).not.toMatch(/--ui-success:/)
   })
 })

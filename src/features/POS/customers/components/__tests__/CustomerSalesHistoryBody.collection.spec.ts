@@ -1,15 +1,19 @@
 /**
  * «Cobrar todo» T1 (S4): the history offers «Cobrar todo» only with `update:Sale` and open debt
- * (`summary.outstandingDebtCents > 0`); on a phone it also sits in the debt banner.
+ * (`summary.outstandingDebtCents > 0`); on a phone it sits in the debt banner of the body.
+ * style-cleanup U6: moved off the removed history slideover onto CustomerSalesHistoryHarness. The
+ * header button and the customer-switch toast were slideover-only and were dropped; the page header
+ * action is covered by CustomerDetailView.spec.ts. The gating is asserted on the shared controller
+ * (`showCollectAction`, `collectActionLabel`) and on the body's banner action.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
-import { computed, defineComponent, h, reactive, ref, shallowRef } from 'vue'
+import { computed, defineComponent, h, reactive, ref, shallowRef, type ComputedRef } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import type { Customer } from '../../interfaces/customer.types'
 import type { ConfirmedSalesListResponse } from '@/features/POS/sales/interfaces/sale.types'
-import CustomerSalesHistorySlideover from '../CustomerSalesHistorySlideover.vue'
+import CustomerSalesHistoryHarness from './CustomerSalesHistoryHarness'
 
 const can = { update: true }
 vi.mock('vue-router', async (importOriginal) => ({
@@ -29,9 +33,6 @@ vi.mock('@/features/POS/sales/components/history/SaleHistoryRowDetail.vue', () =
 vi.mock('@/features/POS/sales/components/DebtPaymentModal.vue', () => ({
   default: defineComponent({ setup: () => () => null }),
 }))
-vi.mock('../CustomerStatementDownload.vue', () => ({
-  default: defineComponent({ setup: () => () => h('span') }),
-}))
 vi.mock('../CustomerCollectionSlideover.vue', () => ({
   default: defineComponent({
     props: { open: Boolean, customerId: String, customerName: String },
@@ -50,11 +51,6 @@ const unresolvedFor = ref(new Set<string>())
 vi.mock('../../collection/useCustomerCollection', () => ({
   hasUnresolvedCollection: (tenantId: string, customerId: string | undefined) =>
     tenantId === 'tenant-1' && !!customerId && unresolvedFor.value.has(customerId),
-}))
-const toast = vi.hoisted(() => ({ add: vi.fn() }))
-vi.mock('@nuxt/ui/runtime/composables/useToast', async (importOriginal) => ({
-  ...(await importOriginal<object>()),
-  useToast: () => toast,
 }))
 
 const response = shallowRef<ConfirmedSalesListResponse>()
@@ -127,7 +123,7 @@ let props: { open: boolean; customer: Customer | null }
 function mountHistory() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
   props = reactive({ open: true, customer: customer() })
-  wrapper = mountWithUApp(CustomerSalesHistorySlideover, {
+  wrapper = mountWithUApp(CustomerSalesHistoryHarness, {
     props,
     attachTo: document.body,
     global: { plugins: [[VueQueryPlugin, { queryClient }]] },
@@ -136,12 +132,18 @@ function mountHistory() {
 }
 const q = (selector: string) => document.body.querySelector<HTMLElement>(selector)
 const qa = (selector: string) => [...document.body.querySelectorAll<HTMLElement>(selector)]
+const BANNER_ACTION = '[data-testid="history-debt-banner"] [data-testid="history-collect-all-banner"]'
+/** The controller the history parents read for their «Cobrar todo» header action. */
+function controller() {
+  return (wrapper!.vm.$.exposed as {
+    history: { showCollectAction: ComputedRef<boolean>; collectActionLabel: ComputedRef<string> }
+  }).history
+}
 
 beforeEach(() => {
   document.body.innerHTML = ''
   can.update = true
   unresolvedFor.value = new Set()
-  toast.add.mockClear()
   stubViewport(false)
   withDebt(61000)
 })
@@ -152,47 +154,52 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
-describe('CustomerSalesHistorySlideover — «Cobrar todo»', () => {
-  it('shows «Cobrar todo» with update:Sale and open debt', async () => {
+describe('CustomerSalesHistoryBody — «Cobrar todo»', () => {
+  it('offers «Cobrar todo» with update:Sale and open debt', async () => {
     mountHistory()
     await flushPromises()
-    const action = q('[data-testid="history-collect-all"]')
-    expect(action?.textContent).toContain('Cobrar todo')
+    expect(controller().showCollectAction.value).toBe(true)
+    expect(controller().collectActionLabel.value).toBe('Cobrar todo')
   })
 
   it('is hidden without update:Sale', async () => {
     can.update = false
+    stubViewport(true)
     mountHistory()
     await flushPromises()
+    expect(controller().showCollectAction.value).toBe(false)
+    expect(q('[data-testid="history-debt-banner"]')).not.toBeNull()
     expect(qa('[data-testid^="history-collect-all"]')).toHaveLength(0)
   })
 
   it('is hidden without open debt', async () => {
     withDebt(0)
+    stubViewport(true)
     mountHistory()
     await flushPromises()
+    expect(controller().showCollectAction.value).toBe(false)
     expect(qa('[data-testid^="history-collect-all"]')).toHaveLength(0)
   })
 
   it('opens the collection sheet for the shown customer', async () => {
+    stubViewport(true)
     mountHistory()
     await flushPromises()
     expect(q('[data-testid="collection-sheet"]')).toBeNull()
-    q('[data-testid="history-collect-all"]')!.click()
+    q(BANNER_ACTION)!.click()
     await flushPromises()
     const sheet = q('[data-testid="collection-sheet"]')
     expect(sheet?.dataset.customerId).toBe('customer-1')
     expect(sheet?.textContent).toBe('Ana Pérez')
   })
 
-  it('390: also sits in the debt banner, as a 44 px target', async () => {
+  it('390: sits in the debt banner, as a 44 px target', async () => {
     stubViewport(true)
     mountHistory()
     await flushPromises()
-    const banner = q(
-      '[data-testid="history-debt-banner"] [data-testid="history-collect-all-banner"]',
-    )
+    const banner = q(BANNER_ACTION)
     expect(banner).not.toBeNull()
+    expect(banner!.textContent).toContain('Cobrar todo')
     expect(banner!.className).toContain('min-h-11')
     banner!.click()
     await flushPromises()
@@ -200,9 +207,10 @@ describe('CustomerSalesHistorySlideover — «Cobrar todo»', () => {
   })
 
   it('stays open when the refreshed history no longer has debt', async () => {
+    stubViewport(true)
     mountHistory()
     await flushPromises()
-    q('[data-testid="history-collect-all"]')!.click()
+    q(BANNER_ACTION)!.click()
     await flushPromises()
     withDebt(0)
     await flushPromises()
@@ -210,39 +218,18 @@ describe('CustomerSalesHistorySlideover — «Cobrar todo»', () => {
   })
 })
 
-describe('CustomerSalesHistorySlideover — unresolved collection (R1/R4)', () => {
-  const other = (): Customer => ({ ...customer(), id: 'customer-2', fullName: 'Luis Gómez' })
-
+describe('CustomerSalesHistoryBody — unresolved collection (R1/R4)', () => {
   it('keeps the collection reachable while its outcome is unknown, even without debt', async () => {
     unresolvedFor.value = new Set(['customer-1'])
     withDebt(0)
+    stubViewport(true)
     mountHistory()
     await flushPromises()
-    const action = q('[data-testid="history-collect-all"]')
+    expect(controller().showCollectAction.value).toBe(true)
+    const action = q(BANNER_ACTION)
     expect(action?.textContent).toContain('Cobro sin confirmar')
     action!.click()
     await flushPromises()
     expect(q('[data-testid="collection-sheet"]')?.dataset.customerId).toBe('customer-1')
-  })
-
-  it('changing customer with an unresolved collection warns which customer to come back to', async () => {
-    unresolvedFor.value = new Set(['customer-1'])
-    mountHistory()
-    await flushPromises()
-    props.customer = other()
-    await flushPromises()
-    expect(toast.add).toHaveBeenCalledTimes(1)
-    const [options] = toast.add.mock.calls[0]!
-    expect(options.title).toBe('Cobro sin confirmar')
-    expect(options.description).toContain('Ana Pérez')
-    expect(options.description).toContain('mismos datos')
-  })
-
-  it('changing customer without an unresolved collection says nothing', async () => {
-    mountHistory()
-    await flushPromises()
-    props.customer = other()
-    await flushPromises()
-    expect(toast.add).not.toHaveBeenCalled()
   })
 })

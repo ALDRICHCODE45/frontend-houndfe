@@ -1,12 +1,14 @@
 /// <reference types="vite/client" />
+// style-cleanup U6: moved from the removed history slideover's spec; mounts the live body + pager
+// through CustomerSalesHistoryHarness. The shell-only tests (drawer width, open/close) were dropped.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { computed, nextTick, shallowRef } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mountWithUApp } from '@/test/mountWithUApp'
-import type { Customer } from '../interfaces/customer.types'
+import type { Customer } from '../../interfaces/customer.types'
 import type { ConfirmedSalesListResponse, ConfirmedSaleRow } from '@/features/POS/sales/interfaces/sale.types'
-import CustomerSalesHistorySlideover from './CustomerSalesHistorySlideover.vue'
+import CustomerSalesHistoryHarness from './CustomerSalesHistoryHarness'
 
 const { routerPush } = vi.hoisted(() => ({ routerPush: vi.fn(async () => undefined) }))
 vi.mock('vue-router', async (importOriginal) => ({
@@ -18,7 +20,7 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => ({ currentTenantId: 'tenant-1', userCan: () => true }),
 }))
 
-// Mocked S2 query state: the slideover unit pins its consumption contract only.
+// Mocked S2 query state: the history unit pins its consumption contract only.
 const response$ = shallowRef<ConfirmedSalesListResponse>()
 const history = {
   response: response$,
@@ -58,7 +60,7 @@ vi.mock('@/features/POS/sales/composables/useCustomerSalesMonthly', async () => 
 })
 
 // Customer pets T4: a customer without pets — the pet filter stays hidden (see __tests__/…pets.spec.ts).
-vi.mock('../pets/usePets', () => ({
+vi.mock('../../pets/usePets', () => ({
   usePetsList: () => ({ data: shallowRef([]), refetch: vi.fn() }),
 }))
 
@@ -81,25 +83,13 @@ function response(overrides: Partial<ConfirmedSalesListResponse> = {}): Confirme
 }
 
 const stubs = {
-  EntityAvatar: { template: '<span data-testid="customer-avatar" />' },
   StatusBadge: { props: ['label'], template: '<span>{{ label }}</span>' },
-  AppResponsiveDrawer: {
-    props: ['open', 'closeAriaLabel', 'desktopUi'],
-    emits: ['update:open'],
-    template: `
-      <section v-if="open" role="dialog" :class="desktopUi.content">
-        <button :aria-label="closeAriaLabel" @click="$emit('update:open', false)" />
-        <slot name="title" />
-        <div data-slot="body" :class="desktopUi.body"><slot name="body" /></div>
-        <slot name="footer" />
-      </section>`,
-  },
 }
 
 let wrapper: VueWrapper | undefined
-function mountSlideover(props: { open?: boolean; customer?: Customer | null } = {}) {
+function mountHistory(props: { open?: boolean; customer?: Customer | null } = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 }, mutations: { retry: false } } })
-  wrapper = mountWithUApp(CustomerSalesHistorySlideover, {
+  wrapper = mountWithUApp(CustomerSalesHistoryHarness, {
     props: { open: true, customer: customer(), ...props },
     attachTo: document.body,
     global: { plugins: [[VueQueryPlugin, { queryClient }]], components: stubs },
@@ -119,7 +109,7 @@ function buttonWithText(label: string): HTMLButtonElement {
   return node
 }
 
-describe('CustomerSalesHistorySlideover', () => {
+describe('CustomerSalesHistoryBody + Pager (customer sales history)', () => {
   beforeEach(() => {
     history.response.value = undefined
     history.isLoading.value = false
@@ -141,30 +131,9 @@ describe('CustomerSalesHistorySlideover', () => {
     document.body.innerHTML = ''
   })
 
-  it('forwards the approved desktop shell and close behavior', async () => {
-    const mounted = mountSlideover()
-    await flushPromises()
-
-    const dialog = element('[role="dialog"]')
-    expect(dialog.className).toContain('sm:!max-w-[max(45vw,640px)]')
-    expect(element('[data-slot="body"]').className).toContain('p-0')
-    expect(dialog.textContent).toContain('Historial de ventas')
-    expect(dialog.textContent).toContain('Ana López')
-
-    element('[aria-label="Cerrar historial de ventas"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    await nextTick()
-    expect(mounted.emitted('update:open')?.[0]).toEqual([false])
-  })
-
-  it('does not open merely because a customer remains selected', async () => {
-    mountSlideover({ open: false })
-    await flushPromises()
-    expect(document.body.querySelector('[role="dialog"]')).toBeNull()
-  })
-
   it('shows three metric and five row skeletons while the first response is pending', async () => {
     history.isFetching.value = true
-    mountSlideover()
+    mountHistory()
     await flushPromises()
 
     expect(element('[aria-busy="true"]')).toBeTruthy()
@@ -175,7 +144,7 @@ describe('CustomerSalesHistorySlideover', () => {
 
   it('renders authoritative zero metrics and the exact empty status', async () => {
     history.response.value = response()
-    mountSlideover()
+    mountHistory()
     await flushPromises()
 
     expect(element('dl').textContent).toContain('Ventas confirmadas')
@@ -193,7 +162,7 @@ describe('CustomerSalesHistorySlideover', () => {
       pagination: { page: 1, limit: 10, total: 23, totalPages: 3 },
       summary: { salesCount: 23, totalSoldCents: 999_999, outstandingDebtCents: 0 },
     })
-    mountSlideover()
+    mountHistory()
     await flushPromises()
 
     const contentClasses = element('[data-testid="history-content"]').className
@@ -213,7 +182,7 @@ describe('CustomerSalesHistorySlideover', () => {
       pagination: { page: 1, limit: 10, total: 7, totalPages: 1 },
       summary: { salesCount: 7, totalSoldCents: 0, outstandingDebtCents: 0 },
     })
-    mountSlideover()
+    mountHistory()
     await flushPromises()
 
     expect(element('[data-testid="history-pagination"]').textContent).toContain('7 ventas')
@@ -223,7 +192,7 @@ describe('CustomerSalesHistorySlideover', () => {
   it('renders normalized errors and retries the current query', async () => {
     history.isError.value = true
     history.error.value = Object.assign(new Error('Server error'), { response: { status: 500 } })
-    mountSlideover()
+    mountHistory()
     await flushPromises()
 
     const error = element('.hf-empty-state[data-kind="error"]')
@@ -242,7 +211,7 @@ describe('CustomerSalesHistorySlideover', () => {
     })
     history.isFetching.value = true
     history.isPageTransition.value = true
-    mountSlideover()
+    mountHistory()
     await flushPromises()
 
     expect(element('dl').textContent).toContain('23')
@@ -256,7 +225,7 @@ describe('CustomerSalesHistorySlideover', () => {
 
   it('resets the 1-based page synchronously when the customer changes', async () => {
     history.response.value = response({ summary: { salesCount: 2, totalSoldCents: 1, outstandingDebtCents: 0 } })
-    const mounted = mountSlideover()
+    const mounted = mountHistory()
     await flushPromises()
     historyPage!.value = 3
 
@@ -268,7 +237,7 @@ describe('CustomerSalesHistorySlideover', () => {
   it('renders the no-matches empty state when a search returns no rows', async () => {
     vi.useFakeTimers()
     history.response.value = response({ summary: { salesCount: 4, totalSoldCents: 180_000, outstandingDebtCents: 0 } })
-    mountSlideover()
+    mountHistory()
     await flushPromises()
 
     const input = element('input[type="search"]') as HTMLInputElement
@@ -287,7 +256,7 @@ describe('CustomerSalesHistorySlideover', () => {
     vi.useFakeTimers()
     // Sales history redesign T1: a customer with no sale at all gets no search box (design 04 · 3).
     history.response.value = response({ data: [sale()], summary: { salesCount: 1, totalSoldCents: 100_000, outstandingDebtCents: 0 } })
-    mountSlideover()
+    mountHistory()
     await flushPromises()
 
     const input = element('input[type="search"]') as HTMLInputElement
@@ -301,7 +270,7 @@ describe('CustomerSalesHistorySlideover', () => {
   it('resets page and search when customer identity changes', async () => {
     vi.useFakeTimers()
     history.response.value = response({ summary: { salesCount: 5, totalSoldCents: 1, outstandingDebtCents: 0 } })
-    const mounted = mountSlideover()
+    const mounted = mountHistory()
     await nextTick()
 
     const input = document.body.querySelector('input[type="search"]') as HTMLInputElement
@@ -325,7 +294,7 @@ describe('CustomerSalesHistorySlideover', () => {
     })
     history.isError.value = true
     history.error.value = forbidden
-    const mounted = mountSlideover()
+    const mounted = mountHistory()
     await flushPromises()
 
     expect(document.body.textContent).toContain('Sin permiso para ver ventas')

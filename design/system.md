@@ -7,7 +7,7 @@ Re-synced from the project sources on 2026-11-18 (Geist and Lucide bundled local
 - `src/core/shared/design-system/houndfe-ui.css`: the `.hf-ui` semantic adapter (Nuxt `--ui-*` aliases), primary pairing, fields, focus, page header, table surface and table layout (widths, pinned edge, resize handle, header grip and ⋯, drag, density, «Columnas» panel, saved cue, bulk bar, totals, views), status badge, row actions, empty state, skeleton.
 - `src/core/shared/components/DataTable/` (`AppDataTable.vue`, `columnLayout.utils.ts`, `tableLayout.ts`, `DataTableToolbar.vue`, `README.md`) and `src/core/shared/composables/` (`useTablePreferences.ts`, `useTableViews.ts`): default widths, shrink-to-fit, column menu, density presets, persisted layout and views.
 - `src/core/shared/design-system/hf-toast.css`: toast geometry and tones (colors come from `--hf-*` through the `--shell-*` aliases).
-- `src/assets/main.css`: Geist imports (`@fontsource/geist` 400, 500, 600, 700; local, `font-display: swap`), Coco shade scales, legacy brand vocabulary, radius scale, `--font-sans`, root `font-feature-settings`.
+- `src/assets/main.css`: Geist imports (`@fontsource/geist` 400, 500, 600, 700; local, `font-display: swap`), Coco shade scales, radius scale, `--font-sans`, root `font-feature-settings`.
 - `vite.config.ts`: Nuxt UI color mapping, component slot defaults, and the `localIcons()` plugin (Lucide from `@iconify-json/lucide`, no Iconify API request).
 - `src/app/layouts/styles/unified-shell.css`: the `--shell-shadow*` values used by the toast.
 - `docs/design-system.md`, section Patrones: component rules.
@@ -59,7 +59,7 @@ Derived (all in `houndfe-ui.css`):
   - `--color-coco-neutral-*`: 900 `#2c2434` (50 `#f5f4f6`, 950 `#16121a`).
   - `--color-coco-navy-*`: 500 `#173968` (50 `#e7eef7`, 950 `#02060a`).
   - `--color-coco-gold-*`: 500 `#f6bb13` (50 `#fef9e8`, 950 `#281d03`).
-- Legacy brand vocabulary, `src/assets/main.css` (4): `--brand-primary` = `--hf-action`, `--brand-action` = `--hf-gold` (fallback `#f6bb13`), `--brand-accent` = `--hf-active`, `--brand-danger` `#ef4444`. Plus `--light-surface-page` `#f5f4f6` (sales entry only).
+- No legacy brand vocabulary: `--brand-*` and `--light-*` are not defined anywhere (guard `src/core/shared/design-system/__tests__/legacy-palette-guard.spec.ts`).
 
 ## Typography
 - Family: `--hf-font` = `'Geist', ui-sans-serif, system-ui, sans-serif`, `houndfe-theme.css`. `--font-sans` = `'Geist', system-ui, sans-serif`, `src/assets/main.css`. `--shell-font` = `var(--hf-font, 'Geist', ui-sans-serif, system-ui, sans-serif)`, `unified-shell.css`. The app bundles Geist from `@fontsource/geist` (no Google Fonts request since 2026-11-18). Offline artboards declare Geist only as a family name with the `--hf-font` fallback; no remote font.
@@ -138,7 +138,7 @@ Source for all: `docs/design-system.md` Patrones, plus the CSS file named.
 - **Global**: Lucide icons, bundled locally in the app (`localIcons()` in `vite.config.ts`, literal `i-lucide-*` names; guard `local-assets-guard.spec.ts`), inline SVG in artboards; no emoji or external assets; same themed root (`hf-theme hf-ui`) for dialogs, sheets and menus; text always accompanies color; reduced motion respected.
 
 ## Counts
-HF color roles 23 (x2 themes); derived mixes 6; Nuxt role mappings 4; `--ui-*` aliases 17; Coco shades 44; legacy brand 4 plus 1; font families 1 (3 declarations: `--hf-font`, `--font-sans`, `--shell-font`); weights 4 loaded, 3 in use; sizes 9; spacing steps 6; radius 3 HF plus 8 scale; shadows 3 plus 2 shell shadow values plus focus ring.
+HF color roles 23 (x2 themes); derived mixes 6; Nuxt role mappings 4; `--ui-*` aliases 17; Coco shades 44; font families 1 (3 declarations: `--hf-font`, `--font-sans`, `--shell-font`); weights 4 loaded, 3 in use; sizes 9; spacing steps 6; radius 3 HF plus 8 scale; shadows 3 plus 2 shell shadow values plus focus ring.
 
 ## Artboard self-check
 List colors and font families used; allowed: the tokens above, `transparent`, `currentColor`, `color-mix` of these tokens. Check both themes, focus ring, 390px behavior of mobile patterns, and no external requests.

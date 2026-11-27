@@ -1,8 +1,9 @@
 /// <reference types="vite/client" />
 /**
- * Sales history redesign T1 (S1-S5): wider panel, header with phone and «cliente desde», metric
- * strip from the customer-wide aggregates, «Con saldo» / «Sin entregar» filters (L3), footer from
- * `filterSummary`, cards and the debt banner at 390, «Cobrar» through the existing DebtPaymentModal.
+ * Sales history redesign T1 (S1-S5): metric strip from the customer-wide aggregates, «Con saldo» /
+ * «Sin entregar» filters (L3), footer from `filterSummary`, cards and the debt banner at 390,
+ * «Cobrar» through the existing DebtPaymentModal. (style-cleanup U6: moved off the removed history
+ * slideover onto CustomerSalesHistoryHarness; its header tests were dropped.)
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, type VueWrapper } from '@vue/test-utils'
@@ -18,7 +19,7 @@ import type {
 } from '@/features/POS/sales/interfaces/sale.types'
 import { makePet } from '../../pets/__tests__/pet.fixture'
 import type { Pet } from '../../pets/pet.types'
-import CustomerSalesHistorySlideover from '../CustomerSalesHistorySlideover.vue'
+import CustomerSalesHistoryHarness from './CustomerSalesHistoryHarness'
 
 vi.mock('vue-router', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -180,9 +181,9 @@ function stubViewport(mobile: boolean) {
 
 let wrapper: VueWrapper | undefined
 let queryClient: QueryClient
-function mountSlideover(props: { customer?: Customer } = {}) {
+function mountHistory(props: { customer?: Customer } = {}) {
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
-  wrapper = mountWithUApp(CustomerSalesHistorySlideover, {
+  wrapper = mountWithUApp(CustomerSalesHistoryHarness, {
     props: { open: true, customer: customer(), ...props },
     attachTo: document.body,
     global: { plugins: [[VueQueryPlugin, { queryClient }]] },
@@ -198,7 +199,7 @@ const buttonWith = (text: string) => {
   return found
 }
 
-describe('CustomerSalesHistorySlideover — redesign', () => {
+describe('CustomerSalesHistoryBody — redesign', () => {
   beforeEach(() => {
     stubViewport(false)
     customerWide.value = WIDE
@@ -220,33 +221,8 @@ describe('CustomerSalesHistorySlideover — redesign', () => {
     document.body.innerHTML = ''
   })
 
-  it('opens the wider panel with name, phone and «cliente desde» in the header', async () => {
-    mountSlideover()
-    await flushPromises()
-    expect(q('[role="dialog"]')!.className).toContain('sm:!max-w-[max(45vw,640px)]')
-    const header = q('[data-testid="history-header"]')!
-    expect(header.textContent).toContain('Historial de ventas')
-    expect(header.textContent).toContain('cliente desde mar 2025')
-    expect(header.querySelector('[data-testid="history-customer-name"]')!.textContent).toContain(
-      'Ana Sofía Treviño Garza',
-    )
-    // Long names wrap in the header instead of being cut (design 04 · 1).
-    expect(header.querySelector('[data-testid="history-customer-name"]')!.className).toContain(
-      'break-words',
-    )
-    const phone = header.querySelector<HTMLAnchorElement>('a[href^="tel:"]')!
-    expect(phone.getAttribute('href')).toBe('tel:8123456789')
-    expect(phone.textContent).toContain('81 2345 6789')
-  })
-
-  it('omits the phone link when the customer has no phone', async () => {
-    mountSlideover({ customer: customer({ phone: null }) })
-    await flushPromises()
-    expect(q('[data-testid="history-header"] a[href^="tel:"]')).toBeNull()
-  })
-
   it('renders the metric strip and the status chips from the customer-wide aggregates', async () => {
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     const metrics = q('dl[aria-label="Resumen del cliente"]')!.textContent!
     expect(metrics).toContain('23')
@@ -260,7 +236,7 @@ describe('CustomerSalesHistorySlideover — redesign', () => {
   })
 
   it('«Con saldo» sends the status, goes back to page 1 and leaves the metrics unchanged', async () => {
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     expect(read(options!.status)).toBe('all')
     options!.page.value = 3
@@ -289,7 +265,7 @@ describe('CustomerSalesHistorySlideover — redesign', () => {
   })
 
   it('shows the range and the filter totals from filterSummary in the footer', async () => {
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     const footer = q('[data-testid="history-pagination"]')!
     expect(footer.textContent).toContain('1–10 de 23 ventas')
@@ -313,13 +289,13 @@ describe('CustomerSalesHistorySlideover — redesign', () => {
     history.response.value = response({
       pagination: { page: 3, limit: 10, total: 23, totalPages: 3 },
     })
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     expect(q('[data-testid="history-pagination"]')!.textContent).toContain('21–23 de 23 ventas')
   })
 
   it('empty status filter: says so and offers «Ver todas»', async () => {
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     buttonWith('Sin entregar').click()
     await nextTick()
@@ -344,7 +320,7 @@ describe('CustomerSalesHistorySlideover — redesign', () => {
       pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
       ...customerWide.value,
     })
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     expect(q('.hf-empty-state')!.textContent).toContain('Aún no hay ventas')
     expect(q('input[type="search"]')).toBeNull()
@@ -354,7 +330,7 @@ describe('CustomerSalesHistorySlideover — redesign', () => {
   it('announces «Actualizando…» while a page or filter change loads, keeping the rows', async () => {
     history.isFetching.value = true
     history.isPageTransition.value = true
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     expect(q('[data-testid="history-updating"]')!.textContent).toContain(
       'Actualizando el historial',
@@ -364,7 +340,7 @@ describe('CustomerSalesHistorySlideover — redesign', () => {
   })
 
   it('desktop: an aligned table, rows open in place and «Cobrar» opens the DebtPaymentModal', async () => {
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     expect(q('table')).not.toBeNull()
     expect(all('[data-testid="sale-history-card"]')).toHaveLength(0)
@@ -394,7 +370,7 @@ describe('CustomerSalesHistorySlideover — redesign', () => {
 
   it('390: cards instead of the table, and the debt banner «Ver» applies «Con saldo»', async () => {
     stubViewport(true)
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     expect(q('table')).toBeNull()
     expect(all('[data-testid="sale-history-card"]')).toHaveLength(2)
@@ -412,13 +388,13 @@ describe('CustomerSalesHistorySlideover — redesign', () => {
   it('390: no debt banner for a customer without balance', async () => {
     stubViewport(true)
     customerWide.value = { ...WIDE, summary: { ...WIDE.summary, outstandingDebtCents: 0 } }
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     expect(q('[data-testid="history-debt-banner"]')).toBeNull()
   })
 
   it('resets the status filter when the customer changes', async () => {
-    const mounted = mountSlideover()
+    const mounted = mountHistory()
     await flushPromises()
     buttonWith('Con saldo').click()
     await nextTick()
@@ -429,7 +405,7 @@ describe('CustomerSalesHistorySlideover — redesign', () => {
 
   it('keeps the pet chips next to the status chips and combines both', async () => {
     pets.value = [makePet({ id: 'p1', name: 'Bruno' })]
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     buttonWith('Con saldo').click()
     all('[data-testid="history-pet-chip"]')

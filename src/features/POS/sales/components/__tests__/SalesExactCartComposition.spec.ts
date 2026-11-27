@@ -357,12 +357,13 @@ function menuLabels(wrapper: ReturnType<typeof mountRow>): string[] {
 }
 
 describe('Exact cart composition — row hierarchy', () => {
-  it('keeps the nested rounded card when the composition is omitted', () => {
+  it('keeps a plain divider row (no nested card) when the composition is omitted', () => {
     const wrapper = mountRow()
 
     const card = wrapper.get('[data-testid="sale-item-card"]')
     expect(card.classes()).toContain('sales-pos-cart-row')
-    expect(card.classes()).toContain('rounded-xl')
+    expect(card.classes()).toContain('border-b')
+    expect(card.classes()).not.toContain('rounded-xl')
     expect(card.classes()).not.toContain('sales-pos-cart-row-composition')
   })
 
