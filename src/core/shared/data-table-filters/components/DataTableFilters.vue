@@ -6,7 +6,9 @@ import MultiSelectAsyncFilter from '@/core/shared/components/data-table-filters/
 import MultiSelectEnumFilter from '@/core/shared/components/data-table-filters/primitives/MultiSelectEnumFilter.vue'
 import MultiTextInputFilter from '@/core/shared/components/data-table-filters/primitives/MultiTextInputFilter.vue'
 import NumericRangeFilter from '@/core/shared/components/data-table-filters/primitives/NumericRangeFilter.vue'
+import { FILTER_CHIPS_MAX_OPTIONS, usesToggleChips } from '../schema/filterDisplay'
 import type { FilterDefinition, FilterState, FiltersSchema, NumericRangeFilterDefinition } from '../schema/types'
+import FilterToggleChips from './FilterToggleChips.vue'
 
 const props = withDefaults(defineProps<{
   schema: FiltersSchema
@@ -25,10 +27,16 @@ const props = withDefaults(defineProps<{
    * is never turned into an empty ui object here.
    */
   portalClass?: string
+  /**
+   * Multi-enums with up to this many choices render as toggle chips; longer, searchable and async
+   * lists keep the searchable dropdown (see `usesToggleChips`).
+   */
+  chipsMaxOptions?: number
 }>(), {
   errors: () => ({}),
   embedded: false,
   portalClass: undefined,
+  chipsMaxOptions: FILTER_CHIPS_MAX_OPTIONS,
 })
 
 const state = defineModel<FilterState>('state', { default: () => ({}) })
@@ -37,7 +45,7 @@ const isOpen = ref(false)
 const isDesktop = useBreakpoints(breakpointsTailwind).greaterOrEqual('md')
 const slideoverSide = computed(() => (isDesktop.value ? 'right' : 'bottom'))
 
-/** Legacy mobile bottom-sheet classes; the opt-in must retain them. */
+/** Mobile bottom-sheet classes of the standalone slideover; a `portalClass` is added to them. */
 const MOBILE_SHEET_CLASSES = ['h-[85vh]', 'max-h-[85vh]', 'rounded-t-2xl']
 
 const slideoverUi = computed(() => {
@@ -45,8 +53,7 @@ const slideoverUi = computed(() => {
     (value): value is string => Boolean(value),
   )
 
-  // Absent opt-in keeps the exact prior value: `{}` on desktop and the legacy
-  // bottom-sheet content class on mobile.
+  // Without `portalClass`: `{}` on desktop, the bottom-sheet classes on mobile.
   return classes.length > 0 ? { content: classes.join(' ') } : {}
 })
 
@@ -77,6 +84,10 @@ const groupsWithActivity = computed(() => groupedFields.value.map(group => ({
   ...group,
   hasActive: group.fields.some(field => props.schema.isActive(field.id, state.value)),
 })))
+
+function showsChips(field: FilterDefinition): boolean {
+  return usesToggleChips(field, props.chipsMaxOptions)
+}
 
 function getDisplayDivisor(field: NumericRangeFilterDefinition): number {
   return field.formatAs === 'currency' ? 100 : 1
@@ -146,8 +157,21 @@ defineExpose({ open, close })
         </p>
         <div class="space-y-4">
           <template v-for="field in group.fields" :key="field.id">
+            <FilterToggleChips
+              v-if="field.kind === 'multi-enum' && showsChips(field)"
+              v-model="state[field.id] as string[]"
+              :include-null-value="getIncludeNullValue(field)"
+              :label="field.label"
+              :options="field.options"
+              :include-null-option="field.includeNull?.label"
+              :single="field.selection === 'single'"
+              :error="props.errors[field.id]"
+              :data-testid="`filter-chips-${field.id}`"
+              @update:include-null-value="setIncludeNullValue(field, $event)"
+            />
+
             <MultiSelectEnumFilter
-              v-if="field.kind === 'multi-enum'"
+              v-else-if="field.kind === 'multi-enum'"
               :portal-class="props.portalClass"
               v-model="state[field.id] as string[]"
               :include-null-value="getIncludeNullValue(field)"
@@ -247,8 +271,21 @@ defineExpose({ open, close })
               </p>
               <div class="space-y-4">
                 <template v-for="field in group.fields" :key="field.id">
+                  <FilterToggleChips
+                    v-if="field.kind === 'multi-enum' && showsChips(field)"
+                    v-model="state[field.id] as string[]"
+                    :include-null-value="getIncludeNullValue(field)"
+                    :label="field.label"
+                    :options="field.options"
+                    :include-null-option="field.includeNull?.label"
+                    :single="field.selection === 'single'"
+                    :error="props.errors[field.id]"
+                    :data-testid="`filter-chips-${field.id}`"
+                    @update:include-null-value="setIncludeNullValue(field, $event)"
+                  />
+
                   <MultiSelectEnumFilter
-                    v-if="field.kind === 'multi-enum'"
+                    v-else-if="field.kind === 'multi-enum'"
                     :portal-class="props.portalClass"
                     v-model="state[field.id] as string[]"
                     :include-null-value="getIncludeNullValue(field)"

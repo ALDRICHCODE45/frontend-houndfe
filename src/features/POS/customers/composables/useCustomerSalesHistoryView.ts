@@ -22,6 +22,8 @@ import { formatCentsMXN } from '@/features/POS/sales/utils/currency.utils'
 import { formatSaleDueDate } from '@/features/POS/sales/utils/saleDate.utils'
 import type { SaleHistoryChargeRequest } from '@/features/POS/sales/components/history/SaleHistoryRowDetail.vue'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
+import { TABLE_PAGE_SIZE_OPTIONS } from '@/core/shared/constants/table-page-size'
+import { useTablePageSize } from '@/core/shared/composables/useTablePageSize'
 import { usePetsList } from '../pets/usePets'
 import { readPetError } from '../pets/petErrors'
 import { hasUnresolvedCollection } from '../collection/useCustomerCollection'
@@ -30,7 +32,9 @@ declare const useToast: () => {
   add: (options: { title: string; description?: string; color?: 'error' | 'warning' }) => void
 }
 
+/** Default rows per page; the person can pick another size (owner-ideas-batch S5), remembered here. */
 export const CUSTOMER_HISTORY_PAGE_SIZE = 10
+export const CUSTOMER_HISTORY_PAGE_SIZE_KEY = 'customer-sales-history'
 
 export const STATUS_EMPTY_COPY: Record<Exclude<CustomerHistoryStatusFilter, 'all'>, string> = {
   'with-debt': 'No hay ventas con saldo',
@@ -62,6 +66,10 @@ export function useCustomerSalesHistoryView(options: UseCustomerSalesHistoryView
   const customerId = computed(() => customer.value?.id)
 
   const page = shallowRef(1)
+  const { pageSize } = useTablePageSize({
+    persistKey: CUSTOMER_HISTORY_PAGE_SIZE_KEY,
+    defaultPageSize: CUSTOMER_HISTORY_PAGE_SIZE,
+  })
   const searchQuery = shallowRef('')
   const debouncedSearch = shallowRef<string | undefined>(undefined)
   const petId = shallowRef<string | null>(null)
@@ -89,6 +97,11 @@ export function useCustomerSalesHistoryView(options: UseCustomerSalesHistoryView
     page.value = 1
   }, { flush: 'sync' })
 
+  // A new size starts over at page 1 (same as every table).
+  watch(pageSize, () => {
+    page.value = 1
+  }, { flush: 'sync' })
+
   // Customer pets §7: ACTIVE and ARCHIVED pets can filter the history (archived ones keep their sales).
   const petsQuery = usePetsList(() => customerId.value, 'ALL', () => active.value)
   const pets = computed(() => petsQuery.data.value ?? [])
@@ -107,6 +120,7 @@ export function useCustomerSalesHistoryView(options: UseCustomerSalesHistoryView
   const history = useCustomerSalesHistory({
     customerId: () => customerId.value,
     page,
+    limit: pageSize,
     open: () => active.value,
     q: () => debouncedSearch.value,
     petId: () => petId.value,
@@ -263,6 +277,8 @@ export function useCustomerSalesHistoryView(options: UseCustomerSalesHistoryView
   return {
     customer,
     page,
+    pageSize,
+    pageSizeOptions: TABLE_PAGE_SIZE_OPTIONS,
     searchQuery,
     petId,
     petNotice,

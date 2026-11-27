@@ -7,7 +7,7 @@ import type {
   NumericRangeFilterDefinition,
 } from './types'
 
-type SingleEnumConfig = Omit<MultiEnumFilterDefinition, 'kind' | 'param' | 'transform' | 'includeNull' | 'max'>
+type SingleEnumConfig = Omit<MultiEnumFilterDefinition, 'kind' | 'param' | 'transform' | 'includeNull' | 'max' | 'selection'>
 
 interface BooleanFlagConfig {
   id: string
@@ -36,7 +36,14 @@ function lastKnownValue(options: readonly FilterOption[]) {
 function singleEnum(config: SingleEnumConfig): MultiEnumFilterDefinition {
   const keepLast = lastKnownValue(config.options)
   // The state key and the param are the same: defaults() keys multi-value state by `param`.
-  return { ...config, kind: 'multi-enum', param: config.id, transform: { toBackend: keepLast, fromBackend: keepLast } }
+  // `selection: 'single'` makes the filters sheet render single-select chips (a second click clears).
+  return {
+    ...config,
+    kind: 'multi-enum',
+    param: config.id,
+    selection: 'single',
+    transform: { toBackend: keepLast, fromBackend: keepLast },
+  }
 }
 
 export const filter = {
@@ -49,8 +56,13 @@ export const filter = {
   multiText(config: Omit<MultiTextFilterDefinition, 'kind'>): MultiTextFilterDefinition {
     return { ...config, kind: 'multi-text' }
   },
+  /**
+   * `unit` is shown before «mín» / «máx»: it defaults to «$» for money (`formatAs: 'currency'`) and
+   * to none otherwise, the way the active-filter chips already format the range.
+   */
   numericRange(config: Omit<NumericRangeFilterDefinition, 'kind'>): NumericRangeFilterDefinition {
-    return { ...config, kind: 'numeric-range' }
+    const unit = config.unit ?? (config.formatAs === 'currency' ? '$' : '')
+    return { ...config, unit, kind: 'numeric-range' }
   },
   dateRange(config: Omit<DateRangeFilterDefinition, 'kind'>): DateRangeFilterDefinition {
     return { ...config, kind: 'date-range' }

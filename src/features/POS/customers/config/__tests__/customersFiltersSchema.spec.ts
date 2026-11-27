@@ -4,6 +4,7 @@ import {
   createCustomersFiltersSchema,
   type CustomersFilterSources,
 } from '../customersFiltersSchema'
+import { usesToggleChips } from '@/core/shared/data-table-filters'
 
 const sources: CustomersFilterSources = {
   canReadSales: true,
@@ -197,5 +198,41 @@ describe('createCustomersFiltersSchema — without read:Sale', () => {
     // A stale URL with metric params reads back as no filter at all.
     const state = schema.deserialize({ hasDebt: 'true', openDebtMin: '100', noPurchaseMoreThanDays: '90' })
     expect(schema.serialize(state)).toEqual({})
+  })
+})
+
+// owner-ideas-batch T2 (S4): which filters of the sheet are toggle chips.
+describe('createCustomersFiltersSchema — toggle chips', () => {
+  it('renders the short option sets as chips and keeps the location, price list and regime dropdowns', () => {
+    const schema = createCustomersFiltersSchema(sources)
+    const chips = schema.fields.filter(field => usesToggleChips(field)).map(field => field.id)
+    expect(chips).toEqual([
+      'hasDebt',
+      'hasOverdue',
+      'overdueMoreThanDays',
+      'noPurchaseMoreThanDays',
+      'petSpecies',
+      'petSize',
+      'hasPets',
+      'deliveryZoneType',
+      'isTrusted',
+      'hasRfc',
+      'hasEmail',
+      'hasPhone',
+      'hasChatbotRequests',
+    ])
+    for (const id of ['neighborhood', 'municipality', 'city', 'zipCode', 'priceListId', 'fiscalRegime']) {
+      expect(usesToggleChips(schema.byId[id]!)).toBe(false)
+    }
+  })
+
+  it('shows no «$» on the count ranges (customers-module L12)', () => {
+    const schema = createCustomersFiltersSchema(sources)
+    for (const id of ['salesCount', 'activePets']) {
+      expect(schema.byId[id]).toMatchObject({ kind: 'numeric-range', unit: '', formatAs: 'plain' })
+    }
+    for (const id of ['openDebt', 'totalSold', 'averageTicket']) {
+      expect(schema.byId[id]).toMatchObject({ kind: 'numeric-range', unit: '$', formatAs: 'currency' })
+    }
   })
 })

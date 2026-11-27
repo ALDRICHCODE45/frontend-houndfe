@@ -158,9 +158,9 @@ describe('useCustomersListing', () => {
     return { result, scope, filters }
   }
 
-  it('leaves the URL to the filters adapter: no table URL sync, as in Ventas (T8, L14)', () => {
+  it('keeps page, sort and search in the URL next to the filters (owner-ideas-batch S6)', () => {
     run()
-    expect(capturedConfig?.urlSync).toBe(false)
+    expect(capturedConfig?.urlSync).toBe(true)
   })
 
   it('reads GET /customers/listing with the mapped params and returns the page with its summary', async () => {

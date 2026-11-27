@@ -22,6 +22,8 @@ const schema = defineFiltersSchema([
     label: 'Método',
     section: 'Cobro',
     param: 'paymentMethod',
+    // The dropdown path; DataTableFilters.chips.spec.ts covers the toggle chips (owner-ideas-batch T2).
+    display: 'select',
     options: [{ label: 'Tarjeta débito', value: 'CARD_DEBIT' }],
     includeNull: { param: 'paymentMethodIncludeNull', label: 'Sin método' },
   }),

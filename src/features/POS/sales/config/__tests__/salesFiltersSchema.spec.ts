@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { createSalesFiltersSchema } from '../salesFiltersSchema'
+import { usesToggleChips } from '@/core/shared/data-table-filters'
 import { SALE_DELIVERY_STATUS } from '../../constants/sale.constants'
 
 const baseSources = {
@@ -109,5 +110,20 @@ describe('salesFiltersSchema — deliveryStatus filter options', () => {
       SALE_DELIVERY_STATUS.SHIPPED,
       SALE_DELIVERY_STATUS.DELIVERED,
     ])
+  })
+})
+
+// owner-ideas-batch T2 (S4): the four state filters are toggle chips; people stay searchable.
+describe('salesFiltersSchema — toggle chips', () => {
+  it('renders status, payment status, payment method and delivery as chips', () => {
+    const schema = createSalesFiltersSchema(baseSources)
+    expect(schema.fields.filter(field => usesToggleChips(field)).map(field => field.id)).toEqual([
+      'status',
+      'paymentStatus',
+      'paymentMethod',
+      'deliveryStatus',
+    ])
+    expect(usesToggleChips(schema.byId.customerId!)).toBe(false)
+    expect(usesToggleChips(schema.byId.cashierUserId!)).toBe(false)
   })
 })

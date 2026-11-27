@@ -44,7 +44,14 @@ export interface UseCustomerSalesHistoryOptions {
   petId?: MaybeRefOrGetter<string | null | undefined>
   /** «Con saldo» / «Sin entregar» / «Vencidas»; `'all'` (default) sends none of their params. */
   status?: MaybeRefOrGetter<CustomerHistoryStatusFilter | undefined>
+  /**
+   * Rows per page (the «Ventas» tab's remembered size, owner-ideas-batch S5). Defaults to 10, so the
+   * customer page overview (page 1, no limit) shares the tab's first request while the tab is at 10.
+   */
+  limit?: MaybeRefOrGetter<number | undefined>
 }
+
+export const CUSTOMER_SALES_HISTORY_DEFAULT_LIMIT = 10
 
 // `petId` is new on `GET /sales` (handoff 27 §7). It is added here rather than in sale.types.ts so the
 // shared `ListSalesParams` stays untouched; it is omitted entirely when no pet is selected.
@@ -86,6 +93,7 @@ export function useCustomerSalesHistory(options: UseCustomerSalesHistoryOptions)
   const q = computed(() => toValue(options.q))
   const petId = computed(() => toValue(options.petId) || undefined)
   const statusParams = computed(() => STATUS_PARAMS[toValue(options.status) ?? 'all'])
+  const limit = computed(() => toValue(options.limit) ?? CUSTOMER_SALES_HISTORY_DEFAULT_LIMIT)
   const tenantId = computed(() => authStore.currentTenantId)
   const enabled = computed(
     () => open.value && Boolean(tenantId.value) && Boolean(customerId.value),
@@ -95,7 +103,7 @@ export function useCustomerSalesHistory(options: UseCustomerSalesHistoryOptions)
     const normalizedQ = q.value?.trim() || undefined
     return {
       page: toValue(page),
-      limit: 10,
+      limit: limit.value,
       sortBy: 'confirmedAt',
       sortOrder: 'desc',
       ...(normalizedQ && { q: normalizedQ }),
@@ -129,7 +137,7 @@ export function useCustomerSalesHistory(options: UseCustomerSalesHistoryOptions)
         // Exactly one customerId always travels with petId (never `PET_FILTER_REQUIRES_CUSTOMER`).
         ...(selectedPetId && { petId: selectedPetId }),
         page: toValue(page),
-        limit: 10,
+        limit: limit.value,
         sortBy: 'confirmedAt',
         sortOrder: 'desc',
         // Never confirmedFrom/To or cashierUserId here: they would narrow the customer-wide KPIs.

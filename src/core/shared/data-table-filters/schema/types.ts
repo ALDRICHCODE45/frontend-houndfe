@@ -29,6 +29,13 @@ export interface MultiEnumFilterDefinition extends BaseFilterDefinition<'multi-e
   includeNull?: IncludeNullConfig
   max?: number
   searchable?: boolean
+  /**
+   * The control of the filters sheet. Unset: toggle chips for a few options (`usesToggleChips`),
+   * the searchable dropdown otherwise. `'chips'` / `'select'` force one.
+   */
+  display?: 'chips' | 'select'
+  /** `'single'`: one value at most, set by `filter.singleEnum` / `filter.booleanFlag`. */
+  selection?: 'single'
 }
 
 export interface MultiAsyncFilterDefinition extends BaseFilterDefinition<'multi-async', string[]> {
@@ -49,6 +56,7 @@ export interface MultiTextFilterDefinition extends BaseFilterDefinition<'multi-t
 export interface NumericRangeFilterDefinition extends BaseFilterDefinition<'numeric-range', { min?: number, max?: number }> {
   minParam: string
   maxParam: string
+  /** Shown before «mín» / «máx» (`'$'` → «$ mín»); `''` for counts. `filter.numericRange` fills it. */
   unit?: '$' | string
   step?: number
   formatAs?: 'currency' | 'plain'

@@ -1,4 +1,4 @@
-import { watch, type Ref } from 'vue'
+import { getCurrentInstance, nextTick, onBeforeMount, onMounted, watch, type Ref } from 'vue'
 import { useRouter, useRoute, type LocationQueryRaw } from 'vue-router'
 import type { PaginationState, SortingState } from '@tanstack/vue-table'
 
@@ -7,11 +7,17 @@ interface UrlSyncOptions {
   sorting: Ref<SortingState>
   globalFilter: Ref<string>
   defaultPageSize: number
+  /** The sizes the table offers; a size in the URL outside them is ignored. */
+  pageSizeOptions?: readonly number[]
 }
 
 export function useTableUrlSync(options: UrlSyncOptions) {
+  // The URL needs a component with a router; without them (a bare effect scope, a component
+  // mounted without the router) the table simply keeps its state in memory.
+  if (!getCurrentInstance()) return
   const router = useRouter()
   const route = useRoute()
+  if (!router || !route) return
 
   // Read initial state from URL on mount
   function readFromUrl() {
@@ -29,7 +35,8 @@ export function useTableUrlSync(options: UrlSyncOptions) {
 
     if (query.pageSize) {
       const size = Number(query.pageSize)
-      if (!isNaN(size) && size > 0) {
+      const offered = !options.pageSizeOptions || options.pageSizeOptions.includes(size)
+      if (!isNaN(size) && size > 0 && offered) {
         options.pagination.value = {
           ...options.pagination.value,
           pageSize: size,
@@ -88,7 +95,25 @@ export function useTableUrlSync(options: UrlSyncOptions) {
   }
 
   // Initialize from URL
+  const sortingBefore = options.sorting.value
   readFromUrl()
+  const urlPageIndex = options.pagination.value.pageIndex
+  const urlSorting = options.sorting.value !== sortingBefore ? options.sorting.value : undefined
+
+  // A link wins over what the rest of the setup applies on first load (owner-ideas-batch S6): a
+  // saved view reopening sets its own sorting after the table read the URL, and that sorting
+  // change, filter or status watchers reset the page in the first flush. The sorting goes back
+  // before that flush; the page goes back once it is over.
+  onBeforeMount(() => {
+    if (urlSorting) options.sorting.value = urlSorting
+  })
+  onMounted(() =>
+    nextTick(() => {
+      if (urlPageIndex > 0 && options.pagination.value.pageIndex !== urlPageIndex) {
+        options.pagination.value = { ...options.pagination.value, pageIndex: urlPageIndex }
+      }
+    }),
+  )
 
   // Sync to URL on state changes (debounced to avoid rapid updates)
   let syncTimeout: ReturnType<typeof setTimeout> | null = null

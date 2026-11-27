@@ -63,8 +63,8 @@ export const customerDetailQueryKeys = {
     [...saleQueryKeys.customerHistoryPrefix(tenantId, customerId), 'sales-summary'] as const,
   paymentsPrefix: (tenantId: string, customerId: string) =>
     [...saleQueryKeys.customerHistoryPrefix(tenantId, customerId), 'payments'] as const,
-  payments: (tenantId: string, customerId: string, page: number) =>
-    [...saleQueryKeys.customerHistoryPrefix(tenantId, customerId), 'payments', page] as const,
+  payments: (tenantId: string, customerId: string, page: number, limit = CUSTOMER_PAYMENTS_PAGE_SIZE) =>
+    [...saleQueryKeys.customerHistoryPrefix(tenantId, customerId), 'payments', page, limit] as const,
 }
 
 export const customerDetailApi = {
@@ -75,10 +75,14 @@ export const customerDetailApi = {
     return data
   },
 
-  async getPayments(customerId: string, page: number): Promise<CustomerPaymentsResponse> {
+  async getPayments(
+    customerId: string,
+    page: number,
+    limit: number = CUSTOMER_PAYMENTS_PAGE_SIZE,
+  ): Promise<CustomerPaymentsResponse> {
     const { data } = await http.get<CustomerPaymentsResponse>(
       `/customers/${segment(customerId)}/payments`,
-      { params: { page, limit: CUSTOMER_PAYMENTS_PAGE_SIZE } },
+      { params: { page, limit } },
     )
     return data
   },

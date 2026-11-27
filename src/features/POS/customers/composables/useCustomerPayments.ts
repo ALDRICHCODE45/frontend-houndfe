@@ -1,6 +1,7 @@
 /**
  * «Cobros y recibos» of the customer page (customers-module T5): `GET /customers/:customerId/payments`
- * (handoff 32 §6), read:Sale, 50 per page, newest first. Only fetched while the tab is open.
+ * (handoff 32 §6), read:Sale, newest first, 50 per page unless the person picked another size
+(owner-ideas-batch S5: the shared 5..50, remembered as 'customer-payments'). Only fetched while the tab is open.
  * Refunds are not in the feed (v1), so it is never presented as a balance.
  *
  * `useCustomerReceiptDownload` saves the PDF behind an event's `receiptPath` (one download at a
@@ -9,6 +10,8 @@
 import { computed, readonly, shallowRef, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import { TABLE_PAGE_SIZE_OPTIONS } from '@/core/shared/constants/table-page-size'
+import { useTablePageSize } from '@/core/shared/composables/useTablePageSize'
 import { saveCustomerStatementPdf } from '../statement/customerStatementFile'
 import {
   CUSTOMER_PAYMENTS_PAGE_SIZE,
@@ -34,13 +37,20 @@ export function useCustomerPayments(options: {
     () => typeof authStore.userCan === 'function' && authStore.userCan('read', 'Sale'),
   )
   const page = shallowRef(1)
+  const { pageSize } = useTablePageSize({ persistKey: 'customer-payments', defaultPageSize: CUSTOMER_PAYMENTS_PAGE_SIZE })
   watch(customerId, () => {
     page.value = 1
   })
+  // A new size starts over at page 1 (same as every table).
+  watch(pageSize, () => {
+    page.value = 1
+  }, { flush: 'sync' })
 
   const query = useQuery<CustomerPaymentsResponse>({
-    queryKey: computed(() => customerDetailQueryKeys.payments(tenantId.value, customerId.value, page.value)),
-    queryFn: () => customerDetailApi.getPayments(customerId.value, page.value),
+    queryKey: computed(() =>
+      customerDetailQueryKeys.payments(tenantId.value, customerId.value, page.value, pageSize.value),
+    ),
+    queryFn: () => customerDetailApi.getPayments(customerId.value, page.value, pageSize.value),
     enabled: computed(
       () => toValue(options.enabled) && canRead.value && !!tenantId.value && !!customerId.value,
     ),
@@ -58,6 +68,8 @@ export function useCustomerPayments(options: {
   return {
     canRead,
     page,
+    pageSize,
+    pageSizeOptions: TABLE_PAGE_SIZE_OPTIONS,
     response: query.data,
     isLoading: query.isLoading,
     isFetching: query.isFetching,

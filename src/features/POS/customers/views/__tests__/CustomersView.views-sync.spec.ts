@@ -51,7 +51,7 @@ vi.mock('@/core/shared/components/ConfirmModal.vue', () => ({ default: { name: '
 vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
   default: {
     name: 'AppDataTable',
-    props: ['sorting', 'columnVisibility'],
+    props: ['sorting', 'pagination', 'globalFilter', 'columnVisibility'],
     template: '<div data-testid="app-data-table"><slot name="filters" /></div>',
   },
 }))
@@ -64,7 +64,7 @@ const NOW = new Date(2026, 10, 26, 10, 0, 0)
 let router: Router
 let wrapper: VueWrapper | undefined
 
-async function mountView() {
+async function mountView(url = '/pos/customers') {
   router = createRouter({
     history: createMemoryHistory(),
     routes: [
@@ -72,7 +72,7 @@ async function mountView() {
       { path: '/pos/customers/:id', name: 'pos-customer-detail', component: { template: '<div />' } },
     ],
   })
-  await router.push('/pos/customers')
+  await router.push(url)
   await router.isReady()
   wrapper = mount(CustomersView, { global: { plugins: [router] } })
   await settle()
@@ -112,6 +112,9 @@ function expectApplied(view: (typeof BUILT_INS)[number]) {
   const filterParams = new Set(BUILT_INS.flatMap((entry) => Object.keys(entry.filters)))
   const urlFilters = Object.fromEntries(Object.entries(urlQuery()).filter(([param]) => filterParams.has(param)))
   expect(urlFilters).toEqual(view.filters)
+  // owner-ideas-batch S6: and its sort, next to the filters.
+  const sort = view.sorting[0]!
+  expect(urlQuery().sort).toBe(`${sort.id}:${sort.desc ? 'desc' : 'asc'}`)
   expect(isTabDirty(view.id)).toBe(false)
   expect(unsavedShown()).toBe(false)
 }
@@ -171,5 +174,43 @@ describe('CustomersView — built-in saved views stay applied and clean (L14)', 
     await settle()
 
     expectApplied(BUILT_INS[0]!)
+  })
+})
+
+describe('CustomersView — table state in the URL (owner-ideas-batch S6)', () => {
+  const pagination = () => wrapper!.getComponent({ name: 'AppDataTable' }).props('pagination')
+  const globalFilter = () => wrapper!.getComponent({ name: 'AppDataTable' }).props('globalFilter')
+
+  it('a shared link with search, sort, page and filters opens the table exactly so', async () => {
+    await mountView('/pos/customers?q=ada&sort=totalSold:desc&page=3&hasOverdue=true')
+
+    expect(globalFilter()).toBe('ada')
+    expect(tableSorting()).toEqual([{ id: 'totalSold', desc: true }])
+    expect(pagination()).toMatchObject({ pageIndex: 2 })
+    expect(chips()).toHaveLength(1)
+    expect(urlQuery()).toMatchObject({ q: 'ada', sort: 'totalSold:desc', page: '3', hasOverdue: 'true' })
+  })
+
+  it('a reload on a saved view keeps the page of the URL and the view clean', async () => {
+    await mountView()
+    await select('con-deuda-vencida')
+    wrapper!.unmount()
+
+    await mountView('/pos/customers?hasOverdue=true&sort=oldestOverdue:asc&page=4')
+
+    expectApplied(BUILT_INS[0]!)
+    expect(pagination()).toMatchObject({ pageIndex: 3 })
+    expect(urlQuery().page).toBe('4')
+  })
+
+  it('the stored page size applies without pageSize in the URL; the URL wins when present', async () => {
+    localStorage.setItem('table-page-size-pos-customers-listing', '25')
+    await mountView('/pos/customers?page=2')
+    expect(pagination()).toEqual({ pageIndex: 1, pageSize: 25 })
+    wrapper!.unmount()
+
+    await mountView('/pos/customers?pageSize=15')
+    expect(pagination()).toMatchObject({ pageSize: 15 })
+    expect(localStorage.getItem('table-page-size-pos-customers-listing')).toBe('25')
   })
 })

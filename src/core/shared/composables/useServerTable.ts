@@ -91,9 +91,6 @@ export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableR
   const globalFilter = ref<string>('')
   const rowSelection = ref<RowSelectionState>({})
 
-  // Debounced search (300ms default)
-  const debouncedFilter = refDebounced(globalFilter, debounceMs)
-
   // --- Preferences (localStorage) ---
   const preferences = persistKey
     ? useTablePreferences({
@@ -117,8 +114,13 @@ export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableR
       sorting,
       globalFilter,
       defaultPageSize,
+      pageSizeOptions,
     })
   }
+
+  // Debounced search (300ms default). Created after the URL is read, so a search from a link is
+  // its starting value and does not reset the page from the link once the debounce runs out.
+  const debouncedFilter = refDebounced(globalFilter, debounceMs)
 
   // --- Page size memory ---
   // Watched only after the URL is read, so a size from the URL wins for this visit without

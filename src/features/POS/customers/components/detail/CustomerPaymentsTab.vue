@@ -1,13 +1,14 @@
 <script setup lang="ts">
 /**
  * «Cobros y recibos» of the customer page (customers-module T5, S4 artboard 02 + 05):
- * `GET /customers/:customerId/payments` (handoff 32 §6), newest first, 50 per page. A plain table on
+ * `GET /customers/:customerId/payments` (handoff 32 §6), newest first, 50 per page unless the person picked another size (owner-ideas-batch S5). A plain table on
  * desktop, one row per event on a phone: Fecha, Tipo («Cobrar todo» with its tenders and the sales it
  * covered, or «Pago» with its method and sale), Monto (net of change), Cajero and Comprobante.
  *
  * Refunds are not in the feed (v1): a muted note says so and no running balance is ever shown.
  * Mounted only while the tab is open, so it loads only then.
  */
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
@@ -15,11 +16,7 @@ import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { formatCentsMXN } from '@/features/POS/sales/utils/currency.utils'
 import { formatPaymentMethod } from '@/features/POS/sales/utils/salePaymentMethod.utils'
 import type { CustomerReceiptChoice } from '../../api/customer-detail.api'
-import {
-  CUSTOMER_PAYMENTS_PAGE_SIZE,
-  useCustomerPayments,
-  useCustomerReceiptDownload,
-} from '../../composables/useCustomerPayments'
+import { useCustomerPayments, useCustomerReceiptDownload } from '../../composables/useCustomerPayments'
 import type {
   CustomerPaymentCatalog,
   CustomerPaymentEvent,
@@ -29,10 +26,26 @@ import type {
 
 const props = defineProps<{ customerId: string; phone?: boolean }>()
 
-const { page, response, isLoading, isFetching, isError, refetch } = useCustomerPayments({
+const { page, pageSize, pageSizeOptions, response, isLoading, isFetching, isError, refetch } = useCustomerPayments({
   customerId: () => props.customerId,
   enabled: () => true,
 })
+
+// owner-ideas-batch S5: the shared «N por página» choice, same menu as DataTablePagination. Only
+// offered when the events do not all fit in the smallest page.
+const showPageSize = computed(() => (response.value?.pagination.total ?? 0) > Math.min(...pageSizeOptions))
+const pageSizeItems = computed(() =>
+  pageSizeOptions.map((size) => [
+    {
+      label: `${size} por página`,
+      type: 'checkbox' as const,
+      checked: pageSize.value === size,
+      onSelect: () => {
+        pageSize.value = size
+      },
+    },
+  ]),
+)
 const receipt = useCustomerReceiptDownload()
 
 const RECEIPT_CHOICES: ReadonlyArray<{ choice: CustomerReceiptChoice; label: string }> = [
@@ -233,20 +246,35 @@ const isDownloading = (event: CustomerPaymentEvent, choice: CustomerReceiptChoic
       </div>
 
       <div
-        v-if="response.pagination.totalPages > 1"
+        v-if="showPageSize || response.pagination.totalPages > 1"
         class="flex flex-wrap items-center justify-between gap-3"
         data-testid="customer-payments-pager"
       >
         <span class="hf-figure text-sm text-[var(--hf-muted)]">{{ response.pagination.total }} cobros</span>
-        <UPagination
-          v-model:page="page"
-          :items-per-page="CUSTOMER_PAYMENTS_PAGE_SIZE"
-          :total="response.pagination.total"
-          :disabled="isFetching"
-          show-edges
-          :sibling-count="0"
-          size="sm"
-        />
+        <div class="flex min-w-0 flex-wrap items-center justify-end gap-2">
+          <UDropdownMenu v-if="showPageSize" :items="pageSizeItems" :content="{ align: 'end' as const }">
+            <UButton
+              color="neutral"
+              variant="outline"
+              size="sm"
+              trailing-icon="i-lucide-chevron-down"
+              :aria-label="`${pageSize} por página`"
+              data-testid="customer-payments-page-size"
+            >
+              <span class="hf-figure">{{ pageSize }}</span><span class="hidden sm:inline">&nbsp;por página</span>
+            </UButton>
+          </UDropdownMenu>
+          <UPagination
+            v-if="response.pagination.totalPages > 1"
+            v-model:page="page"
+            :items-per-page="pageSize"
+            :total="response.pagination.total"
+            :disabled="isFetching"
+            show-edges
+            :sibling-count="0"
+            size="sm"
+          />
+        </div>
       </div>
     </template>
   </div>

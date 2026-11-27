@@ -16,7 +16,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { createQuotationFiltersSchema } from '../quotationFiltersSchema'
-import type { FilterOption } from '@/core/shared/data-table-filters'
+import { usesToggleChips, type FilterOption } from '@/core/shared/data-table-filters'
 
 const customerOptions: FilterOption[] = [
   { value: 'cust-1', label: 'Juan Pérez' },
@@ -192,5 +192,13 @@ describe('createQuotationFiltersSchema — active chips', () => {
     state.totalCents = { min: 1000 }
 
     expect(schema.isActive('totalCents', state)).toBe(true)
+  })
+})
+
+// owner-ideas-batch T2 (S4): Cotizaciones has no short option set, so nothing becomes chips.
+describe('createQuotationFiltersSchema — toggle chips', () => {
+  it('keeps the customer search as a dropdown and renders no chips', () => {
+    const schema = createQuotationFiltersSchema({ customerOptions: [], customerLoading: false })
+    expect(schema.fields.filter(field => usesToggleChips(field))).toEqual([])
   })
 })

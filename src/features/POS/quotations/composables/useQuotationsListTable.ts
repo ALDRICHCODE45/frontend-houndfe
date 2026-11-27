@@ -141,7 +141,8 @@ export function useQuotationsListTable(filters: Ref<Record<string, unknown>>) {
     defaultSorting: [{ id: 'createdAt', desc: true }],
     defaultPinning: { left: [], right: ['actions'] },
     persistKey: 'pos-quotations-list',
-    urlSync: false,
+    // owner-ideas-batch S6: page, sort, search and page size in the URL next to the filters.
+    urlSync: true,
   })
 
   function setStatusFilter(status?: QuotationStatus): void {

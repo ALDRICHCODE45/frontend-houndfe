@@ -24,6 +24,7 @@ import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { productApi } from '@/features/POS/products/api/product.api'
 import { useCustomerSalesHistory } from '@/features/POS/sales/composables/useCustomerSalesHistory'
+import { useStartSaleForCustomer } from '@/features/POS/sales/composables/useStartSaleForCustomer'
 import { formatCentsMXN } from '@/features/POS/sales/utils/currency.utils'
 import CustomerCollectionSlideover from '../components/CustomerCollectionSlideover.vue'
 import CustomerPetsSection from '../components/CustomerPetsSection.vue'
@@ -151,6 +152,21 @@ watch(customerId, () => {
   collectionOpen.value = false
 })
 
+// «Nueva venta» (owner-ideas-batch T4, S2): a POS draft with this customer already assigned. Needs
+// read+create+update:Sale (POST /sales/drafts + PUT …/customer). It is the page's one solid primary
+// (artboard 02); «Cobrar todo» then turns secondary outline. On a phone the sticky bar keeps
+// «Cobrar todo» while there is debt («Nueva venta» becomes a compact header icon button), and
+// offers «Nueva venta» otherwise.
+const canStartSale = computed(
+  () => canReadSales.value && canCollect.value && authStore.userCan('create', 'Sale'),
+)
+const startSale = useStartSaleForCustomer()
+const isStartingSale = startSale.isPending
+function startNewSale() {
+  if (customer.value) void startSale.start(customer.value.id)
+}
+const newSaleInMobileBar = computed(() => canStartSale.value && !showCollect.value)
+
 // ── ⋮ menu: Editar, WhatsApp, Eliminar… ──────────────────────────────────────
 const editor = useCustomerEditor()
 const { isEditOpen, selectedCustomer, formErrors } = editor
@@ -198,7 +214,9 @@ const pageState = computed<PageState>(() => {
 })
 
 const goToList = () => void router.push(CUSTOMERS_ROUTE)
-const showMobileBar = computed(() => pageState.value === 'content' && isPhone.value && showCollect.value)
+const showMobileBar = computed(
+  () => pageState.value === 'content' && isPhone.value && (showCollect.value || newSaleInMobileBar.value),
+)
 </script>
 
 <template>
@@ -252,11 +270,36 @@ const showMobileBar = computed(() => pageState.value === 'content' && isPhone.va
                 v-if="showCollect && !isPhone"
                 data-testid="customer-detail-collect"
                 icon="i-lucide-hand-coins"
-                class="hf-primary-control"
+                :color="canStartSale ? 'neutral' : undefined"
+                :variant="canStartSale ? 'outline' : undefined"
+                :class="canStartSale ? 'min-h-11' : 'hf-primary-control'"
                 @click="collectionOpen = true"
               >
                 <span class="hf-figure">{{ collectLabel }}</span>
               </UButton>
+              <UButton
+                v-if="canStartSale && !isPhone"
+                data-testid="customer-detail-new-sale"
+                icon="i-lucide-shopping-cart"
+                class="hf-primary-control"
+                :loading="isStartingSale"
+                :aria-busy="isStartingSale ? 'true' : undefined"
+                @click="startNewSale"
+              >
+                Nueva venta
+              </UButton>
+              <UButton
+                v-else-if="canStartSale && !newSaleInMobileBar"
+                data-testid="customer-detail-new-sale"
+                icon="i-lucide-shopping-cart"
+                color="neutral"
+                variant="outline"
+                class="min-h-11 min-w-11 shrink-0 justify-center"
+                aria-label="Nueva venta"
+                :loading="isStartingSale"
+                :aria-busy="isStartingSale ? 'true' : undefined"
+                @click="startNewSale"
+              />
               <CustomerStatementDownload
                 v-if="canReadSales"
                 :key="customer.id"
@@ -401,6 +444,7 @@ const showMobileBar = computed(() => pageState.value === 'content' && isPhone.va
     <template #footer>
       <div v-if="showMobileBar" class="customer-detail-mobile-bar" data-testid="customer-detail-mobile-bar">
         <UButton
+          v-if="showCollect"
           block
           icon="i-lucide-hand-coins"
           class="hf-primary-control"
@@ -408,6 +452,18 @@ const showMobileBar = computed(() => pageState.value === 'content' && isPhone.va
           @click="collectionOpen = true"
         >
           <span class="hf-figure">{{ collectLabel }}</span>
+        </UButton>
+        <UButton
+          v-else
+          block
+          icon="i-lucide-shopping-cart"
+          class="hf-primary-control"
+          data-testid="customer-detail-new-sale-mobile"
+          :loading="isStartingSale"
+          :aria-busy="isStartingSale ? 'true' : undefined"
+          @click="startNewSale"
+        >
+          Nueva venta
         </UButton>
       </div>
     </template>

@@ -4,25 +4,39 @@
  * plain table (folio, fecha, total, estado, vigencia); the folio opens the quotation. Mounted only
  * while the tab is open, so it loads only then.
  */
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
-import {
-  CUSTOMER_QUOTATIONS_PAGE_SIZE,
-  useCustomerQuotations,
-} from '@/features/POS/quotations/composables/useCustomerQuotations'
+import { useCustomerQuotations } from '@/features/POS/quotations/composables/useCustomerQuotations'
 import type { QuotationResponseDto } from '@/features/POS/quotations/interfaces/quotation.types'
 import { formatCentsMXN } from '@/features/POS/quotations/utils/currency.utils'
 import { isExpired, statusToLabel, statusToTone } from '@/features/POS/quotations/utils/quotation.utils'
 
 const props = defineProps<{ customerId: string }>()
 
-const { page, response, isLoading, isFetching, isError, refetch } = useCustomerQuotations({
+const { page, pageSize, pageSizeOptions, response, isLoading, isFetching, isError, refetch } = useCustomerQuotations({
   customerId: () => props.customerId,
   enabled: () => true,
 })
+
+// owner-ideas-batch S5: the shared «N por página» choice, same menu as DataTablePagination. Only
+// offered when the quotations do not all fit in the smallest page.
+const showPageSize = computed(() => (response.value?.pagination.total ?? 0) > Math.min(...pageSizeOptions))
+const pageSizeItems = computed(() =>
+  pageSizeOptions.map((size) => [
+    {
+      label: `${size} por página`,
+      type: 'checkbox' as const,
+      checked: pageSize.value === size,
+      onSelect: () => {
+        pageSize.value = size
+      },
+    },
+  ]),
+)
 const isPhone = useBreakpoints(breakpointsTailwind).smaller('md')
 
 /** The short folio users see on the PDF: `COT-<first 8 hex of the id>`. */
@@ -106,19 +120,34 @@ const detailPath = (quotation: QuotationResponseDto) => `/pos/cotizaciones/${quo
       </div>
 
       <div
-        v-if="response.pagination.totalPages > 1"
+        v-if="showPageSize || response.pagination.totalPages > 1"
         class="flex flex-wrap items-center justify-between gap-3"
       >
         <span class="hf-figure text-sm text-[var(--hf-muted)]">{{ response.pagination.total }} cotizaciones</span>
-        <UPagination
-          v-model:page="page"
-          :items-per-page="CUSTOMER_QUOTATIONS_PAGE_SIZE"
-          :total="response.pagination.total"
-          :disabled="isFetching"
-          show-edges
-          :sibling-count="0"
-          size="sm"
-        />
+        <div class="flex min-w-0 flex-wrap items-center justify-end gap-2">
+          <UDropdownMenu v-if="showPageSize" :items="pageSizeItems" :content="{ align: 'end' as const }">
+            <UButton
+              color="neutral"
+              variant="outline"
+              size="sm"
+              trailing-icon="i-lucide-chevron-down"
+              :aria-label="`${pageSize} por página`"
+              data-testid="customer-quotations-page-size"
+            >
+              <span class="hf-figure">{{ pageSize }}</span><span class="hidden sm:inline">&nbsp;por página</span>
+            </UButton>
+          </UDropdownMenu>
+          <UPagination
+            v-if="response.pagination.totalPages > 1"
+            v-model:page="page"
+            :items-per-page="pageSize"
+            :total="response.pagination.total"
+            :disabled="isFetching"
+            show-edges
+            :sibling-count="0"
+            size="sm"
+          />
+        </div>
       </div>
     </template>
   </div>

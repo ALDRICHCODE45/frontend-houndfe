@@ -69,3 +69,29 @@ describe('filter.singleEnum', () => {
     expect(schema.deserialize({ overdueMoreThanDays: '45' }).overdueMoreThanDays).toEqual([])
   })
 })
+
+// owner-ideas-batch T2: the filters sheet renders one-value filters as single-select chips.
+describe('single-value marker', () => {
+  it('marks singleEnum and booleanFlag as single-select, multiEnum stays multiple', () => {
+    expect(filter.booleanFlag({ id: 'hasDebt', label: 'Con deuda' }).selection).toBe('single')
+    expect(filter.singleEnum({ id: 'd', label: 'Días', options: [{ label: '30 días', value: '30' }] }).selection).toBe('single')
+    expect(filter.multiEnum({ id: 's', label: 'S', param: 's', options: [] }).selection).toBeUndefined()
+  })
+})
+
+// customers-module L12: count ranges must not show «$».
+describe('filter.numericRange unit', () => {
+  const base = { id: 'r', label: 'R', minParam: 'rMin', maxParam: 'rMax' }
+
+  it('keeps the unit it is given, including none', () => {
+    expect(filter.numericRange({ ...base, unit: '', formatAs: 'plain' }).unit).toBe('')
+    expect(filter.numericRange({ ...base, unit: 'kg', formatAs: 'plain' }).unit).toBe('kg')
+    expect(filter.numericRange({ ...base, unit: '$', formatAs: 'currency' }).unit).toBe('$')
+  })
+
+  it('defaults to «$» only for money: a plain or unformatted range has no unit', () => {
+    expect(filter.numericRange({ ...base, formatAs: 'currency' }).unit).toBe('$')
+    expect(filter.numericRange({ ...base, formatAs: 'plain' }).unit).toBe('')
+    expect(filter.numericRange({ ...base }).unit).toBe('')
+  })
+})

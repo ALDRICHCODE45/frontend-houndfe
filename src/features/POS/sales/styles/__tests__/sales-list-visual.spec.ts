@@ -260,6 +260,7 @@ const filterSchema = defineFiltersSchema([
     id: 'status',
     label: 'Estado',
     param: 'status',
+    display: 'select',
     options: [{ label: 'Confirmada', value: 'CONFIRMED' }],
   }),
 ])

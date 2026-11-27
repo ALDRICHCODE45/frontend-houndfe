@@ -181,7 +181,8 @@ export function useConfirmedSales(filters: Ref<Record<string, unknown>> = ref({}
     defaultSorting: [{ id: 'confirmedAt', desc: true }],
     defaultColumnVisibility,
     defaultPinning: { left: [], right: [] },
-    urlSync: false,
+    // owner-ideas-batch S6: page, sort, search and page size in the URL next to the filters.
+    urlSync: true,
   })
 
   // Generic tab-change handler (WU-D). Replaces the previous
