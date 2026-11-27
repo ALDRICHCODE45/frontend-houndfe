@@ -370,7 +370,9 @@ function openColumnsSheet() {
            • scrollable body (each #filters child wrapped in a card section)
            • sticky footer (Cerrar button).
            The body's `h-[85vh] max-h-[85vh] overflow-y-auto` keeps landscape
-           overflow from clipping controls. -->
+           overflow from clipping controls. The slideover content clips its
+           children (rounded corners), so the layout is capped to the inset
+           sheet's height: the body shrinks and scrolls, the footer stays in. -->
       <USlideover
         v-if="hasFiltersSlot"
         v-model:open="isFiltersOpen"
@@ -380,7 +382,7 @@ function openColumnsSheet() {
         :ui="{ content: props.portalClass }"
       >
         <template #content>
-          <div class="flex h-full flex-col">
+          <div class="flex h-full max-h-[calc(100svh-2rem)] min-h-0 flex-col" data-testid="toolbar-filters-layout">
             <!-- Sticky header (Filtros title + badge + Limpiar todo) -->
             <div
               class="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-default bg-default px-4 py-4"
