@@ -71,6 +71,47 @@ export function reconcileDraftMutationInCache(currentSales: Sale[], updatedSale:
   return newSales
 }
 
+// owner-ideas-batch T4b (L10): `GET /sales/drafts` answers `Sale.toResponse()` rows — scalar
+// `customerId` / `shippingAddressId`, never the nested `customer` / `shippingAddress` the POS renders.
+// Those objects only reach the cache through customer-assignment responses (POS slideover, «Nueva
+// venta» from the customer page, «Convertir en venta»). Every re-read of the list (the handoff's
+// invalidation when the POS mounts, error-recovery invalidations, `refetchDrafts`) used to wipe them,
+// so the handed-off draft opened «Sin cliente» although the backend had the customer. A row that
+// omits a nested object keeps the cached one ONLY while its scalar id still points at it; a `null` id
+// is a clear; a different id leaves it absent (never shows a stale customer). Rows that do carry the
+// nested objects stay authoritative.
+type DraftListRow = Sale & { customerId?: string | null; shippingAddressId?: string | null }
+
+export function mergeDraftListWithCache(fresh: Sale[], cached: Sale[] | undefined): Sale[] {
+  if (!cached?.length) return fresh
+  const cachedById = new Map(cached.map((sale) => [sale.id, sale]))
+  return fresh.map((row: DraftListRow) => {
+    const previous = cachedById.get(row.id)
+    let merged: Sale = row
+    if (row.customer === undefined && row.customerId !== undefined) {
+      if (row.customerId === null) merged = { ...merged, customer: null }
+      else if (previous?.customer && previous.customer.id === row.customerId) {
+        merged = { ...merged, customer: previous.customer }
+      }
+    }
+    if (row.shippingAddress === undefined && row.shippingAddressId !== undefined) {
+      // A snapshot whose address was deleted keeps `id: null` (see `SaleShippingAddress`): it
+      // still matches a `null` id while the draft keeps its customer.
+      const keepsCustomer = row.customerId !== null
+      if (
+        keepsCustomer &&
+        previous?.shippingAddress &&
+        previous.shippingAddress.id === row.shippingAddressId
+      ) {
+        merged = { ...merged, shippingAddress: previous.shippingAddress }
+      } else if (row.shippingAddressId === null) {
+        merged = { ...merged, shippingAddress: null }
+      }
+    }
+    return merged
+  })
+}
+
 export function getActiveDraftId(
   drafts: Sale[],
   localStorageId: string | null,
@@ -132,7 +173,11 @@ export function useSalesDrafts() {
     refetch: refetchDraftsQuery,
   } = useQuery({
     queryKey: draftsKey,
-    queryFn: saleApi.listDrafts,
+    queryFn: async () =>
+      mergeDraftListWithCache(
+        await saleApi.listDrafts(),
+        queryClient.getQueryData<Sale[]>(draftsKey.value),
+      ),
     staleTime: Infinity,
   })
 

@@ -1375,3 +1375,136 @@ describe('useSalesDrafts - pure cache update functions', () => {
     })
   })
 })
+
+// owner-ideas-batch T4b (L10): «Nueva venta» from the customer page (and «Convertir en venta»)
+// seeds the drafts cache with the assigned draft — nested `customer` included — invalidates the list
+// and opens the POS. `GET /sales/drafts` answers `Sale.toResponse()` rows: `customerId` /
+// `shippingAddressId` only, never the nested objects. The re-read that the invalidation triggers
+// when the POS mounts must not wipe the customer the handoff just showed.
+describe('useSalesDrafts - drafts list re-read keeps the nested customer the list omits (T4b)', () => {
+  const customer: NonNullable<Sale['customer']> = { id: 'cust-1', firstName: 'Carmen', lastName: 'Ruiz' }
+  const address: NonNullable<Sale['shippingAddress']> = {
+    id: 'addr-1',
+    customerId: 'cust-1',
+    street: 'Calle Falsa',
+    exteriorNumber: '123',
+    interiorNumber: null,
+    zipCode: '01234',
+    neighborhood: null,
+    municipality: null,
+    city: 'CDMX',
+    state: 'CDMX',
+    createdAt: '2026-11-27T09:00:00Z',
+    updatedAt: '2026-11-27T09:00:00Z',
+  }
+  const oldDraft: Sale = {
+    id: 'sale-old',
+    userId: 'user-1',
+    status: 'DRAFT',
+    items: [],
+    createdAt: '2026-11-27T22:00:00Z',
+    updatedAt: '2026-11-27T22:00:00Z',
+  }
+  const handedOff: Sale = {
+    ...oldDraft,
+    id: 'sale-new',
+    customer,
+    createdAt: '2026-11-27T22:57:00Z',
+    updatedAt: '2026-11-27T22:57:00Z',
+  }
+
+  /** A `GET /sales/drafts` row: scalar ids, nested objects absent. */
+  function listRow(
+    sale: Sale,
+    ids: { customerId?: string | null; shippingAddressId?: string | null } = {},
+  ): Sale {
+    const { customer: _customer, shippingAddress: _shippingAddress, ...rest } = sale
+    return { ...rest, customerId: null, shippingAddressId: null, ...ids } as Sale
+  }
+
+  /** The POS mounts after the handoff seeded and invalidated the drafts list. */
+  async function mountAfterHandoff(seeded: Sale[], fresh: Sale[]) {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
+    })
+    queryClient.setQueryData(tenantDraftsKey, seeded)
+    await queryClient.invalidateQueries({ queryKey: tenantDraftsKey })
+    vi.mocked(saleApi.listDrafts).mockReset().mockResolvedValue(fresh)
+
+    let result: ReturnType<typeof useSalesDrafts> | undefined
+    mount(
+      defineComponent({
+        setup() {
+          result = useSalesDrafts()
+          return () => h('div')
+        },
+      }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient }]] } },
+    )
+    await vi.waitFor(() => expect(saleApi.listDrafts).toHaveBeenCalledTimes(1))
+    await vi.waitFor(() =>
+      expect(result!.drafts.value?.map((sale) => sale.id)).toEqual(fresh.map((sale) => sale.id)),
+    )
+    return { result: result!, queryClient }
+  }
+
+  it('the handed-off draft keeps its customer after the POS re-reads the list (owner L10)', async () => {
+    const { result } = await mountAfterHandoff(
+      [oldDraft, handedOff],
+      [listRow(handedOff, { customerId: 'cust-1' }), listRow(oldDraft)],
+    )
+
+    result.activeTabId.value = 'sale-new'
+    expect(result.activeDraft.value?.customer).toEqual(customer)
+    expect(result.drafts.value?.find((sale) => sale.id === 'sale-old')?.customer).toBeNull()
+  })
+
+  it('keeps the cached shipping address while the list still points at it', async () => {
+    const { result } = await mountAfterHandoff(
+      [{ ...handedOff, shippingAddress: address }],
+      [listRow(handedOff, { customerId: 'cust-1', shippingAddressId: 'addr-1' })],
+    )
+
+    expect(result.drafts.value?.[0]?.customer).toEqual(customer)
+    expect(result.drafts.value?.[0]?.shippingAddress).toEqual(address)
+  })
+
+  it('does not carry a customer the server no longer has on that draft', async () => {
+    const { result } = await mountAfterHandoff(
+      [{ ...handedOff, shippingAddress: address }],
+      [listRow(handedOff, { customerId: null, shippingAddressId: null })],
+    )
+
+    expect(result.drafts.value?.[0]?.customer).toBeNull()
+    expect(result.drafts.value?.[0]?.shippingAddress).toBeNull()
+  })
+
+  it('keeps a snapshot of a deleted address (id null) while the draft keeps its customer', async () => {
+    const snapshot = { ...address, id: null }
+    const { result } = await mountAfterHandoff(
+      [{ ...handedOff, shippingAddress: snapshot }],
+      [listRow(handedOff, { customerId: 'cust-1', shippingAddressId: null })],
+    )
+
+    expect(result.drafts.value?.[0]?.shippingAddress).toEqual(snapshot)
+  })
+
+  it('does not carry a cached customer when the server assigned a different one', async () => {
+    const { result } = await mountAfterHandoff(
+      [handedOff],
+      [listRow(handedOff, { customerId: 'cust-2' })],
+    )
+
+    expect(result.drafts.value?.[0]?.customer).toBeUndefined()
+  })
+
+  it('a row that already carries the nested customer stays authoritative', async () => {
+    const other: NonNullable<Sale['customer']> = { id: 'cust-1', firstName: 'Carmen', lastName: 'R.' }
+    const { result } = await mountAfterHandoff(
+      [handedOff],
+      [{ ...listRow(handedOff, { customerId: 'cust-1' }), customer: other }],
+    )
+
+    expect(result.drafts.value?.[0]?.customer).toEqual(other)
+  })
+})
