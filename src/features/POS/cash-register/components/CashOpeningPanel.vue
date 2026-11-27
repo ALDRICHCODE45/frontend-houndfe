@@ -9,13 +9,33 @@
  * (one message with Reintentar), empty or the cards — and register management
  * (create / activate) lives in a separate «Administrar cajas» disclosure that
  * never offers opening, so a register is chosen in exactly one control.
+ *
+ * Busy registers (cash-picker-unreleased): a register whose session still holds
+ * the drawer (`drawerReleasedAt: null`) is refused by the server, so its card is
+ * disabled and says who holds it and since when, with «Ver la sesión» to reach
+ * that session. `busyScope` says how much is known: `branch` (audit read, every
+ * held drawer), `own` (only the user's own sessions) or `none` (no read): below
+ * `branch` the server still confirms the register is free.
+ *
+ * Handoff 31: each register from GET /cash-registers carries `drawerHeld` (the
+ * very rule behind the refusal) for every user, so it decides busy/disabled and
+ * no hedge is needed. The label says the state and since when; the cashier's
+ * name only when `heldBy` reveals it, «Tu sesión» for the user's own. «Ver la
+ * sesión» is offered only with `heldBy` (the user may open that session). A
+ * register without the field (older backend) falls back to `heldSessions`.
  */
 import { computed } from 'vue'
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import { HfRadioCards, type HfRadioCardItem } from '@/core/shared/components/selection'
 import CashOpenSessionForm from './CashOpenSessionForm.vue'
 import CashRegistersPanel from './CashRegistersPanel.vue'
-import type { CashEligibleFloatItem, CashRegister } from '../interfaces/cash.types'
+import {
+  cashRegisterBusyLabel,
+  cashRegisterHeldLabel,
+  cashRegisterHold,
+  type CashRegisterHold,
+} from '../utils/cash-display'
+import type { CashEligibleFloatItem, CashRegister, CashSession } from '../interfaces/cash.types'
 
 const props = withDefaults(
   defineProps<{
@@ -34,6 +54,14 @@ const props = withDefaults(
     submitting?: boolean
     errorMessage?: string | null
     registersErrorMessage?: string | null
+    /** registerId → its newest session still holding the drawer. */
+    heldSessions?: Record<string, CashSession>
+    /** The held-drawer read is still loading: no card is offered as free yet. */
+    busyChecking?: boolean
+    busyScope?: 'branch' | 'own' | 'none'
+    currentUserId?: string | null
+    /** A refused open names a session the user may open from the error. */
+    errorSessionId?: string | null
   }>(),
   {
     registers: () => [],
@@ -51,6 +79,11 @@ const props = withDefaults(
     submitting: false,
     errorMessage: null,
     registersErrorMessage: null,
+    heldSessions: () => ({}),
+    busyChecking: false,
+    busyScope: 'none',
+    currentUserId: null,
+    errorSessionId: null,
   },
 )
 
@@ -62,16 +95,79 @@ const emit = defineEmits<{
   update: [id: string, payload: { name?: string; isActive?: boolean }]
   refresh: []
   submit: [payload: { openingCents: number; openingHandoverId?: string }]
+  'view-session': [sessionId: string]
 }>()
 
+const INACTIVE = 'Inactiva: no se puede abrir'
+
+/** Fallback (no `drawerHeld`): the description from the held-drawer sessions read. */
+function fallbackDescription(register: CashRegister): string {
+  if (!register.isActive) return INACTIVE
+  const held = props.heldSessions[register.id]
+  if (held) return cashRegisterBusyLabel(held, props.currentUserId)
+  if (props.busyChecking) return 'Comprobando si está libre…'
+  return 'Disponible para abrir'
+}
+
+function registerDescription(register: CashRegister, hold: CashRegisterHold): string {
+  if (hold.state === 'unknown') return fallbackDescription(register)
+  if (hold.state === 'held') {
+    const label = cashRegisterHeldLabel(hold)
+    return register.isActive ? label : `${INACTIVE} · ${label}`
+  }
+  return register.isActive ? 'Disponible para abrir' : INACTIVE
+}
+
+function isBusy(register: CashRegister, hold: CashRegisterHold): boolean {
+  if (hold.state === 'unknown') {
+    return Boolean(props.heldSessions[register.id]) || props.busyChecking
+  }
+  return hold.state === 'held'
+}
+
 const registerItems = computed<HfRadioCardItem[]>(() =>
-  props.registers.map((register) => ({
-    value: register.id,
-    label: register.name,
-    description: register.isActive ? 'Disponible para abrir' : 'Inactiva: no se puede abrir',
-    disabled: !register.isActive || !props.canOpen,
-  })),
+  props.registers.map((register) => {
+    const hold = cashRegisterHold(register)
+    return {
+      value: register.id,
+      label: register.name,
+      description: registerDescription(register, hold),
+      disabled: !register.isActive || !props.canOpen || isBusy(register, hold),
+    }
+  }),
 )
+
+/**
+ * Held registers whose session the user can open: `heldBy` (their own, or any
+ * with the audit read) — inactive ones too, since releasing is the way out — or,
+ * in the fallback, an active register's session from the user's visible list.
+ */
+const busyLinks = computed(() =>
+  props.registers.flatMap((register) => {
+    const hold = cashRegisterHold(register)
+    let sessionId: string | undefined
+    if (hold.state === 'held') sessionId = hold.heldBy?.sessionId
+    else if (hold.state === 'unknown' && register.isActive) {
+      sessionId = props.heldSessions[register.id]?.id
+    }
+    return sessionId ? [{ registerId: register.id, name: register.name, sessionId }] : []
+  }),
+)
+
+/** Every register says whether its drawer is held: the list is the truth. */
+const holdKnown = computed(() =>
+  props.registers.every((register) => cashRegisterHold(register).state !== 'unknown'),
+)
+
+const notice = computed(() => {
+  if (holdKnown.value || props.busyScope === 'branch') {
+    return 'Las cajas inactivas u ocupadas no se pueden abrir.'
+  }
+  if (props.busyScope === 'own') {
+    return 'Las cajas inactivas u ocupadas no se pueden abrir. Solo ves tus propias sesiones: el servidor confirma si la caja está libre.'
+  }
+  return 'Las cajas inactivas no se pueden abrir. El servidor confirma si la caja está libre.'
+})
 
 const selectedName = computed(
   () => props.registers.find((item) => item.id === props.selectedRegisterId)?.name ?? null,
@@ -134,9 +230,25 @@ function choose(registerId: string) {
           data-testid="cash-opening-registers"
           @update:model-value="choose"
         />
-        <p class="cash-notice">
+        <ul v-if="busyLinks.length" class="cash-busy-links" data-testid="cash-opening-busy">
+          <li v-for="link in busyLinks" :key="link.registerId">
+            <span class="cash-meta-wrap">{{ link.name }} está ocupada.</span>
+            <UButton
+              type="button"
+              color="neutral"
+              variant="link"
+              class="min-h-11 px-1"
+              trailing-icon="i-lucide-arrow-right"
+              :aria-label="`Ver la sesión que ocupa ${link.name}`"
+              :data-testid="`cash-opening-busy-view-${link.registerId}`"
+              @click="emit('view-session', link.sessionId)"
+              >Ver la sesión</UButton
+            >
+          </li>
+        </ul>
+        <p class="cash-notice" data-testid="cash-opening-notice">
           <UIcon name="i-lucide-info" class="size-4 shrink-0" aria-hidden="true" />
-          Las cajas inactivas no se pueden abrir. El servidor confirma si la caja está libre.
+          {{ notice }}
         </p>
       </fieldset>
     </template>
@@ -152,7 +264,9 @@ function choose(registerId: string) {
       :can-open="canOpen"
       :submitting="submitting"
       :error-message="errorMessage"
+      :error-session-id="errorSessionId"
       @submit="emit('submit', $event)"
+      @view-session="emit('view-session', $event)"
     />
 
     <!-- Register management: create and (de)activate; never a second way to open. -->

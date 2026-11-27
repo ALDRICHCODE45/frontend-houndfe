@@ -42,12 +42,18 @@ import {
   useCashOwnShift,
   useCashSessionDetail,
   useCashSessions,
+  useCashUnreleasedSessions,
 } from '../composables/useCashSessions'
 import { useCashSessionCommands } from '../composables/useCashSessionCommands'
 import { useCashCustody } from '../composables/useCashCustody'
 import { useCashHandoverRecipients } from '../composables/useCashHandoverRecipients'
 import { useCashWorkspace, type CashPanelId } from '../composables/useCashWorkspace'
-import { CashIdentityError, cashErrorInfo } from '../composables/cashErrorCopy'
+import {
+  CashIdentityError,
+  cashErrorInfo,
+  cashUnreleasedSessionRef,
+  type CashUnreleasedSessionRef,
+} from '../composables/cashErrorCopy'
 import {
   requiredChannelIdentities,
   CASH_CHANNEL_KEY,
@@ -145,6 +151,31 @@ const registerNames = computed(() =>
 )
 const detailQuery = useCashSessionDetail(selectedSessionId)
 
+/**
+ * Held drawers (cash-picker-unreleased): registers the server would refuse to
+ * open, shown busy in the picker with a way to their session. GET
+ * /cash-registers reports `drawerHeld` per register (handoff 31) and is the
+ * source of truth; the held-drawer sessions read runs only as a fallback while
+ * a loaded register lacks that field (an older backend).
+ */
+const registersReportHeld = computed(() =>
+  registers.registers.value.every((register) => typeof register.drawerHeld === 'boolean'),
+)
+const needsHeldFallback = computed(
+  () =>
+    !registers.isLoading.value &&
+    !registers.isError.value &&
+    registers.registers.value.length > 0 &&
+    !registersReportHeld.value,
+)
+const heldDrawers = useCashUnreleasedSessions(needsHeldFallback)
+const busyScope = computed<'branch' | 'own' | 'none'>(() => {
+  if (!heldDrawers.known.value) return 'none'
+  return heldDrawers.complete.value ? 'branch' : 'own'
+})
+/** The refused open (`CASH_REGISTER_UNRELEASED_SESSION`) behind the open error. */
+const openRefusal = ref<CashUnreleasedSessionRef | null>(null)
+
 // One presentation channel for command feedback; each panel receives only its
 // own scope so a stale error from another panel is never shown.
 const errorScope = ref<string | null>(null)
@@ -167,6 +198,7 @@ function invalidateSessionContext(): void {
   errorScope.value = null
   errorMessage.value = null
   lastMovement.value = null
+  openRefusal.value = null
 }
 
 /** «Cortes» in place: the list, or one corte opened from it. */
@@ -223,6 +255,36 @@ function clearError(scope: string) {
 function errorFor(scope: string): string | null {
   return errorScope.value === scope ? errorMessage.value : null
 }
+
+/**
+ * The blocking session may be offered only when the user can read it: it is in
+ * their own visible list, or the branch audit makes another person's reachable.
+ */
+const openErrorSessionId = computed<string | null>(() => {
+  const sessionId = openRefusal.value?.sessionId
+  if (!sessionId || !errorFor('open')) return null
+  const reachable =
+    registers.registers.value.some((register) => register.heldBy?.sessionId === sessionId) ||
+    heldDrawers.isVisible(sessionId) ||
+    (access.canReadSessions.value && access.canAuditSessions.value)
+  return reachable ? sessionId : null
+})
+
+/** A refused open names the register and says what to do next. */
+const openErrorMessage = computed<string | null>(() => {
+  const message = errorFor('open')
+  const refusal = openRefusal.value
+  if (!message || !refusal) return message
+  const id = refusal.registerId ?? selectedRegisterId.value
+  const name = (id && registerNames.value[id]) || 'Esa caja'
+  if (openErrorSessionId.value) {
+    return `${name} ya tiene una sesión sin liberar. Ábrela para terminarla y liberar el cajón; después podrás abrir la caja.`
+  }
+  if (refusal.sessionId) {
+    return `${name} ya tiene una sesión sin liberar que no puedes ver. Pide a un encargado que la revise y libere el cajón, o elige otra caja.`
+  }
+  return `${name} ya tiene una sesión sin liberar. Búscala en la lista de sesiones y libera su cajón, o pide a un encargado que lo haga.`
+})
 
 /**
  * Run one command handler under the identity captured BEFORE any await.
@@ -486,6 +548,11 @@ function selectRegister(registerId: string) {
   verifyComparison.value = null
 }
 
+/** «Ver la sesión» from the picker or a refused open: focus that session. */
+function viewHeldSession(sessionId: string) {
+  selectSession(sessionId)
+}
+
 function selectSession(sessionId: string) {
   invalidateSessionContext()
   selectedSessionId.value = sessionId
@@ -527,12 +594,26 @@ function handleOpenSession(payload: { openingCents: number; openingHandoverId?: 
   // A repeat click while the open is in flight is absorbed quietly: the command
   // layer would refuse it anyway, but that refusal is not a failure to report.
   if (commands.activeCommand.value === 'open') return Promise.resolve()
+  openRefusal.value = null
   return withIdentityGuard('open', 'No se pudo abrir la sesión.', async () => {
     // Captured once, before the request: a stale promise must never select an
     // old session for the new user.
     const registerId = selectedRegisterId.value
     if (!registerId) return
-    const opened = await commands.openSession(registerId, payload)
+    let opened: Awaited<ReturnType<typeof commands.openSession>>
+    try {
+      opened = await commands.openSession(registerId, payload)
+    } catch (error) {
+      const refusal = cashUnreleasedSessionRef(error)
+      if (refusal) {
+        openRefusal.value = { ...refusal, registerId: refusal.registerId ?? registerId }
+        // The picker learns the held drawer: the registers carry it (handoff
+        // 31); an older backend needs the held-drawer sessions read too.
+        void registers.refetch()
+        if (needsHeldFallback.value && access.canReadSessions.value) void heldDrawers.refetch()
+      }
+      throw error
+    }
     // Leave the opening state: the form is keyed on the selected register, so
     // clearing it unmounts the form (and its confirmation) and no second open
     // can be sent from it. The new shift becomes the focused one. A failed open
@@ -987,13 +1068,19 @@ function viewClosing() {
               :eligible-float="custody.eligibleFloat.value"
               :custody-visible="custody.allowed.value"
               :submitting="commands.activeCommand.value === 'open'"
-              :error-message="errorFor('open')"
+              :error-message="openErrorMessage"
+              :error-session-id="openErrorSessionId"
               :registers-error-message="errorFor('registers')"
+              :held-sessions="heldDrawers.byRegister.value"
+              :busy-checking="heldDrawers.isLoading.value"
+              :busy-scope="busyScope"
+              :current-user-id="access.currentUserId.value"
               @select="selectRegister"
               @create="handleCreateRegister"
               @update="handleUpdateRegister"
               @refresh="registers.refetch()"
               @submit="handleOpenSession"
+              @view-session="viewHeldSession"
             />
           </template>
 

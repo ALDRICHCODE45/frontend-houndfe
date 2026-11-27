@@ -55,9 +55,34 @@ interface CashRegisterSummary {
   isActive: boolean
 }
 
+/**
+ * Who holds a register's drawer (handoff 31). Present only with `read:CashSession`
+ * and when the session is the caller's own or they hold `read:CashSessionAudit`.
+ */
+export interface CashRegisterHeldBy {
+  sessionId: string
+  status: CashSessionStatus
+  openedAt: string
+  cashierDisplayName: string | null
+  byMe: boolean
+}
+
 /** `GET /cash-registers` item and `POST`/`PATCH /cash-registers` document. */
 export interface CashRegister extends CashRegisterSummary {
   createdAt: string
+  /**
+   * Held-drawer snapshot (handoff 31, GET /cash-registers): `true` while any
+   * session of the register has the drawer unreleased — the same rule that
+   * refuses an open with `CASH_REGISTER_UNRELEASED_SESSION`. Optional only so
+   * an older backend (and the POST/PATCH documents) still read: absent means
+   * unknown, never free.
+   */
+  drawerHeld?: boolean
+  /** Non-null whenever `drawerHeld` is true; never carries a name. */
+  drawerHeldStatus?: CashSessionStatus | null
+  /** `openedAt` of the holding session (ISO); non-null whenever held. */
+  drawerHeldSince?: string | null
+  heldBy?: CashRegisterHeldBy | null
 }
 
 export interface CashRegisterListResponse {

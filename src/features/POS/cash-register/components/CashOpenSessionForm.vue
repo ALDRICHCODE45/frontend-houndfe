@@ -36,6 +36,8 @@ const props = withDefaults(
     custodyVisible?: boolean
     submitting?: boolean
     errorMessage?: string | null
+    /** The session behind a refused open, offered as «Ver la sesión» when reachable. */
+    errorSessionId?: string | null
   }>(),
   {
     registerId: null,
@@ -45,11 +47,13 @@ const props = withDefaults(
     custodyVisible: false,
     submitting: false,
     errorMessage: null,
+    errorSessionId: null,
   },
 )
 
 const emit = defineEmits<{
   submit: [payload: { openingCents: number; openingHandoverId?: string }]
+  'view-session': [sessionId: string]
 }>()
 
 const openingCentsInput = ref('')
@@ -227,7 +231,18 @@ function submitChecked() {
         <li v-if="localError">
           <a :href="`#${localErrorField}`">{{ localError }}</a>
         </li>
-        <li v-if="errorMessage" data-testid="cash-open-error">{{ errorMessage }}</li>
+        <li v-if="errorMessage" data-testid="cash-open-error">
+          {{ errorMessage }}
+          <button
+            v-if="errorSessionId"
+            type="button"
+            class="cash-err-summary-action"
+            data-testid="cash-open-error-view-session"
+            @click="emit('view-session', errorSessionId)"
+          >
+            Ver la sesión
+          </button>
+        </li>
       </ul>
     </div>
 
