@@ -60,3 +60,108 @@
 .clients-visual .hf-toolbar :where(button, input, [data-slot='root']) {
   min-height: var(--hf-control-height);
 }
+
+/* customers-module T6: «Ordenar:» label, secondary lines and money cells of the
+ * customers table, and the removable chips of the active filters (artboard 01
+ * «Filtrando por»): 32px pills on the active roles, ✕ to remove one. */
+.clients-visual .clients-sort-label {
+  color: var(--hf-muted);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.clients-visual .clients-cell-secondary {
+  color: var(--hf-muted);
+  font-size: 13px;
+}
+
+.clients-visual .clients-cell-date {
+  color: var(--hf-muted);
+  white-space: nowrap;
+}
+
+.clients-visual .clients-debt-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 8px;
+}
+
+.clients-visual .clients-debt {
+  color: var(--hf-warning);
+  font-weight: 600;
+}
+
+.clients-visual .clients-pets-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.clients-visual .clients-pets-icon {
+  color: var(--hf-muted);
+  width: 16px;
+  height: 16px;
+}
+
+.clients-visual .clients-filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.clients-visual .clients-filter-chips-label {
+  color: var(--hf-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.clients-visual .clients-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  border: 1px solid var(--hf-active);
+  border-radius: 999px;
+  background-color: var(--hf-active-soft);
+  padding: 0 10px 0 12px;
+  color: var(--hf-ink);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.clients-visual .clients-filter-chip strong {
+  color: var(--hf-active);
+  font-weight: 600;
+}
+
+.clients-visual .clients-filter-chip-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--hf-active);
+}
+
+.clients-visual .clients-filter-chips-clear {
+  border: 0;
+  background: none;
+  padding: 0 4px;
+  color: var(--hf-action);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.clients-visual :where(.clients-filter-chip, .clients-filter-chips-clear):focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .clients-visual .clients-filter-chip {
+    min-height: 44px;
+  }
+}

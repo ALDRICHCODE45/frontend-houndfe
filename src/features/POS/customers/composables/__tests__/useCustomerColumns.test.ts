@@ -1,42 +1,105 @@
 import { describe, expect, it } from 'vitest'
-import { formatPetMatchHint, useCustomerColumns } from '../useCustomerColumns'
+import { columnLabel } from '@/core/shared/components/DataTable/columnLayout.utils'
+import {
+  CUSTOMERS_DEFAULT_COLUMN_VISIBILITY,
+  CUSTOMERS_MONEY_COLUMN_IDS,
+  formatPetMatchHint,
+  useCustomerColumns,
+} from '../useCustomerColumns'
 
-type Column = { id?: string; accessorKey?: string; size?: number; enableSorting?: boolean; meta?: { class?: { th?: string; td?: string } } }
+type Column = {
+  id?: string
+  accessorKey?: string
+  size?: number
+  enableSorting?: boolean
+  enableHiding?: boolean
+  meta?: { primary?: boolean; class?: { th?: string; td?: string } }
+}
 
-describe('useCustomerColumns', () => {
-  const columns = useCustomerColumns().columns as Column[]
-  const keyOf = (column: Column) => column.id ?? column.accessorKey
+const keyOf = (column: Column) => column.id ?? column.accessorKey
 
-  it('orders the columns by job: name first, contact, price list, then the ⋮ column last', () => {
-    expect(columns.map(keyOf)).toEqual(['fullName', 'email', 'phone', 'globalPriceListName', 'actions'])
-    expect(columns.length).toBeLessThanOrEqual(8)
+describe('useCustomerColumns (customers-module T6)', () => {
+  const columns = useCustomerColumns({ canReadSales: true }).columns as Column[]
+
+  it('shows 7 data columns by default plus ⋮: Cliente, Deuda, Vencido desde, Última compra, Total comprado, Mascotas, Lista de precios', () => {
+    const visible = columns.filter((column) => CUSTOMERS_DEFAULT_COLUMN_VISIBILITY[keyOf(column)!] !== false)
+    expect(visible.map(keyOf)).toEqual([
+      'name',
+      'openDebt',
+      'oldestOverdue',
+      'lastPurchaseAt',
+      'totalSold',
+      'pets',
+      'priceList',
+      'actions',
+    ])
+    expect(visible.map((column) => columnLabel(column as never))).toEqual([
+      'Cliente',
+      'Deuda',
+      'Vencido desde',
+      'Última compra',
+      'Total comprado',
+      'Mascotas',
+      'Lista de precios',
+      'Acciones',
+    ])
   })
 
-  it('keeps no selection column: nothing in the list acts on a selection', () => {
-    expect(columns.find((column) => column.id === 'select')).toBeUndefined()
+  it('keeps Correo, Colonia y ciudad, RFC, Alta, Compras, Ticket promedio and De confianza in «Columnas»', () => {
+    const hidden = columns.filter((column) => CUSTOMERS_DEFAULT_COLUMN_VISIBILITY[keyOf(column)!] === false)
+    expect(hidden.map((column) => columnLabel(column as never))).toEqual([
+      'Correo',
+      'Colonia y ciudad',
+      'RFC',
+      'Alta',
+      'Compras',
+      'Ticket promedio',
+      'De confianza',
+    ])
   })
 
-  it('keeps the data columns sortable by accessorKey with plain string headers', () => {
-    for (const key of ['fullName', 'email', 'phone', 'globalPriceListName']) {
-      const column = columns.find((candidate) => candidate.accessorKey === key)
-      expect(column).toBeDefined()
-      expect(typeof (column as { header?: unknown }).header).toBe('string')
-    }
+  it('makes sortable only what GET /customers/listing can order by, with the column id as sortBy', () => {
+    const sortable = columns.filter((column) => column.enableSorting).map(keyOf)
+    expect(sortable).toEqual([
+      'name',
+      'openDebt',
+      'oldestOverdue',
+      'lastPurchaseAt',
+      'totalSold',
+      'createdAt',
+      'salesCount',
+      'averageTicket',
+    ])
+    for (const column of columns) expect(typeof column.enableSorting).toBe('boolean')
   })
 
-  it('keeps the actions column last, 64px wide, non-sortable and non-hideable', () => {
+  it('keeps the name as the primary, always-visible column and the ⋮ column last', () => {
+    const name = columns[0]!
+    expect(name.meta?.primary).toBe(true)
+    expect(name.enableHiding).toBe(false)
     const actions = columns[columns.length - 1]!
     expect(actions.id).toBe('actions')
     expect(actions.enableSorting).toBe(false)
-    expect((actions as { enableHiding?: boolean }).enableHiding).toBe(false)
-    expect(actions.meta?.class?.th).toContain('w-16')
-    expect(actions.meta?.class?.td).toContain('w-16')
+    expect(actions.enableHiding).toBe(false)
     expect(actions.meta?.class?.td).toContain('text-right')
   })
 
-  it('shows a whole e-mail and phone by default; the name keeps the free space', () => {
-    const sizes = Object.fromEntries(columns.map((column) => [keyOf(column), column.size]))
-    expect(sizes).toMatchObject({ fullName: undefined, email: 240, phone: 168, globalPriceListName: 160 })
+  it('has no selection column: nothing acts on a selection yet (bulk actions are «Después»)', () => {
+    expect(columns.find((column) => column.id === 'select')).toBeUndefined()
+  })
+
+  it('without read:Sale drops every money and purchase column', () => {
+    const limited = (useCustomerColumns({ canReadSales: false }).columns as Column[]).map(keyOf)
+    expect(CUSTOMERS_MONEY_COLUMN_IDS).toEqual([
+      'openDebt',
+      'oldestOverdue',
+      'lastPurchaseAt',
+      'totalSold',
+      'salesCount',
+      'averageTicket',
+    ])
+    for (const id of CUSTOMERS_MONEY_COLUMN_IDS) expect(limited).not.toContain(id)
+    expect(limited).toEqual(['name', 'pets', 'priceList', 'email', 'location', 'rfc', 'createdAt', 'isTrusted', 'actions'])
   })
 
   it('formats the pet-match hint «Bruno (mascota de Ana Pérez)» only when a pet matched', () => {

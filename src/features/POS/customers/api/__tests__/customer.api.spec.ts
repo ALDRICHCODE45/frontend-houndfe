@@ -232,6 +232,27 @@ describe('customer.api search, matchedPetName and activePetsCount (handoff 27 §
     expect((await customerApi.update('c-1', { firstName: 'Ana' })).activePetsCount).toBeUndefined()
   })
 
+  // Handoff 32 §4: «Cliente de confianza» on GET /customers/:id, PATCH and POST. Only a real boolean
+  // passes; absent or anything else stays undefined (unknown, never «not trusted»).
+  it('maps isTrusted true and false, and leaves it undefined when absent or not a boolean', async () => {
+    httpGet.mockResolvedValueOnce({ data: row('c-1', 'Ana', { isTrusted: true }) })
+    expect((await customerApi.getById('c-1')).isTrusted).toBe(true)
+    httpPatch.mockResolvedValueOnce({ data: row('c-1', 'Ana', { isTrusted: false }) })
+    expect((await customerApi.update('c-1', { firstName: 'Ana' })).isTrusted).toBe(false)
+    httpPost.mockResolvedValueOnce({ data: row('c-1', 'Ana', { isTrusted: false }) })
+    expect((await customerApi.create({ firstName: 'Ana' } as never)).isTrusted).toBe(false)
+
+    httpGet.mockResolvedValueOnce({ data: row('c-1', 'Ana') })
+    const absent = await customerApi.getById('c-1')
+    expect(absent.isTrusted).toBeUndefined()
+    expect('isTrusted' in absent).toBe(false)
+    for (const value of ['true', 1, null]) {
+      httpGet.mockResolvedValueOnce({ data: row('c-1', 'Ana', { isTrusted: value as never }) })
+      const detail = await customerApi.getById('c-1')
+      expect('isTrusted' in detail).toBe(false)
+    }
+  })
+
   // Differential check (Risk item 3): the exact inputs of every other caller.
   const backendRows = [
     row('c-1', 'Zoe', { email: 'z@x.com' }),

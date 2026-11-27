@@ -18,10 +18,22 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
   // The handlers repeat the Customer permission checks, so the editor flows need the grants.
   useAuthStore: () => ({ currentTenantId: 'tenant-test', userCan: () => true }),
 }))
+// customers-module T6: the filters are URL-synced (useFiltersUrlAdapter reads the route).
+vi.mock('vue-router', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRoute: () => ({ path: '/pos/customers', query: {} }),
+}))
+
 vi.mock('@/core/shared/composables/useServerTable', () => ({
   useServerTable: () => ({
     pagination: ref({ pageIndex: 0 }),
     sorting: ref([]),
+    response: ref(undefined),
+    columnOrder: ref([]),
+    columnSizing: ref({}),
+    density: ref('comfortable'),
+    resetLayout: vi.fn(),
     globalFilter: ref(''),
     rowSelection: ref({}),
     columnPinning: ref({}),

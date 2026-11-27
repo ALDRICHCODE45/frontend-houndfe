@@ -1,22 +1,42 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import CustomerMobileCard from '../CustomerMobileCard.vue'
-import type { Customer } from '../../interfaces/customer.types'
+import type { CustomerListingRow } from '../../interfaces/customer-listing.types'
 
-const customer: Customer = {
+const customer: CustomerListingRow = {
   id: 'cust-secret-id',
   firstName: 'Juan',
   lastName: 'Pérez',
   fullName: 'Juan Pérez',
+  businessName: null,
   phoneCountryCode: '+52',
   phone: '5512345678',
   email: 'juan@test.com',
   globalPriceListId: 'pl-1',
   globalPriceListName: 'Lista General',
-  comments: null,
+  rfc: null,
+  fiscalRegime: null,
+  isTrusted: false,
   createdAt: '2024-01-15T00:00:00.000Z',
-  updatedAt: '2024-01-15T00:00:00.000Z',
+  primaryAddress: null,
+  activePetsCount: 0,
+  petSpecies: [],
+  matchedPetName: null,
 }
+const withMetrics = (metrics: Partial<NonNullable<CustomerListingRow['metrics']>> = {}): CustomerListingRow => ({
+  ...customer,
+  metrics: {
+    openDebtCents: 128400,
+    overdueDebtCents: 50000,
+    overdueCount: 1,
+    oldestOverdueDueDate: '2026-11-20',
+    salesCount: 23,
+    totalSoldCents: 1846050,
+    averageTicketCents: 80263,
+    lastPurchaseAt: '2026-11-22T18:00:00.000Z',
+    ...metrics,
+  },
+})
 const actions = [
   { key: 'edit', label: 'Editar' },
   { key: 'delete', label: 'Eliminar…', destructive: true },
@@ -27,20 +47,43 @@ function mountCard(props: Record<string, unknown> = {}) {
 }
 
 describe('CustomerMobileCard', () => {
-  it('shows the name as the primary text, the email as the secondary line and never the id', () => {
+  it('shows the name as the primary text, the phone as the secondary line and never the id', () => {
     const wrapper = mountCard()
     expect(wrapper.get('.hf-row-primary').text()).toBe('Juan Pérez')
-    expect(wrapper.get('.hf-row-secondary').text()).toBe('juan@test.com')
+    expect(wrapper.get('.hf-row-secondary').text()).toBe('+52 55 1234 5678')
     expect(wrapper.text()).not.toContain('cust-secret-id')
   })
 
-  it('shows the phone and the price list in the footer, with an em dash for a missing phone', () => {
+  it('shows the price list in the footer and no money without metrics (no read:Sale)', () => {
     const wrapper = mountCard()
-    expect(wrapper.get('.customer-card-footer').text()).toContain('+52 55 1234 5678')
     expect(wrapper.get('.customer-card-footer').text()).toContain('Lista General')
-    const bare = mountCard({ customer: { ...customer, phone: null, globalPriceListName: null, email: null } })
-    expect(bare.get('.customer-card-footer').text()).toBe('—')
+    expect(wrapper.find('[data-testid="customer-card-debt"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="customer-card-last-purchase"]').exists()).toBe(false)
+    const bare = mountCard({ customer: { ...customer, phone: null, globalPriceListName: null } })
     expect(bare.find('.hf-row-secondary').exists()).toBe(false)
+  })
+
+  it('shows the debt with the «Vencida» badge, since when, and the last purchase', () => {
+    const wrapper = mountCard({ customer: withMetrics() })
+    expect(wrapper.get('[data-testid="customer-card-debt"]').text()).toContain('$1,284.00')
+    expect(wrapper.get('[data-testid="customer-card-overdue"]').text()).toContain('Vencida')
+    expect(wrapper.get('[data-testid="customer-card-overdue-since"]').text()).toBe('Vencido desde 20/11/2026')
+    expect(wrapper.get('[data-testid="customer-card-last-purchase"]').text()).toMatch(/^Última compra 22 nov 2026$/)
+  })
+
+  it('shows no debt line without debt, and «Sin compras» when the customer never bought', () => {
+    const wrapper = mountCard({
+      customer: withMetrics({ openDebtCents: 0, overdueDebtCents: 0, overdueCount: 0, oldestOverdueDueDate: null, lastPurchaseAt: null }),
+    })
+    expect(wrapper.find('[data-testid="customer-card-debt"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="customer-card-overdue"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="customer-card-last-purchase"]').text()).toBe('Sin compras')
+  })
+
+  it('shows debt without the badge when nothing is overdue', () => {
+    const wrapper = mountCard({ customer: withMetrics({ overdueCount: 0, overdueDebtCents: 0, oldestOverdueDueDate: null }) })
+    expect(wrapper.get('[data-testid="customer-card-debt"]').text()).toContain('$1,284.00')
+    expect(wrapper.find('[data-testid="customer-card-overdue"]').exists()).toBe(false)
   })
 
   it('uses a neutral initials avatar, not a per-person color', () => {
@@ -80,7 +123,6 @@ describe('CustomerMobileCard', () => {
     const matched = mountCard({ customer: { ...customer, matchedPetName: 'Bruno' } })
     expect(matched.get('[data-testid="customer-pet-match"]').text()).toBe('Bruno (mascota de Juan Pérez)')
     expect(matched.get('.hf-row-primary').text()).toBe('Juan Pérez')
-    expect(mountCard({ customer: { ...customer, matchedPetName: null } }).find('[data-testid="customer-pet-match"]').exists()).toBe(false)
     expect(mountCard().find('[data-testid="customer-pet-match"]').exists()).toBe(false)
   })
 })

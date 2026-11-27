@@ -1,0 +1,379 @@
+<div class="tools" role="group" aria-label="Opciones del artboard">
+  <span class="lbl">01 · Tabla de clientes y filtros avanzados</span>
+  <span class="lbl">Capa</span>
+  <button type="button" data-state="capa:filtros" aria-pressed="true">Filtros abiertos</button>
+  <button type="button" data-state="capa:columnas" aria-pressed="false">Columnas</button>
+  <button type="button" data-state="capa:ninguna" aria-pressed="false">Sin capa</button>
+  <span class="lbl">Tabla</span>
+  <button type="button" data-state="tabla:datos" aria-pressed="true">Datos</button>
+  <button type="button" data-state="tabla:cargando" aria-pressed="false">Cargando</button>
+  <button type="button" data-state="tabla:vacio" aria-pressed="false">Sin resultados</button>
+  <button type="button" data-state="tabla:sel" aria-pressed="false">Selección</button>
+  <span class="grow"></span>
+  <button type="button" id="t-notes" aria-expanded="false" aria-controls="notes"><svg class="icon sm"><use href="#i-notes"/></svg>Notas y datos</button>
+  <button type="button" id="t-theme" aria-pressed="false"><svg class="icon sm"><use href="#i-moon"/></svg><span>Tema claro</span></button>
+</div>
+
+<aside class="notes" id="notes" tabindex="-1" hidden aria-label="Notas del artboard">
+  <h2>01 · Tabla de clientes y filtros avanzados</h2>
+  <p>La lista de Clientes con el mismo motor que Ventas (<code>AppDataTable</code> + <code>DataTableFilters</code> + <code>DataTableViews</code>): vistas guardadas, búsqueda, filtros por secciones, orden, «Columnas», totales del filtro y paginación del servidor. Clic en la fila abre la nueva página del cliente (<code>/pos/clientes/:id</code>); «Editar» pasa al menú ⋮.</p>
+  <h3>Ya existe hoy (GET /customers)</h3>
+  <ul>
+    <li>Solo <code>search</code>, arreglo plano por <code>createdAt</code> desc, sin paginación, orden ni filtros.</li>
+    <li>Cada fila ya trae: nombre, teléfono, correo, datos fiscales (RFC, régimen), <code>preferredPaymentMethod</code>, <code>createdAt</code>, <code>globalPriceList</code>, <code>addresses[]</code> (colonia, municipio, ciudad, CP) y <code>matchedPetName</code>.</li>
+  </ul>
+  <h3>Requiere el nuevo endpoint (T3)</h3>
+  <ul>
+    <li>Todo filtro, orden, paginación y total del servidor: cambiar el arreglo por <code>{ data, pagination, totals }</code> rompería a los consumidores actuales, así que va en un endpoint nuevo.</li>
+    <li>Métricas por cliente (etiqueta <span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span>): deuda (<code>openDebtCents</code>), vencido y vencimiento más viejo (misma regla que <code>GET /sales</code>), número de compras, total, ticket promedio, última compra (<code>Sale.confirmedAt</code>), mascotas (especie, tamaño), <code>isTrusted</code>, solicitudes del chatbot (<code>ChatbotRequest.customerId</code>), zona de reparto (solo por CP).</li>
+    <li>Propuesta del backend: agregados al leer con <code>LEFT JOIN LATERAL</code> y un índice parcial en <code>sales(tenantId, customerId) WHERE CONFIRMED</code>; sin tabla de estadísticas.</li>
+  </ul>
+  <h3>No existe (no se dibuja)</h3>
+  <ul><li>Límite de crédito, etiquetas o grupos, cumpleaños, activo/inactivo, vendedor asignado. «Inactivos +90 días» se calcula con la última compra.</li></ul>
+  <h3>Patrón nuevo a decidir</h3>
+  <ul>
+    <li>Chips de filtros activos arriba de la tabla: hoy <code>DataTableFilters</code> marca el filtro activo solo con el anillo dentro de la hoja. Con 25 filtros posibles, los chips dicen qué está filtrando sin abrir la hoja.</li>
+    <li>Secciones plegables con contador dentro de la hoja.</li>
+    <li>Selección y barra masiva: solo «Exportar CSV» y «Estados de cuenta (PDF)», que ya existe por cliente.</li>
+  </ul>
+</aside>
+
+<div class="app" id="app" style="height:1000px">
+<!--@side-->
+  <div class="mainarea">
+    <header class="top">
+      <nav class="crumbs" aria-label="Ruta"><a href="#pos">POS</a><svg class="icon xs"><use href="#i-chev-r"/></svg><b aria-current="page">Clientes</b></nav>
+    </header>
+    <main class="page">
+      <header class="page-head">
+        <h1>Clientes</h1>
+        <p>Quién te debe, desde cuándo, qué compra y a qué mascotas atiendes.</p>
+      </header>
+
+      <section class="surf" aria-label="Lista de clientes">
+        <div class="views" role="tablist" aria-label="Vistas guardadas" data-single>
+          <button type="button" role="tab" aria-selected="true">Todos</button>
+          <button type="button" role="tab" aria-selected="false">Con deuda vencida <small>27</small></button>
+          <button type="button" role="tab" aria-selected="false">Inactivos +90 días <small>64</small></button>
+          <button type="button" role="tab" aria-selected="false">Mejores clientes</button>
+          <button type="button" role="tab" aria-selected="false">Nuevos este mes <small>12</small></button>
+          <span class="grow"></span>
+          <span class="vstate">
+            <span class="dirty">Cambios sin guardar</span>
+            <button type="button" class="btn sm ghost">Restablecer</button>
+            <button type="button" class="btn sm"><svg class="icon sm"><use href="#i-plus"/></svg>Guardar vista</button>
+          </span>
+        </div>
+
+        <div class="tb" role="search">
+          <div class="input"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" placeholder="Buscar por nombre, teléfono, correo o mascota" aria-label="Buscar clientes por nombre, teléfono, correo o mascota"></div>
+          <button type="button" class="btn" data-toggle="filters" aria-expanded="true" aria-controls="filters"><svg class="icon sm"><use href="#i-sliders"/></svg>Filtros<span class="count" aria-label="3 activos">3</span></button>
+          <label class="sel"><span class="pre">Ordenar</span><span>Vencido desde · más antiguo</span><svg class="icon sm"><use href="#i-chev-d"/></svg>
+            <select aria-label="Ordenar clientes"><option>Vencido desde · más antiguo</option><option>Deuda · mayor a menor</option><option>Última compra · más reciente</option><option>Total comprado · mayor a menor</option><option>Nombre · A–Z</option><option>Alta · más reciente</option></select></label>
+          <span class="grow"></span>
+          <button type="button" class="btn" data-toggle="colpanel" aria-expanded="false" aria-controls="colpanel"><svg class="icon sm"><use href="#i-columns"/></svg>Columnas · 7 ocultas</button>
+          <button type="button" class="btn primary"><svg class="icon sm"><use href="#i-plus"/></svg>Nuevo cliente</button>
+        </div>
+
+        <div class="fbar" aria-label="Filtros activos">
+          <span class="lab">Filtrando por</span>
+          <span class="fchip"><span>Con deuda: <b>Sí</b></span><button type="button" aria-label="Quitar filtro Con deuda"><svg class="icon xs"><use href="#i-x"/></svg></button></span>
+          <span class="fchip"><span>Municipio: <b>Monterrey, San Nicolás de los Garza</b></span><button type="button" aria-label="Quitar filtro Municipio"><svg class="icon xs"><use href="#i-x"/></svg></button></span>
+          <span class="fchip"><span>Especie: <b>Perro o Gato</b></span><button type="button" aria-label="Quitar filtro Especie"><svg class="icon xs"><use href="#i-x"/></svg></button></span>
+          <button type="button" class="linkbtn">Limpiar todo</button>
+        </div>
+
+        <div style="position:relative">
+        <table class="dt" aria-describedby="sortnote">
+          <caption class="sr" id="sortnote">Clientes con deuda en Monterrey y San Nicolás con perro o gato, ordenados por vencimiento más antiguo</caption>
+          <colgroup><col style="width:48px"><col><col style="width:150px"><col style="width:140px"><col style="width:128px"><col style="width:132px"><col style="width:104px"><col style="width:120px"><col style="width:64px"></colgroup>
+          <thead><tr>
+            <th class="cx"><button class="mark" type="button" role="checkbox" aria-checked="false" aria-label="Seleccionar los clientes de esta página"><i><svg class="icon"><use href="#i-check"/></svg></i></button></th>
+            <th>Cliente</th><th class="num">Deuda</th><th><span class="sorted">Vencido desde<svg class="icon xs"><use href="#i-arrow-down"/></svg></span></th><th>Última compra</th><th class="num">Total comprado</th><th>Mascotas</th><th>Lista de precios</th><th class="ac"><span class="sr">Acciones</span></th>
+          </tr></thead>
+
+          <tbody data-when="tabla:datos tabla:sel">
+            <tr><td class="cx"><button class="mark" type="button" role="checkbox" aria-checked="false" aria-label="Seleccionar a Rodrigo Salinas Cantú"><i><svg class="icon"><use href="#i-check"/></svg></i></button></td>
+              <td><span class="p">Rodrigo Salinas Cantú</span><span class="s"><span class="fig">81 1987 2210</span>·<span>Rocky, Luna</span></span></td>
+              <td class="num"><span class="p amt owe">$3,480.00</span><span class="s"><span class="badge danger">Vencida</span></span></td>
+              <td><span class="p fig">12 ago 2026</span><span class="s warn">hace 106 días</span></td>
+              <td><span class="p fig">30 sep</span><span class="s">hace 57 días</span></td>
+              <td class="num"><span class="p amt">$21,340.00</span><span class="s">31 compras</span></td>
+              <td><span class="species">2<svg class="icon" aria-label="Perro"><use href="#i-dog"/></svg><svg class="icon" aria-label="Gato"><use href="#i-cat"/></svg></span></td>
+              <td><span class="ell" style="display:block">Mayoreo</span></td>
+              <td class="ac"><button class="icon-btn" type="button" aria-label="Acciones de Rodrigo Salinas Cantú"><svg class="icon"><use href="#i-more"/></svg></button></td></tr>
+            <tr><td class="cx"><button class="mark" type="button" role="checkbox" aria-checked="false" aria-label="Seleccionar a María Fernanda Garza Lozano"><i><svg class="icon"><use href="#i-check"/></svg></i></button></td>
+              <td><span class="p">María Fernanda Garza Lozano</span><span class="s"><span class="fig">81 2290 4417</span>·<span>Toby</span></span></td>
+              <td class="num"><span class="p amt owe">$1,150.00</span><span class="s"><span class="badge danger">Vencida</span></span></td>
+              <td><span class="p fig">2 sep 2026</span><span class="s warn">hace 85 días</span></td>
+              <td><span class="p fig">6 nov</span><span class="s">hace 20 días</span></td>
+              <td class="num"><span class="p amt">$9,872.50</span><span class="s">14 compras</span></td>
+              <td><span class="species">1<svg class="icon" aria-label="Perro"><use href="#i-dog"/></svg></span></td>
+              <td>Público</td>
+              <td class="ac"><button class="icon-btn" type="button" aria-label="Acciones de María Fernanda Garza Lozano"><svg class="icon"><use href="#i-more"/></svg></button></td></tr>
+            <tr><td class="cx"><button class="mark" type="button" role="checkbox" aria-checked="false" aria-label="Seleccionar a Héctor Villarreal Elizondo"><i><svg class="icon"><use href="#i-check"/></svg></i></button></td>
+              <td><span class="p">Héctor Villarreal Elizondo</span><span class="s"><span class="fig">81 8350 1123</span>·<span>Max, Kira, Simba</span></span></td>
+              <td class="num"><span class="p amt owe">$6,215.00</span><span class="s"><span class="badge danger">Vencida</span></span></td>
+              <td><span class="p fig">18 sep 2026</span><span class="s warn">hace 69 días</span></td>
+              <td><span class="p fig">14 nov</span><span class="s">hace 12 días</span></td>
+              <td class="num"><span class="p amt">$48,906.00</span><span class="s">62 compras</span></td>
+              <td><span class="species">3<svg class="icon" aria-label="Perro"><use href="#i-dog"/></svg><svg class="icon" aria-label="Gato"><use href="#i-cat"/></svg></span></td>
+              <td>Criadores</td>
+              <td class="ac"><button class="icon-btn" type="button" aria-label="Acciones de Héctor Villarreal Elizondo"><svg class="icon"><use href="#i-more"/></svg></button></td></tr>
+            <tr><td class="cx"><button class="mark" type="button" role="checkbox" aria-checked="false" aria-label="Seleccionar a Lucía Cavazos Treviño"><i><svg class="icon"><use href="#i-check"/></svg></i></button></td>
+              <td><span class="p">Lucía Cavazos Treviño</span><span class="s"><span class="fig">81 1456 7789</span>·<span>Michi</span></span></td>
+              <td class="num"><span class="p amt owe">$742.00</span><span class="s"><span class="badge danger">Vencida</span></span></td>
+              <td><span class="p fig">9 oct 2026</span><span class="s warn">hace 48 días</span></td>
+              <td><span class="p fig">9 oct</span><span class="s">hace 48 días</span></td>
+              <td class="num"><span class="p amt">$3,215.00</span><span class="s">6 compras</span></td>
+              <td><span class="species">1<svg class="icon" aria-label="Gato"><use href="#i-cat"/></svg></span></td>
+              <td>Público</td>
+              <td class="ac"><button class="icon-btn" type="button" aria-label="Acciones de Lucía Cavazos Treviño"><svg class="icon"><use href="#i-more"/></svg></button></td></tr>
+            <tr><td class="cx"><button class="mark" type="button" role="checkbox" aria-checked="false" aria-label="Seleccionar a Jorge Alberto Leal Montemayor"><i><svg class="icon"><use href="#i-check"/></svg></i></button></td>
+              <td><span class="p">Jorge Alberto Leal Montemayor</span><span class="s"><span class="fig">81 3321 0098</span>·<span>Zeus</span></span></td>
+              <td class="num"><span class="p amt owe">$2,890.00</span><span class="s"><span class="badge danger">Vencida</span></span></td>
+              <td><span class="p fig">21 oct 2026</span><span class="s warn">hace 36 días</span></td>
+              <td><span class="p fig">19 nov</span><span class="s">hace 7 días</span></td>
+              <td class="num"><span class="p amt">$15,480.00</span><span class="s">22 compras</span></td>
+              <td><span class="species">1<svg class="icon" aria-label="Perro"><use href="#i-dog"/></svg></span></td>
+              <td>Público</td>
+              <td class="ac"><button class="icon-btn" type="button" aria-label="Acciones de Jorge Alberto Leal Montemayor"><svg class="icon"><use href="#i-more"/></svg></button></td></tr>
+            <tr><td class="cx"><button class="mark" type="button" role="checkbox" aria-checked="false" aria-label="Seleccionar a Patricia Elizondo de la Garza"><i><svg class="icon"><use href="#i-check"/></svg></i></button></td>
+              <td><span class="p">Patricia Elizondo de la Garza</span><span class="s"><span class="fig">81 1122 3344</span>·<span>Nala, Coco</span></span></td>
+              <td class="num"><span class="p amt owe">$1,980.00</span><span class="s"><span class="badge danger">Vencida</span></span></td>
+              <td><span class="p fig">2 nov 2026</span><span class="s">hace 24 días</span></td>
+              <td><span class="p fig">20 nov</span><span class="s">hace 6 días</span></td>
+              <td class="num"><span class="p amt">$12,040.00</span><span class="s">19 compras</span></td>
+              <td><span class="species">2<svg class="icon" aria-label="Gato"><use href="#i-cat"/></svg></span></td>
+              <td>Público</td>
+              <td class="ac"><button class="icon-btn" type="button" aria-label="Acciones de Patricia Elizondo de la Garza"><svg class="icon"><use href="#i-more"/></svg></button></td></tr>
+            <tr><td class="cx"><button class="mark" type="button" role="checkbox" aria-checked="false" aria-label="Seleccionar a Ana Sofía Treviño Garza"><i><svg class="icon"><use href="#i-check"/></svg></i></button></td>
+              <td><span class="p">Ana Sofía Treviño Garza</span><span class="s"><span class="fig">81 2345 6789</span>·<span>Bruno, Mishi</span><span class="trust" title="Cliente de confianza"><svg class="icon"><use href="#i-shield"/></svg><span class="sr">De confianza</span></span></span></td>
+              <td class="num"><span class="p amt owe">$1,284.00</span><span class="s"><span class="badge danger">Vencida</span></span></td>
+              <td><span class="p fig">20 nov 2026</span><span class="s">hace 6 días</span></td>
+              <td><span class="p fig">22 nov</span><span class="s">hace 4 días</span></td>
+              <td class="num"><span class="p amt">$18,460.50</span><span class="s">23 compras</span></td>
+              <td><span class="species">2<svg class="icon" aria-label="Perro"><use href="#i-dog"/></svg><svg class="icon" aria-label="Gato"><use href="#i-cat"/></svg></span></td>
+              <td>Público</td>
+              <td class="ac" style="position:relative"><button class="icon-btn" type="button" aria-label="Acciones de Ana Sofía Treviño Garza" data-toggle="rowmenu" aria-expanded="false" aria-controls="rowmenu"><svg class="icon"><use href="#i-more"/></svg></button></td></tr>
+            <tr><td class="cx"><button class="mark" type="button" role="checkbox" aria-checked="false" aria-label="Seleccionar a Daniel Ríos Sepúlveda"><i><svg class="icon"><use href="#i-check"/></svg></i></button></td>
+              <td><span class="p">Daniel Ríos Sepúlveda</span><span class="s"><span class="fig">81 4410 2287</span>·<span>Firulais</span></span></td>
+              <td class="num"><span class="p amt">$560.00</span><span class="s">vence 3 dic</span></td>
+              <td><span class="none">—</span></td>
+              <td><span class="p fig">24 nov</span><span class="s">hace 2 días</span></td>
+              <td class="num"><span class="p amt">$2,130.00</span><span class="s">4 compras</span></td>
+              <td><span class="species">1<svg class="icon" aria-label="Perro"><use href="#i-dog"/></svg></span></td>
+              <td>Público</td>
+              <td class="ac"><button class="icon-btn" type="button" aria-label="Acciones de Daniel Ríos Sepúlveda"><svg class="icon"><use href="#i-more"/></svg></button></td></tr>
+            <tr><td class="cx"><button class="mark" type="button" role="checkbox" aria-checked="false" aria-label="Seleccionar a Sofía Martínez Guajardo"><i><svg class="icon"><use href="#i-check"/></svg></i></button></td>
+              <td><span class="p">Sofía Martínez Guajardo</span><span class="s"><span class="fig">81 5567 8812</span>·<span>Pelusa</span></span></td>
+              <td class="num"><span class="p amt">$1,420.00</span><span class="s">vence 8 dic</span></td>
+              <td><span class="none">—</span></td>
+              <td><span class="p fig">25 nov</span><span class="s">ayer</span></td>
+              <td class="num"><span class="p amt">$6,980.00</span><span class="s">11 compras</span></td>
+              <td><span class="species">1<svg class="icon" aria-label="Gato"><use href="#i-cat"/></svg></span></td>
+              <td>Mayoreo</td>
+              <td class="ac"><button class="icon-btn" type="button" aria-label="Acciones de Sofía Martínez Guajardo"><svg class="icon"><use href="#i-more"/></svg></button></td></tr>
+            <tr><td class="cx"><button class="mark" type="button" role="checkbox" aria-checked="false" aria-label="Seleccionar a Ernesto Cantú Rodríguez"><i><svg class="icon"><use href="#i-check"/></svg></i></button></td>
+              <td><span class="p">Ernesto Cantú Rodríguez</span><span class="s"><span class="fig">81 9081 3345</span>·<span>Duque, Lola</span></span></td>
+              <td class="num"><span class="p amt">$3,050.00</span><span class="s">vence 10 dic</span></td>
+              <td><span class="none">—</span></td>
+              <td><span class="p fig">Hoy, 11:20</span><span class="s">Mostrador</span></td>
+              <td class="num"><span class="p amt">$27,615.00</span><span class="s">40 compras</span></td>
+              <td><span class="species">2<svg class="icon" aria-label="Perro"><use href="#i-dog"/></svg></span></td>
+              <td>Criadores</td>
+              <td class="ac"><button class="icon-btn" type="button" aria-label="Acciones de Ernesto Cantú Rodríguez"><svg class="icon"><use href="#i-more"/></svg></button></td></tr>
+          </tbody>
+
+          <tbody data-when="tabla:cargando" hidden aria-busy="true">
+            <tr><td colspan="9" style="height:auto;padding:0"><span class="sr" role="status">Cargando clientes…</span></td></tr>
+            <tr><td class="cx"></td><td><span class="sk" style="width:180px;height:14px"></span><span class="sk" style="width:130px;height:12px;margin-top:8px"></span></td><td><span class="sk" style="width:80px;height:14px;margin-left:auto"></span></td><td><span class="sk" style="width:90px;height:14px"></span></td><td><span class="sk" style="width:70px;height:14px"></span></td><td><span class="sk" style="width:90px;height:14px;margin-left:auto"></span></td><td><span class="sk" style="width:40px;height:14px"></span></td><td><span class="sk" style="width:70px;height:14px"></span></td><td></td></tr>
+            <tr><td class="cx"></td><td><span class="sk" style="width:150px;height:14px"></span><span class="sk" style="width:110px;height:12px;margin-top:8px"></span></td><td><span class="sk" style="width:70px;height:14px;margin-left:auto"></span></td><td><span class="sk" style="width:90px;height:14px"></span></td><td><span class="sk" style="width:70px;height:14px"></span></td><td><span class="sk" style="width:80px;height:14px;margin-left:auto"></span></td><td><span class="sk" style="width:40px;height:14px"></span></td><td><span class="sk" style="width:60px;height:14px"></span></td><td></td></tr>
+            <tr><td class="cx"></td><td><span class="sk" style="width:200px;height:14px"></span><span class="sk" style="width:120px;height:12px;margin-top:8px"></span></td><td><span class="sk" style="width:80px;height:14px;margin-left:auto"></span></td><td><span class="sk" style="width:90px;height:14px"></span></td><td><span class="sk" style="width:70px;height:14px"></span></td><td><span class="sk" style="width:90px;height:14px;margin-left:auto"></span></td><td><span class="sk" style="width:40px;height:14px"></span></td><td><span class="sk" style="width:70px;height:14px"></span></td><td></td></tr>
+            <tr><td class="cx"></td><td><span class="sk" style="width:160px;height:14px"></span><span class="sk" style="width:100px;height:12px;margin-top:8px"></span></td><td><span class="sk" style="width:70px;height:14px;margin-left:auto"></span></td><td><span class="sk" style="width:90px;height:14px"></span></td><td><span class="sk" style="width:70px;height:14px"></span></td><td><span class="sk" style="width:80px;height:14px;margin-left:auto"></span></td><td><span class="sk" style="width:40px;height:14px"></span></td><td><span class="sk" style="width:60px;height:14px"></span></td><td></td></tr>
+          </tbody>
+
+          <tbody data-when="tabla:vacio" hidden>
+            <tr><td colspan="9" style="height:auto;cursor:default;background:var(--hf-surface)">
+              <div class="empty">
+                <svg class="icon"><use href="#i-search-x"/></svg>
+                <h3>Ningún cliente coincide con los filtros</h3>
+                <p>Con deuda, en Monterrey o San Nicolás y con perro o gato, sin compras en los últimos 90 días. Quita un filtro o límpialos todos.</p>
+                <button type="button" class="btn">Limpiar filtros</button>
+              </div>
+            </td></tr>
+          </tbody>
+
+          <tfoot data-when="tabla:datos tabla:sel"><tr>
+            <td></td>
+            <td>38 clientes <span class="scope">· Total del filtro</span></td>
+            <td class="num fig">$48,215.50</td>
+            <td class="fig" style="color:var(--hf-warning)">$31,940.00 vencido</td>
+            <td></td>
+            <td class="num fig">$612,480.00</td>
+            <td></td><td></td><td></td>
+          </tr></tfoot>
+        </table>
+
+        <div class="pop" id="rowmenu" data-overlay hidden role="menu" aria-label="Acciones de Ana Sofía Treviño Garza" style="right:16px;top:430px">
+          <button type="button" role="menuitem"><svg class="icon sm"><use href="#i-open"/></svg>Abrir ficha</button>
+          <button type="button" role="menuitem"><svg class="icon sm"><use href="#i-cart"/></svg>Nueva venta</button>
+          <button type="button" role="menuitem"><svg class="icon sm"><use href="#i-coins"/></svg>Cobrar $1,284.00</button>
+          <button type="button" role="menuitem"><svg class="icon sm"><use href="#i-pencil"/></svg>Editar datos</button>
+          <hr>
+          <button type="button" role="menuitem" class="danger"><svg class="icon sm"><use href="#i-trash"/></svg>Eliminar…</button>
+        </div>
+        </div>
+
+        <div class="pgbar">
+          <span><b class="fig" style="color:var(--hf-ink)">1–10</b> de 38 · Vencido desde, más antiguo primero</span>
+          <span class="grow"></span>
+          <nav class="pager" aria-label="Páginas de clientes">
+            <button type="button" disabled aria-label="Página anterior"><svg class="icon sm"><use href="#i-chev-l"/></svg></button>
+            <button type="button" aria-current="page">1</button><button type="button">2</button><button type="button">3</button><button type="button">4</button>
+            <button type="button" aria-label="Página siguiente"><svg class="icon sm"><use href="#i-chev-r"/></svg></button>
+          </nav>
+        </div>
+
+        <!-- «Columnas» panel -->
+        <div class="pop colpanel" id="colpanel" data-when="capa:columnas" hidden role="dialog" aria-label="Columnas" style="right:150px;top:104px">
+          <div class="ch"><span class="lab">Densidad</span>
+            <div class="seg" data-single role="radiogroup" aria-label="Densidad"><button type="button" aria-pressed="false">Compacta</button><button type="button" aria-pressed="false">Normal</button><button type="button" aria-pressed="true">Cómoda</button></div>
+          </div>
+          <div class="cg">
+            <p class="ph">Columnas · 7 de 14 visibles</p>
+            <div class="colrow"><svg class="icon grip"><use href="#i-grip"/></svg><span class="nm">Cliente</span><span class="lock">siempre visible</span></div>
+            <div class="colrow"><svg class="icon grip"><use href="#i-grip"/></svg><span class="nm">Deuda <span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></span><button class="sw" type="button" role="switch" aria-checked="true" aria-label="Mostrar Deuda"></button></div>
+            <div class="colrow"><svg class="icon grip"><use href="#i-grip"/></svg><span class="nm">Vencido desde <span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></span><button class="sw" type="button" role="switch" aria-checked="true" aria-label="Mostrar Vencido desde"></button></div>
+            <div class="colrow"><svg class="icon grip"><use href="#i-grip"/></svg><span class="nm">Última compra <span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></span><button class="sw" type="button" role="switch" aria-checked="true" aria-label="Mostrar Última compra"></button></div>
+            <div class="colrow"><svg class="icon grip"><use href="#i-grip"/></svg><span class="nm">Total comprado <span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></span><button class="sw" type="button" role="switch" aria-checked="true" aria-label="Mostrar Total comprado"></button></div>
+            <div class="colrow"><svg class="icon grip"><use href="#i-grip"/></svg><span class="nm">Mascotas <span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></span><button class="sw" type="button" role="switch" aria-checked="true" aria-label="Mostrar Mascotas"></button></div>
+            <div class="colrow"><svg class="icon grip"><use href="#i-grip"/></svg><span class="nm">Lista de precios</span><button class="sw" type="button" role="switch" aria-checked="true" aria-label="Mostrar Lista de precios"></button></div>
+            <div class="colrow"><svg class="icon grip"><use href="#i-grip"/></svg><span class="nm">Correo</span><button class="sw" type="button" role="switch" aria-checked="false" aria-label="Mostrar Correo"></button></div>
+            <div class="colrow"><svg class="icon grip"><use href="#i-grip"/></svg><span class="nm">Colonia y ciudad</span><button class="sw" type="button" role="switch" aria-checked="false" aria-label="Mostrar Colonia y ciudad"></button></div>
+            <div class="colrow"><svg class="icon grip"><use href="#i-grip"/></svg><span class="nm">RFC</span><button class="sw" type="button" role="switch" aria-checked="false" aria-label="Mostrar RFC"></button></div>
+            <div class="colrow"><svg class="icon grip"><use href="#i-grip"/></svg><span class="nm">Alta</span><button class="sw" type="button" role="switch" aria-checked="false" aria-label="Mostrar Alta"></button></div>
+            <div class="colrow"><svg class="icon grip"><use href="#i-grip"/></svg><span class="nm">Compras (#) <span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></span><button class="sw" type="button" role="switch" aria-checked="false" aria-label="Mostrar Compras"></button></div>
+            <div class="colrow"><svg class="icon grip"><use href="#i-grip"/></svg><span class="nm">Ticket promedio <span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></span><button class="sw" type="button" role="switch" aria-checked="false" aria-label="Mostrar Ticket promedio"></button></div>
+            <div class="colrow"><svg class="icon grip"><use href="#i-grip"/></svg><span class="nm">Método preferido</span><button class="sw" type="button" role="switch" aria-checked="false" aria-label="Mostrar Método preferido"></button></div>
+          </div>
+          <div class="cf"><button type="button" class="btn sm ghost"><svg class="icon sm"><use href="#i-rotate"/></svg>Restablecer columnas</button></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="bulk" data-when="tabla:sel" hidden role="region" aria-label="Acciones de la selección">
+    <span class="cnt">3 seleccionados</span>
+    <span class="sum">Deuda <b class="fig">$10,979.00</b></span>
+    <button type="button" class="btn sm"><svg class="icon sm"><use href="#i-file"/></svg>Estados de cuenta (PDF)</button>
+    <button type="button" class="btn sm"><svg class="icon sm"><use href="#i-download"/></svg>Exportar CSV</button>
+    <button type="button" class="icon-btn" aria-label="Quitar selección"><svg class="icon"><use href="#i-x"/></svg></button>
+  </div>
+
+  <!-- Advanced filters: DataTableFilters right sheet -->
+  <div class="scrim" data-when="capa:filtros" aria-hidden="true"></div>
+  <section class="sheet" id="filters" data-when="capa:filtros" role="dialog" aria-modal="true" aria-labelledby="f-title">
+    <header class="sheet-h">
+      <div class="row">
+        <h2 id="f-title">Filtros</h2>
+        <span class="badge nodot">3 activos</span>
+        <span class="grow"></span>
+        <button type="button" class="linkbtn">Limpiar todo</button>
+        <button type="button" class="icon-btn" aria-label="Cerrar filtros" data-toggle="filters"><svg class="icon"><use href="#i-x"/></svg></button>
+      </div>
+      <p class="legend"><svg class="icon xs" style="margin-top:2px"><use href="#i-info"/></svg><span>Se aplican al momento. Propuesta: todos viajan al nuevo endpoint de clientes; <span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span> además calcula una métrica (deuda, compras, mascotas).</span></p>
+    </header>
+    <div class="sheet-b" id="fsections">
+
+      <details class="fsec" open>
+        <summary><svg class="icon sm chev"><use href="#i-chev-r"/></svg><svg class="icon sm" style="color:var(--hf-muted)"><use href="#i-wallet"/></svg>Deuda<span class="n">1</span><span class="grow"></span></summary>
+        <div class="fbody">
+          <div class="ff is-active"><div class="fl">Con deuda<span class="grow"></span><span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></div>
+            <div class="seg ctl" data-single role="radiogroup" aria-label="Con deuda"><button type="button" aria-pressed="false">Todos</button><button type="button" aria-pressed="true">Sí</button><button type="button" aria-pressed="false">No</button></div></div>
+          <div class="ff"><div class="fl">Monto de deuda<span class="grow"></span><span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></div>
+            <div class="range"><div class="input"><span class="pre">$</span><input inputmode="decimal" placeholder="Mínimo" aria-label="Deuda mínima"></div><span>a</span><div class="input"><span class="pre">$</span><input inputmode="decimal" placeholder="Máximo" aria-label="Deuda máxima"></div></div></div>
+          <div class="ff"><div class="fl">Con ventas vencidas<span class="grow"></span><span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></div>
+            <div class="seg ctl" data-single role="radiogroup" aria-label="Con ventas vencidas"><button type="button" aria-pressed="true">Todos</button><button type="button" aria-pressed="false">Sí</button><button type="button" aria-pressed="false">No</button></div></div>
+          <div class="ff"><div class="fl">Vencida hace más de<span class="grow"></span><span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></div>
+            <div class="chips" data-single role="group" aria-label="Vencida hace más de"><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>30 días</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>60 días</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>90 días</button></div></div>
+          <div class="ff"><div class="fl">Vencimiento más viejo<span class="grow"></span><span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></div>
+            <button type="button" class="date-btn"><svg class="icon sm"><use href="#i-calendar"/></svg><span class="grow muted" style="text-align:left">Cualquier fecha</span><svg class="icon sm"><use href="#i-chev-d"/></svg></button>
+            <p class="help">El día en que venció su venta impaga más antigua.</p></div>
+        </div>
+      </details>
+
+      <details class="fsec" open>
+        <summary><svg class="icon sm chev"><use href="#i-chev-r"/></svg><svg class="icon sm" style="color:var(--hf-muted)"><use href="#i-receipt"/></svg>Compras<span class="grow"></span></summary>
+        <div class="fbody">
+          <div class="ff"><div class="fl">Total comprado<span class="grow"></span><span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></div>
+            <div class="range"><div class="input"><span class="pre">$</span><input inputmode="decimal" placeholder="Mínimo" aria-label="Total comprado mínimo"></div><span>a</span><div class="input"><span class="pre">$</span><input inputmode="decimal" placeholder="Máximo" aria-label="Total comprado máximo"></div></div></div>
+          <div class="ff"><div class="fl">Número de compras<span class="grow"></span><span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></div>
+            <div class="range"><div class="input"><input inputmode="numeric" placeholder="Mínimo" aria-label="Compras mínimas"></div><span>a</span><div class="input"><input inputmode="numeric" placeholder="Máximo" aria-label="Compras máximas"></div></div></div>
+          <div class="ff"><div class="fl">Ticket promedio<span class="grow"></span><span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></div>
+            <div class="range"><div class="input"><span class="pre">$</span><input inputmode="decimal" placeholder="Mínimo" aria-label="Ticket promedio mínimo"></div><span>a</span><div class="input"><span class="pre">$</span><input inputmode="decimal" placeholder="Máximo" aria-label="Ticket promedio máximo"></div></div></div>
+          <div class="ff"><div class="fl">Última compra<span class="grow"></span><span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></div>
+            <button type="button" class="date-btn"><svg class="icon sm"><use href="#i-calendar"/></svg><span class="grow muted" style="text-align:left">Cualquier fecha</span><svg class="icon sm"><use href="#i-chev-d"/></svg></button>
+            <p class="or">o sin comprar hace más de</p>
+            <div class="chips" data-single role="group" aria-label="Sin comprar hace más de"><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>30 días</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>60 días</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>90 días</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Nunca ha comprado</button></div></div>
+          <div class="ff"><div class="fl">Cliente desde</div>
+            <button type="button" class="date-btn"><svg class="icon sm"><use href="#i-calendar"/></svg><span class="grow muted" style="text-align:left">Cualquier fecha</span><svg class="icon sm"><use href="#i-chev-d"/></svg></button>
+            <div class="presets" data-single><button type="button" class="chip" aria-pressed="false">Este mes</button><button type="button" class="chip" aria-pressed="false">Últimos 90 días</button><button type="button" class="chip" aria-pressed="false">Este año</button></div></div>
+        </div>
+      </details>
+
+      <details class="fsec" open>
+        <summary><svg class="icon sm chev"><use href="#i-chev-r"/></svg><svg class="icon sm" style="color:var(--hf-muted)"><use href="#i-paw"/></svg>Mascotas<span class="n">1</span><span class="grow"></span></summary>
+        <div class="fbody">
+          <div class="ff is-active"><div class="fl">Especie<span class="grow"></span><span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></div>
+            <div class="chips" data-multi role="group" aria-label="Especie"><button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg><svg class="icon"><use href="#i-dog"/></svg>Perro</button><button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg><svg class="icon"><use href="#i-cat"/></svg>Gato</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><svg class="icon"><use href="#i-paw"/></svg>Otro</button></div></div>
+          <div class="ff"><div class="fl">Tamaño<span class="grow"></span><span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></div>
+            <div class="chips" data-multi role="group" aria-label="Tamaño"><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Chico</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Mediano</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Grande</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Gigante</button></div></div>
+          <div class="ff"><div class="fl">Número de mascotas<span class="grow"></span><span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></div>
+            <div class="range"><div class="input"><input inputmode="numeric" placeholder="Mínimo" aria-label="Mascotas mínimas"></div><span>a</span><div class="input"><input inputmode="numeric" placeholder="Máximo" aria-label="Mascotas máximas"></div></div></div>
+          <label class="switchrow"><span class="txt"><b>Solo clientes sin mascotas</b><small>Para registrar a quién atienden</small></span><button class="sw" type="button" role="switch" aria-checked="false" aria-label="Solo clientes sin mascotas"></button></label>
+        </div>
+      </details>
+
+      <details class="fsec" open>
+        <summary><svg class="icon sm chev"><use href="#i-chev-r"/></svg><svg class="icon sm" style="color:var(--hf-muted)"><use href="#i-pin"/></svg>Ubicación<span class="n">1</span><span class="grow"></span><span class="hint">de cualquier dirección guardada</span></summary>
+        <div class="fbody">
+          <div class="ff"><div class="fl">Colonia</div><div class="combo" role="combobox" aria-expanded="false" aria-label="Colonia"><span class="ph">Mitras Centro, Cumbres…</span><svg class="icon sm"><use href="#i-chev-d"/></svg></div></div>
+          <div class="ff is-active"><div class="fl">Municipio</div><div class="combo" role="combobox" aria-expanded="false" aria-label="Municipio"><span class="tag">Monterrey<svg class="icon"><use href="#i-x"/></svg></span><span class="tag">San Nicolás de los Garza<svg class="icon"><use href="#i-x"/></svg></span><svg class="icon sm"><use href="#i-chev-d"/></svg></div></div>
+          <div class="ff"><div class="fl">Ciudad</div><div class="combo" role="combobox" aria-expanded="false" aria-label="Ciudad"><span class="ph">Todas</span><svg class="icon sm"><use href="#i-chev-d"/></svg></div></div>
+          <div class="ff"><div class="fl">Código postal</div><div class="combo" role="combobox" aria-expanded="false" aria-label="Código postal"><span class="ph">Escribe uno o varios: 64460, 66450</span><svg class="icon sm"><use href="#i-chev-d"/></svg></div></div>
+          <div class="ff"><div class="fl">Zona de reparto<span class="grow"></span><span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></div><div class="combo" role="combobox" aria-expanded="false" aria-label="Zona de reparto"><span class="ph">Todas las zonas</span><svg class="icon sm"><use href="#i-chev-d"/></svg></div><p class="help">Según el código postal de la dirección.</p></div>
+        </div>
+      </details>
+
+      <details class="fsec" open>
+        <summary><svg class="icon sm chev"><use href="#i-chev-r"/></svg><svg class="icon sm" style="color:var(--hf-muted)"><use href="#i-tag"/></svg>Comercial y contacto<span class="grow"></span></summary>
+        <div class="fbody">
+          <div class="ff"><div class="fl">Lista de precios</div><div class="combo" role="combobox" aria-expanded="false" aria-label="Lista de precios"><span class="ph">Todas</span><svg class="icon sm"><use href="#i-chev-d"/></svg></div></div>
+          <div class="ff"><div class="fl">Cliente de confianza<span class="grow"></span><span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span></div>
+            <div class="seg ctl" data-single role="radiogroup" aria-label="Cliente de confianza"><button type="button" aria-pressed="true">Todos</button><button type="button" aria-pressed="false">Sí</button><button type="button" aria-pressed="false">No</button></div></div>
+          <div class="ff"><div class="fl">Método de pago preferido</div>
+            <div class="chips" data-multi role="group" aria-label="Método de pago preferido"><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Efectivo</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Tarjeta</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Transferencia</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Crédito</button></div></div>
+          <div class="ff"><div class="fl">Datos fiscales</div>
+            <div class="seg ctl" data-single role="radiogroup" aria-label="Con RFC"><button type="button" aria-pressed="true">Todos</button><button type="button" aria-pressed="false">Con RFC</button><button type="button" aria-pressed="false">Sin RFC</button></div>
+            <div class="combo" role="combobox" aria-expanded="false" aria-label="Régimen fiscal"><span class="ph">Régimen fiscal: cualquiera</span><svg class="icon sm"><use href="#i-chev-d"/></svg></div></div>
+          <div class="ff"><div class="fl">Datos de contacto que faltan</div>
+            <div class="chips" data-multi role="group" aria-label="Datos de contacto que faltan"><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Sin correo</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Sin teléfono</button></div></div>
+          <label class="switchrow"><span class="txt"><b>Con solicitudes del chatbot</b><small>Pidió algo por WhatsApp y está ligado al cliente</small></span><span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span><button class="sw" type="button" role="switch" aria-checked="false" aria-label="Con solicitudes del chatbot"></button></label>
+        </div>
+      </details>
+    </div>
+    <footer class="sheet-f">
+      <p class="grow" role="status"><b class="fig">38 clientes</b> coinciden · deuda <b class="fig">$48,215.50</b></p>
+      <button type="button" class="btn" data-toggle="filters">Cerrar</button>
+    </footer>
+  </section>
+</div>
+
+<section class="board" aria-labelledby="spec-title" style="padding-top:32px">
+  <header class="board-head">
+    <h2 id="spec-title" style="font-size:20px">Todos los filtros propuestos, abiertos</h2>
+    <p>La misma hoja de arriba, desplegada para revisar cada grupo de una vez. En la app la hoja tiene secciones plegables y se desplaza; un filtro activo lleva el anillo azul en su control y su chip arriba de la tabla.</p>
+  </header>
+  <div id="spec" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start"></div>
+</section>

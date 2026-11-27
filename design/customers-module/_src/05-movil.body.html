@@ -1,0 +1,161 @@
+<div class="tools" role="group" aria-label="Opciones del artboard">
+  <span class="lbl">05 · Móvil 390</span>
+  <span class="grow"></span>
+  <button type="button" id="t-notes" aria-expanded="false" aria-controls="notes"><svg class="icon sm"><use href="#i-notes"/></svg>Notas</button>
+  <button type="button" id="t-theme" aria-pressed="false"><svg class="icon sm"><use href="#i-moon"/></svg><span>Tema claro</span></button>
+</div>
+
+<aside class="notes" id="notes" tabindex="-1" hidden aria-label="Notas del artboard">
+  <h2>05 · Móvil 390</h2>
+  <ul>
+    <li>Lista: tarjetas de <code>AppDataTable</code> (<code>mobile-render="cards"</code>): nombre como enlace que cubre la tarjeta, ⋮ arriba a la derecha (44 px), deuda y última compra en el pie. «Vista:» como select (regla de vistas por debajo de md).</li>
+    <li>Toolbar en dos filas: búsqueda; luego «Filtros» y «Ordenar» a la izquierda y la acción primaria al final, siempre con texto e icono.</li>
+    <li>Filtros: hoja inferior con esquinas superiores de 16 px (<code>--hf-radius-sheet</code>), secciones plegadas con contador y botón fijo «Ver 38 clientes». Hay que agregarla a la lista permitida del guard de radios.</li>
+    <li>Página A: barra con volver, meta y nombre (17 px) y ⋮; métricas con desplazamiento horizontal; pestañas desplazables; las ventas en tarjetas desplegables (las de <code>SalesHistoryList</code> en modo <code>cards</code>); «Cobrar todo» y «Nueva venta» en la barra fija inferior.</li>
+  </ul>
+</aside>
+
+<!-- ═══ 1 · Lista ═══ -->
+<header class="cap"><b>1 · Lista de clientes</b><span>Tarjetas, filtros activos en una fila deslizable</span></header>
+<div class="phone">
+  <div class="mbar">
+    <button type="button" class="icon-btn" aria-label="Abrir menú"><svg class="icon"><use href="#i-columns"/></svg></button>
+    <span class="ttl"><small>POS</small><b>Clientes</b></span>
+  </div>
+  <main class="mpage">
+    <h1>Clientes</h1>
+    <label class="sel" style="width:100%"><span class="pre">Vista:</span><span>Todos · cambios sin guardar</span><svg class="icon sm"><use href="#i-chev-d"/></svg><select aria-label="Vista guardada"><option>Todos</option><option>Con deuda vencida</option><option>Inactivos +90 días</option><option>Mejores clientes</option><option>Nuevos este mes</option></select></label>
+    <div class="mtb">
+      <div class="input"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" placeholder="Nombre, teléfono, correo o mascota" aria-label="Buscar clientes por nombre, teléfono, correo o mascota"></div>
+      <div class="row">
+        <button type="button" class="btn"><svg class="icon sm"><use href="#i-sliders"/></svg>Filtros<span class="count">3</span></button>
+        <button type="button" class="btn"><svg class="icon sm"><use href="#i-sort"/></svg>Ordenar</button>
+        <span class="grow"></span>
+        <button type="button" class="btn primary"><svg class="icon sm"><use href="#i-plus"/></svg>Nuevo</button>
+      </div>
+    </div>
+    <div class="hscroll" aria-label="Filtros activos">
+      <span class="fchip mchip"><span>Con deuda: <b>Sí</b></span><button type="button" aria-label="Quitar filtro Con deuda"><svg class="icon xs"><use href="#i-x"/></svg></button></span>
+      <span class="fchip mchip"><span>Municipio: <b>Monterrey, San Nicolás</b></span><button type="button" aria-label="Quitar filtro Municipio"><svg class="icon xs"><use href="#i-x"/></svg></button></span>
+      <span class="fchip mchip"><span>Especie: <b>Perro o Gato</b></span><button type="button" aria-label="Quitar filtro Especie"><svg class="icon xs"><use href="#i-x"/></svg></button></span>
+      <button type="button" class="linkbtn">Limpiar</button>
+    </div>
+    <p class="msum"><span><b>38 clientes</b> · vencido más antiguo primero</span><span>Deuda <b class="fig">$48,215.50</b></span></p>
+    <ul class="mcards" aria-label="Clientes">
+      <li class="mcard"><div class="mtop"><a class="nm" href="#c1">Rodrigo Salinas Cantú</a><button type="button" class="icon-btn more" aria-label="Acciones de Rodrigo Salinas Cantú"><svg class="icon"><use href="#i-more"/></svg></button></div>
+        <p class="sec"><span class="fig">81 1987 2210</span>·<svg class="icon"><use href="#i-dog"/></svg>Rocky <svg class="icon"><use href="#i-cat"/></svg>Luna</p>
+        <p class="st"><span class="badge danger">Vencida</span><span class="warn-ink" style="font-weight:600">desde 12 ago · 106 días</span></p>
+        <div class="foot"><span class="fv"><small>Deuda</small><b class="owe">$3,480.00</b></span><span class="fv r"><small>Última compra</small><b>30 sep</b></span></div></li>
+      <li class="mcard"><div class="mtop"><a class="nm" href="#c2">María Fernanda Garza Lozano</a><button type="button" class="icon-btn more" aria-label="Acciones de María Fernanda Garza Lozano"><svg class="icon"><use href="#i-more"/></svg></button></div>
+        <p class="sec"><span class="fig">81 2290 4417</span>·<svg class="icon"><use href="#i-dog"/></svg>Toby</p>
+        <p class="st"><span class="badge danger">Vencida</span><span class="warn-ink" style="font-weight:600">desde 2 sep · 85 días</span></p>
+        <div class="foot"><span class="fv"><small>Deuda</small><b class="owe">$1,150.00</b></span><span class="fv r"><small>Última compra</small><b>6 nov</b></span></div></li>
+      <li class="mcard"><div class="mtop"><a class="nm" href="#c3">Héctor Villarreal Elizondo</a><button type="button" class="icon-btn more" aria-label="Acciones de Héctor Villarreal Elizondo"><svg class="icon"><use href="#i-more"/></svg></button></div>
+        <p class="sec"><span class="fig">81 8350 1123</span>·<svg class="icon"><use href="#i-dog"/></svg>Max, Kira <svg class="icon"><use href="#i-cat"/></svg>Simba</p>
+        <p class="st"><span class="badge danger">Vencida</span><span class="warn-ink" style="font-weight:600">desde 18 sep · 69 días</span></p>
+        <div class="foot"><span class="fv"><small>Deuda</small><b class="owe">$6,215.00</b></span><span class="fv r"><small>Última compra</small><b>14 nov</b></span></div></li>
+      <li class="mcard"><div class="mtop"><a class="nm" href="#c8">Daniel Ríos Sepúlveda</a><button type="button" class="icon-btn more" aria-label="Acciones de Daniel Ríos Sepúlveda"><svg class="icon"><use href="#i-more"/></svg></button></div>
+        <p class="sec"><span class="fig">81 4410 2287</span>·<svg class="icon"><use href="#i-dog"/></svg>Firulais</p>
+        <p class="st"><span class="muted">Al corriente · vence 3 dic</span></p>
+        <div class="foot"><span class="fv"><small>Deuda</small><b>$560.00</b></span><span class="fv r"><small>Última compra</small><b>24 nov</b></span></div></li>
+    </ul>
+    <button type="button" class="btn block"><svg class="icon sm"><use href="#i-chev-d"/></svg>Ver 10 más · 4 de 38</button>
+  </main>
+</div>
+
+<!-- ═══ 2 · Hoja de filtros ═══ -->
+<header class="cap"><b>2 · Filtros en hoja inferior</b><span>Esquinas superiores de 16 px · se aplican al momento</span></header>
+<div class="phone" style="height:844px">
+  <div class="mbar"><button type="button" class="icon-btn" aria-label="Abrir menú"><svg class="icon"><use href="#i-columns"/></svg></button><span class="ttl"><small>POS</small><b>Clientes</b></span></div>
+  <div class="mpage" aria-hidden="true"><h1>Clientes</h1><div class="input"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" tabindex="-1" placeholder="Nombre, teléfono, correo o mascota"></div></div>
+  <div class="scrim" aria-hidden="true"></div>
+  <section class="bsheet" role="dialog" aria-modal="true" aria-labelledby="ms-title">
+    <span class="handle" aria-hidden="true"></span>
+    <header class="sheet-h"><div class="row"><h2 id="ms-title">Filtros</h2><span class="badge nodot">3 activos</span><span class="grow"></span><button type="button" class="linkbtn">Limpiar todo</button><button type="button" class="icon-btn" aria-label="Cerrar filtros"><svg class="icon"><use href="#i-x"/></svg></button></div></header>
+    <div class="sheet-b">
+      <details class="fsec" open>
+        <summary><svg class="icon sm chev"><use href="#i-chev-r"/></svg>Deuda<span class="n">1</span><span class="grow"></span></summary>
+        <div class="fbody">
+          <div class="ff is-active"><div class="fl">Con deuda</div><div class="seg ctl" data-single role="radiogroup" aria-label="Con deuda"><button type="button" aria-pressed="false">Todos</button><button type="button" aria-pressed="true">Sí</button><button type="button" aria-pressed="false">No</button></div></div>
+          <div class="ff"><div class="fl">Monto de deuda</div><div class="range"><div class="input"><span class="pre">$</span><input inputmode="decimal" placeholder="Mínimo" aria-label="Deuda mínima"></div><span>a</span><div class="input"><span class="pre">$</span><input inputmode="decimal" placeholder="Máximo" aria-label="Deuda máxima"></div></div></div>
+          <div class="ff"><div class="fl">Vencida hace más de</div><div class="chips" data-single role="group" aria-label="Vencida hace más de"><button type="button" class="chip" style="min-height:44px" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>30 días</button><button type="button" class="chip" style="min-height:44px" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>60 días</button><button type="button" class="chip" style="min-height:44px" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>90 días</button></div></div>
+          <p class="help" style="padding:0 0 4px">+2 filtros más en Deuda al bajar</p>
+        </div>
+      </details>
+      <details class="fsec"><summary><svg class="icon sm chev"><use href="#i-chev-r"/></svg>Compras<span class="grow"></span><span class="hint">5 filtros</span></summary><div class="fbody"></div></details>
+      <details class="fsec"><summary><svg class="icon sm chev"><use href="#i-chev-r"/></svg>Mascotas<span class="n">1</span><span class="grow"></span><span class="hint">Perro, Gato</span></summary><div class="fbody"></div></details>
+      <details class="fsec"><summary><svg class="icon sm chev"><use href="#i-chev-r"/></svg>Ubicación<span class="n">1</span><span class="grow"></span><span class="hint">2 municipios</span></summary><div class="fbody"></div></details>
+      <details class="fsec"><summary><svg class="icon sm chev"><use href="#i-chev-r"/></svg>Comercial y contacto<span class="grow"></span><span class="hint">6 filtros</span></summary><div class="fbody"></div></details>
+    </div>
+    <footer class="sheet-f"><button type="button" class="btn primary">Ver 38 clientes</button></footer>
+  </section>
+</div>
+
+<!-- ═══ 3 · Página A ═══ -->
+<header class="cap"><b>3 · Página del cliente · dirección A</b><span>Métricas y pestañas deslizables · barra fija con la acción primaria</span></header>
+<div class="phone">
+  <div class="mbar">
+    <a class="icon-btn" href="#clientes" aria-label="Volver a Clientes"><svg class="icon"><use href="#i-arrow-l"/></svg></a>
+    <span class="ttl"><small>Cliente desde mar 2025 · De confianza</small><b>Ana Sofía Treviño Garza</b></span>
+    <button type="button" class="icon-btn" aria-label="Más acciones de Ana Sofía Treviño Garza"><svg class="icon"><use href="#i-more"/></svg></button>
+  </div>
+  <div class="mpage" style="padding-bottom:0">
+    <p class="msum" style="justify-content:flex-start;gap:12px"><a class="link-inline fig" href="tel:+528123456789"><svg class="icon xs"><use href="#i-phone"/></svg>81 2345 6789</a><span><svg class="icon xs" style="vertical-align:-2px"><use href="#i-dog"/></svg> Bruno · <svg class="icon xs" style="vertical-align:-2px"><use href="#i-cat"/></svg> Mishi</span></p>
+    <dl class="mkpis" aria-label="Resumen del cliente">
+      <div class="hot"><dt>Deuda</dt><dd>$1,284.00<small>2 ventas</small></dd></div>
+      <div class="due"><dt>Vencido</dt><dd>$498.00<small>desde 20 nov</small></dd></div>
+      <div><dt>Total comprado</dt><dd>$18,460.50<small>23 ventas</small></dd></div>
+      <div><dt>Ticket promedio</dt><dd>$802.63<small>por venta</small></dd></div>
+      <div><dt>Última compra</dt><dd>22 nov<small>hace 4 días</small></dd></div>
+    </dl>
+    <div class="mtabs" role="tablist" aria-label="Secciones del cliente" data-single>
+      <button type="button" role="tab" aria-selected="false">Resumen</button>
+      <button type="button" role="tab" aria-selected="true">Ventas <small>23</small></button>
+      <button type="button" role="tab" aria-selected="false">Cobros</button>
+      <button type="button" role="tab" aria-selected="false">Mascotas <small>2</small></button>
+      <button type="button" role="tab" aria-selected="false">Cotizaciones <small>1</small></button>
+      <button type="button" role="tab" aria-selected="false">Datos</button>
+    </div>
+  </div>
+  <div class="mpage">
+    <div class="input"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" placeholder="Buscar por folio" aria-label="Buscar ventas por folio"></div>
+    <div class="hscroll chips" role="group" aria-label="Filtrar por estado" data-single style="flex-wrap:nowrap">
+      <button type="button" class="chip" style="min-height:44px" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg>Todas</button>
+      <button type="button" class="chip" style="min-height:44px" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Con saldo <small>2</small></button>
+      <button type="button" class="chip" style="min-height:44px" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Vencidas <small>1</small></button>
+      <button type="button" class="chip" style="min-height:44px" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Sin entregar <small>1</small></button>
+    </div>
+    <div class="banner warn"><svg class="icon sm"><use href="#i-cal-clock"/></svg><div class="txt"><b class="fig">1 venta vencida · $498.00</b><span>Desde el 20 nov</span></div><button type="button" class="btn sm">Ver</button></div>
+    <ul class="mcards" aria-label="Ventas del cliente">
+      <li class="sale"><div class="sh2"><b>S-000412</b><span class="amt">$1,486.00</span><small>22 nov, 17:42 · Mostrador</small><span class="rt"><span class="warn-ink" style="font-weight:600">Saldo $786.00</span></span></div>
+        <div class="sd"><p class="sub">Impaga · No entregada · vence 6 dic</p><ul class="items"><li><span class="n">Croquetas Adulto Raza Mediana</span><span class="m">$1,089.00</span><span class="v">15 kg · Bruno</span></li><li><span class="n">Arena aglomerante sin aroma</span><span class="m">$289.00</span><span class="v">10 kg · Mishi</span></li><li><span class="n">Premios dentales</span><span class="m">$108.00</span><span class="v">2 pzas · Bruno</span></li></ul>
+          <div class="btns"><a class="btn sm" href="#venta">Abrir venta</a><button type="button" class="btn sm">Cobrar $786.00</button></div></div></li>
+      <li class="sale"><div class="sh2"><b>S-000398</b><span class="amt owe">$498.00</span><small>15 nov · a crédito</small><span class="rt"><span class="badge danger">Vencida</span></span></div></li>
+      <li class="sale"><div class="sh2"><b>S-000377</b><span class="amt">$642.50</span><small>8 nov · Mostrador</small><span class="rt"><span class="badge success">Pagada</span></span></div></li>
+      <li class="sale"><div class="sh2"><b>S-000361</b><span class="amt">$2,315.00</span><small>1 nov · Chatbot</small><span class="rt"><span class="badge success">Pagada</span></span></div></li>
+    </ul>
+  </div>
+  <div class="mbar-sticky"><button type="button" class="btn"><svg class="icon sm"><use href="#i-coins"/></svg>Cobrar todo</button><button type="button" class="btn primary"><svg class="icon sm"><use href="#i-cart"/></svg>Nueva venta</button></div>
+</div>
+
+<!-- ═══ 4 · Estados ═══ -->
+<header class="cap"><b>4 · Estados de la lista</b><span>Cargando con la forma final · sin resultados conserva filtros</span></header>
+<div class="phone">
+  <div class="mpage" aria-busy="true">
+    <span class="sr" role="status">Cargando clientes…</span>
+    <div class="sk-card" aria-hidden="true"><span class="sk" style="width:60%;height:16px"></span><span class="sk" style="width:45%;height:12px"></span><span class="sk" style="width:30%;height:20px"></span><span class="sk" style="width:100%;height:1px;margin:4px 0"></span><span style="display:flex;justify-content:space-between"><span class="sk" style="width:80px;height:14px"></span><span class="sk" style="width:60px;height:14px"></span></span></div>
+    <div class="sk-card" aria-hidden="true"><span class="sk" style="width:70%;height:16px"></span><span class="sk" style="width:40%;height:12px"></span><span class="sk" style="width:30%;height:20px"></span><span class="sk" style="width:100%;height:1px;margin:4px 0"></span><span style="display:flex;justify-content:space-between"><span class="sk" style="width:80px;height:14px"></span><span class="sk" style="width:60px;height:14px"></span></span></div>
+  </div>
+  <div class="mpage" style="border-top:1px solid var(--hf-border)">
+    <div class="hscroll" aria-label="Filtros activos">
+      <span class="fchip mchip"><span>Sin comprar hace más de <b>90 días</b></span><button type="button" aria-label="Quitar filtro"><svg class="icon xs"><use href="#i-x"/></svg></button></span>
+      <span class="fchip mchip"><span>Zona: <b>Cumbres</b></span><button type="button" aria-label="Quitar filtro Zona"><svg class="icon xs"><use href="#i-x"/></svg></button></span>
+    </div>
+    <div class="empty" style="background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:12px">
+      <svg class="icon"><use href="#i-search-x"/></svg>
+      <h3>Ningún cliente coincide</h3>
+      <p>Nadie en la zona Cumbres lleva más de 90 días sin comprar.</p>
+      <button type="button" class="btn">Limpiar filtros</button>
+    </div>
+  </div>
+</div>

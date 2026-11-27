@@ -146,6 +146,8 @@ const customerFormSchema = z.object({
   billingCity: z.string().trim().max(100, 'Máximo 100 caracteres'),
   billingState: z.string().trim(),
   showBillingAddress: z.boolean(),
+  // Edit only (handoff 32 §4); `null` = unknown, never sent.
+  isTrusted: z.boolean().nullable(),
 })
 
 export type CustomerFormValues = z.infer<typeof customerFormSchema>
@@ -176,6 +178,7 @@ function getInitialState(): CustomerFormInput {
     billingCity: '',
     billingState: '',
     showBillingAddress: false,
+    isTrusted: null,
   }
 }
 
@@ -207,6 +210,7 @@ export function customerToFormInput(customer: CustomerDetail): CustomerFormInput
       customer.billingCity ||
       customer.billingState
     ),
+    isTrusted: typeof customer.isTrusted === 'boolean' ? customer.isTrusted : null,
   }
 }
 
@@ -257,9 +261,11 @@ export function toCreatePayload(
   }
 }
 
+/** `isTrusted` is PATCH-only: a strict boolean, and only when the loaded value was known. */
 export function toUpdatePayload(values: CustomerFormValues): UpdateCustomerPayload {
   return {
     firstName: values.firstName,
+    ...(typeof values.isTrusted === 'boolean' ? { isTrusted: values.isTrusted } : {}),
     ...(values.lastName ? { lastName: values.lastName } : {}),
     ...(values.phoneCountryCode ? { phoneCountryCode: values.phoneCountryCode } : {}),
     ...(values.phone ? { phone: values.phone } : {}),

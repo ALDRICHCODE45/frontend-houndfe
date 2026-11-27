@@ -1,0 +1,206 @@
+<div class="tools" role="group" aria-label="Opciones del artboard">
+  <span class="lbl">02 · A · Ficha con pestañas</span>
+  <span class="lbl">Menú ⋮</span>
+  <button type="button" data-state="menu:cerrado" aria-pressed="true">Cerrado</button>
+  <button type="button" data-state="menu:abierto" aria-pressed="false">Abierto</button>
+  <span class="lbl">Lista</span>
+  <button type="button" data-state="lista:datos" aria-pressed="true">Datos</button>
+  <button type="button" data-state="lista:cargando" aria-pressed="false">Cargando</button>
+  <button type="button" data-state="lista:vacio" aria-pressed="false">Sin resultados</button>
+  <span class="grow"></span>
+  <button type="button" id="t-notes" aria-expanded="false" aria-controls="notes"><svg class="icon sm"><use href="#i-notes"/></svg>Notas y datos</button>
+  <button type="button" id="t-theme" aria-pressed="false"><svg class="icon sm"><use href="#i-moon"/></svg><span>Tema claro</span></button>
+</div>
+
+<aside class="notes" id="notes" tabindex="-1" hidden aria-label="Notas del artboard">
+  <h2>A · Ficha con pestañas</h2>
+  <p>La página del cliente como un registro con secciones: cabecera fija (<code>DetailPageFrame</code>), métricas y pestañas. Cada pestaña es una consulta propia, así que abrir la página es barato y el historial queda a lo ancho, sin la sensación de encierro del panel lateral.</p>
+  <h3>Qué hay en cada pestaña</h3>
+  <ul>
+    <li><b>Resumen</b>: ventas por mes (12 meses, <code>sales-monthly</code>), por cobrar, mascotas, dirección principal, notas.</li>
+    <li><b>Ventas</b>: el historial de la dirección A ya implementado (<code>SalesHistoryList</code> + filtros de estado y mascota), a lo ancho; suma las columnas Vendedor y Método, que ya llegan en la fila.</li>
+    <li><b>Cobros y recibos</b>: abonos del cliente con recibo. <span class="bk"><svg class="icon"><use href="#i-server"/></svg>backend</span> no hay lista de cobros por cliente (el índice existe, es barato).</li>
+    <li><b>Mascotas</b>: <code>CustomerPetsSection</code> actual en página completa.</li>
+    <li><b>Cotizaciones</b>: <code>GET /quotations?customerId=</code> (ya existe).</li>
+    <li><b>Datos y direcciones</b>: el formulario del cliente (contacto, fiscal, direcciones) en la página, no en un slideover.</li>
+  </ul>
+  <h3>Datos que ya llegan</h3>
+  <ul>
+    <li><code>GET /sales?customerId=</code>: paginación, orden, vencidas, <code>petId</code>, <code>summary</code> y <code>counts</code>; <code>GET /sales/:id</code> al abrir la fila.</li>
+    <li>Estado de cuenta PDF (<code>CustomerStatementDownload</code>) y «Cobrar todo» (<code>CustomerCollectionSlideover</code>).</li>
+  </ul>
+  <h3>Requiere backend</h3>
+  <ul>
+    <li>Vencido del cliente (monto y día más viejo) en la cabecera, sin pedir todas las ventas: viene del nuevo endpoint de clientes o de <code>summary</code>.</li>
+    <li>Ruta nueva <code>/pos/clientes/:id</code>: solo frontend.</li>
+  </ul>
+</aside>
+
+<div class="app" style="min-height:1500px">
+<!--@side-->
+  <div class="mainarea">
+    <header class="top">
+      <nav class="crumbs" aria-label="Ruta"><a href="#pos">POS</a><svg class="icon xs"><use href="#i-chev-r"/></svg><a href="#clientes">Clientes</a><svg class="icon xs"><use href="#i-chev-r"/></svg><b aria-current="page">Ana Sofía Treviño Garza</b></nav>
+    </header>
+    <div class="dpf">
+      <header class="dph">
+        <a class="back" href="#clientes"><svg class="icon sm"><use href="#i-arrow-l"/></svg>Clientes</a>
+        <div class="hrow">
+          <span class="avatar" aria-hidden="true">AT</span>
+          <div class="who">
+            <p class="meta"><span class="badge success">De confianza</span><span>Cliente desde mar 2025</span><span class="sep">·</span><span>Mitras Centro, Monterrey</span><span class="sep">·</span><span>Lista Público</span></p>
+            <h1>Ana Sofía Treviño Garza</h1>
+            <p class="meta"><a class="link-inline" href="tel:+528123456789"><svg class="icon xs"><use href="#i-phone"/></svg><span class="fig">81 2345 6789</span></a><span class="sep">·</span><span>ana.trevino@outlook.com</span><span class="sep">·</span><span><svg class="icon xs" style="vertical-align:-2px"><use href="#i-dog"/></svg> Bruno · <svg class="icon xs" style="vertical-align:-2px"><use href="#i-cat"/></svg> Mishi</span></p>
+          </div>
+          <div class="acts">
+            <button type="button" class="btn"><svg class="icon sm"><use href="#i-coins"/></svg>Cobrar todo <span class="fig">$1,284.00</span></button>
+            <button type="button" class="btn primary"><svg class="icon sm"><use href="#i-cart"/></svg>Nueva venta</button>
+            <button type="button" class="icon-btn" aria-label="Más acciones de Ana Sofía Treviño Garza" aria-haspopup="menu" aria-controls="pmenu" data-toggle="pmenu" aria-expanded="false"><svg class="icon"><use href="#i-more"/></svg></button>
+            <div class="pop" id="pmenu" role="menu" aria-label="Más acciones" data-when="menu:abierto" hidden style="right:0;top:52px">
+              <button type="button" role="menuitem"><svg class="icon sm"><use href="#i-download"/></svg>Estado de cuenta (PDF)</button>
+              <button type="button" role="menuitem"><svg class="icon sm"><use href="#i-pencil"/></svg>Editar datos</button>
+              <button type="button" role="menuitem"><svg class="icon sm"><use href="#i-msg"/></svg>Escribir por WhatsApp</button>
+              <hr>
+              <button type="button" role="menuitem" class="danger"><svg class="icon sm"><use href="#i-trash"/></svg>Eliminar cliente…</button>
+            </div>
+          </div>
+        </div>
+        <div class="tabs" role="tablist" aria-label="Secciones del cliente" data-single>
+          <button type="button" role="tab" aria-selected="false">Resumen</button>
+          <button type="button" role="tab" aria-selected="true">Ventas <small>23</small></button>
+          <button type="button" role="tab" aria-selected="false">Cobros y recibos</button>
+          <button type="button" role="tab" aria-selected="false">Mascotas <small>2</small></button>
+          <button type="button" role="tab" aria-selected="false">Cotizaciones <small>1</small></button>
+          <button type="button" role="tab" aria-selected="false">Datos y direcciones</button>
+        </div>
+      </header>
+
+      <main class="dps" role="tabpanel" aria-label="Ventas">
+        <dl class="kpis" aria-label="Resumen del cliente">
+          <div class="hot"><dt>Deuda</dt><dd>$1,284.00<small class="warn-ink">2 ventas por cobrar</small></dd></div>
+          <div class="due"><dt>Vencido</dt><dd>$498.00<small>desde 20 nov · 6 días</small></dd></div>
+          <div><dt>Total comprado</dt><dd>$18,460.50<small>23 ventas</small></dd></div>
+          <div><dt>Ticket promedio</dt><dd>$802.63<small>por venta</small></dd></div>
+          <div><dt>Última compra</dt><dd>22 nov<small>hace 4 días · S-000412</small></dd></div>
+        </dl>
+
+        <div class="toolbar">
+          <div class="input" style="max-width:280px"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" placeholder="Buscar por folio" aria-label="Buscar ventas por folio"></div>
+          <div class="chips" role="group" aria-label="Filtrar por estado" data-single>
+            <button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Todas</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Con saldo</span><small>2</small></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Vencidas</span><small>1</small></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Sin entregar</span><small>1</small></button>
+          </div>
+          <span style="width:1px;height:28px;background:var(--hf-border)" aria-hidden="true"></span>
+          <div class="chips" role="group" aria-label="Filtrar ventas por mascota" data-single>
+            <span class="chips-label"><svg class="icon sm"><use href="#i-paw"/></svg>Mascota</span>
+            <button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Todas</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Bruno</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Mishi</span></button>
+            <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg><span class="t">Canela</span><small>archivada</small></button>
+          </div>
+        </div>
+
+        <div class="banner warn" data-when="lista:datos lista:cargando">
+          <svg class="icon sm"><use href="#i-cal-clock"/></svg>
+          <div class="txt"><b class="fig">1 venta vencida · $498.00 desde el 20 nov</b><span>S-000398, a crédito. La otra venta con saldo vence el 6 dic.</span></div>
+          <button type="button" class="btn sm">Ver vencidas</button>
+        </div>
+
+        <div class="tsurf">
+          <table class="t">
+            <caption class="sr">Ventas de Ana Sofía Treviño Garza, más recientes primero</caption>
+            <colgroup><col style="width:44px"><col><col style="width:180px"><col style="width:170px"><col style="width:170px"><col style="width:128px"><col style="width:140px"></colgroup>
+            <thead><tr><th class="cx"><span class="sr">Abrir</span></th><th>Venta</th><th>Pago</th><th>Vendedor</th><th>Método</th><th class="num">Total</th><th class="num">Saldo</th></tr></thead>
+            <tbody data-when="lista:datos">
+              <tr class="row open">
+                <td class="cx"><button class="xbtn" type="button" aria-expanded="true" aria-controls="x1" aria-label="Detalle de la venta S-000412"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000412</span><span class="s">22 nov 2026, 17:42 · Mostrador</span></td>
+                <td><span class="badge warning">Impaga</span><span class="s">No entregada</span></td>
+                <td>Karla Méndez</td><td>Efectivo · Crédito</td>
+                <td class="num amt">$1,486.00</td>
+                <td class="num"><span class="p warn-ink">$786.00</span><span class="s">Vence 6 dic</span></td>
+              </tr>
+              <tr class="expand" id="x1"><td colspan="7">
+                <div class="xpanel">
+                  <div><h4>Datos de la venta</h4>
+                    <dl class="kv"><dt>Cajero</dt><dd>Jorge Ríos</dd><dt>Pagado</dt><dd>$700.00 en efectivo</dd><dt>Vence</dt><dd>6 dic 2026</dd><dt>Entrega</dt><dd>No entregada · Padre Mier 1450, Mitras Centro</dd></dl></div>
+                  <div><h4>Productos · 3</h4>
+                    <ul class="items">
+                      <li><span class="n">Croquetas Adulto Raza Mediana</span><span class="m">$1,089.00</span><span class="v">15 kg · 1 pza <span class="pet"><svg class="icon"><use href="#i-paw"/></svg>Bruno</span></span></li>
+                      <li><span class="n">Arena aglomerante sin aroma</span><span class="m">$289.00</span><span class="v">10 kg · 1 pza <span class="pet"><svg class="icon"><use href="#i-paw"/></svg>Mishi</span></span></li>
+                      <li><span class="n">Premios dentales</span><span class="m">$108.00</span><span class="v">Mediano · 2 pzas <span class="pet"><svg class="icon"><use href="#i-paw"/></svg>Bruno</span></span></li>
+                    </ul></div>
+                  <div class="xacts"><span class="loadnote"><svg class="icon"><use href="#i-info"/></svg>Productos cargados al abrir la fila</span><span class="grow"></span>
+                    <a class="btn sm" href="#venta"><svg class="icon sm"><use href="#i-open"/></svg>Abrir venta</a>
+                    <button class="btn sm" type="button"><svg class="icon sm"><use href="#i-wallet"/></svg>Cobrar $786.00</button></div>
+                </div>
+              </td></tr>
+              <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000398"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000398</span><span class="s">15 nov 2026, 11:08 · Mostrador</span></td>
+                <td><span class="badge danger">Vencida</span><span class="s">Entregada</span></td>
+                <td>Karla Méndez</td><td>Crédito</td>
+                <td class="num amt">$498.00</td>
+                <td class="num"><span class="p warn-ink">$498.00</span><span class="s warn">Venció 20 nov</span></td></tr>
+              <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000377"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000377</span><span class="s">8 nov 2026, 13:25 · Mostrador</span></td>
+                <td><span class="badge success">Pagada</span><span class="s">Sin envío</span></td>
+                <td>Luis Fernando Ortega</td><td>Efectivo</td>
+                <td class="num amt">$642.50</td><td class="num zero">$0.00</td></tr>
+              <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000361"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000361</span><span class="s">1 nov 2026, 10:51 · Chatbot</span></td>
+                <td><span class="badge success">Pagada</span><span class="s">Entregada</span></td>
+                <td>Karla Méndez</td><td>Tarjeta</td>
+                <td class="num amt">$2,315.00</td><td class="num zero">$0.00</td></tr>
+              <tr class="row canceled"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000344, cancelada"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000344</span><span class="s">26 oct 2026, 18:03 · Mostrador</span></td>
+                <td><span class="badge">Cancelada</span><span class="s">Solicitud del cliente</span></td>
+                <td>Jorge Ríos</td><td>—</td>
+                <td class="num amt">$380.00</td><td class="num zero">—</td></tr>
+              <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000329"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000329</span><span class="s">19 oct 2026, 12:40 · Mostrador</span></td>
+                <td><span class="badge success">Pagada</span><span class="s">Sin envío</span></td>
+                <td>Luis Fernando Ortega</td><td>Efectivo</td>
+                <td class="num amt">$1,120.00</td><td class="num zero">$0.00</td></tr>
+              <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000301"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000301</span><span class="s">5 oct 2026, 09:58 · Mostrador</span></td>
+                <td><span class="badge success">Pagada</span><span class="s">Entregada</span></td>
+                <td>Karla Méndez</td><td>Transferencia</td>
+                <td class="num amt">$864.00</td><td class="num zero">$0.00</td></tr>
+              <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000287"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000287</span><span class="s">28 sep 2026, 16:15 · Mostrador</span></td>
+                <td><span class="badge success">Pagada</span><span class="s">Sin envío</span></td>
+                <td>Jorge Ríos</td><td>Efectivo</td>
+                <td class="num amt">$455.00</td><td class="num zero">$0.00</td></tr>
+              <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000263"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000263</span><span class="s">14 sep 2026, 11:32 · Chatbot</span></td>
+                <td><span class="badge success">Pagada</span><span class="s">Entregada</span></td>
+                <td>Karla Méndez</td><td>Tarjeta</td>
+                <td class="num amt">$1,730.00</td><td class="num zero">$0.00</td></tr>
+              <tr class="row"><td class="cx"><button class="xbtn" type="button" aria-expanded="false" aria-label="Detalle de la venta S-000240"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></td>
+                <td><span class="p">S-000240</span><span class="s">30 ago 2026, 17:20 · Mostrador</span></td>
+                <td><span class="badge success">Pagada</span><span class="s">Sin envío</span></td>
+                <td>Luis Fernando Ortega</td><td>Efectivo</td>
+                <td class="num amt">$598.00</td><td class="num zero">$0.00</td></tr>
+            </tbody>
+            <tbody data-when="lista:cargando" hidden aria-busy="true">
+              <tr><td colspan="7" style="padding:0;border:0"><span class="sr" role="status">Cargando las ventas…</span></td></tr>
+              <tr><td class="cx"></td><td><span class="sk" style="width:90px;height:14px"></span><span class="sk" style="width:180px;height:12px;margin-top:8px"></span></td><td><span class="sk" style="width:70px;height:20px"></span></td><td><span class="sk" style="width:110px;height:14px"></span></td><td><span class="sk" style="width:80px;height:14px"></span></td><td><span class="sk" style="width:80px;height:14px;margin-left:auto"></span></td><td><span class="sk" style="width:70px;height:14px;margin-left:auto"></span></td></tr>
+              <tr><td class="cx"></td><td><span class="sk" style="width:90px;height:14px"></span><span class="sk" style="width:160px;height:12px;margin-top:8px"></span></td><td><span class="sk" style="width:70px;height:20px"></span></td><td><span class="sk" style="width:100px;height:14px"></span></td><td><span class="sk" style="width:70px;height:14px"></span></td><td><span class="sk" style="width:70px;height:14px;margin-left:auto"></span></td><td><span class="sk" style="width:60px;height:14px;margin-left:auto"></span></td></tr>
+              <tr><td class="cx"></td><td><span class="sk" style="width:90px;height:14px"></span><span class="sk" style="width:170px;height:12px;margin-top:8px"></span></td><td><span class="sk" style="width:70px;height:20px"></span></td><td><span class="sk" style="width:120px;height:14px"></span></td><td><span class="sk" style="width:90px;height:14px"></span></td><td><span class="sk" style="width:80px;height:14px;margin-left:auto"></span></td><td><span class="sk" style="width:60px;height:14px;margin-left:auto"></span></td></tr>
+            </tbody>
+            <tbody data-when="lista:vacio" hidden>
+              <tr><td colspan="7"><div class="empty"><svg class="icon"><use href="#i-search-x"/></svg><h3>Ningún resultado para «S-0005»</h3><p>Ninguna venta de Ana Sofía tiene ese folio con los filtros «Vencidas» y «Bruno».</p><button type="button" class="btn">Limpiar filtros</button></div></td></tr>
+            </tbody>
+          </table>
+          <div class="pgbar" data-when="lista:datos lista:cargando">
+            <span><b class="fig" style="color:var(--hf-ink)">1–10</b> de 23 ventas · más recientes primero</span>
+            <span class="grow"></span>
+            <nav class="pager" aria-label="Páginas de ventas"><button type="button" disabled aria-label="Página anterior"><svg class="icon sm"><use href="#i-chev-l"/></svg></button><button type="button" aria-current="page">1</button><button type="button">2</button><button type="button">3</button><button type="button" aria-label="Página siguiente"><svg class="icon sm"><use href="#i-chev-r"/></svg></button></nav>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>

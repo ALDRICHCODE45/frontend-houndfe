@@ -29,6 +29,8 @@ export interface CustomerBackendResponse {
   matchedPetName?: string | null
   // Handoff 27 §4.1: `GET /customers/:id` only (not on list, create or update).
   activePetsCount?: number
+  // Handoff 32 §4: on `GET /customers/:id`, PATCH and POST (always false on POST).
+  isTrusted?: boolean
   createdAt: string
   updatedAt: string
 }
@@ -93,6 +95,11 @@ export interface CustomerDetail extends Customer {
    * means unknown (create/update responses do not carry it), never «0 pets».
    */
   activePetsCount?: number
+  /**
+   * Handoff 32 §4: «Cliente de confianza». `undefined` means the response did not carry it
+   * (unknown), never «not trusted»: the editor then neither shows nor sends the switch.
+   */
+  isTrusted?: boolean
 }
 
 export interface CustomerAddress {
@@ -151,7 +158,13 @@ export interface CreateCustomerPayload {
   addresses?: CreateCustomerAddressPayload[]
 }
 
-export type UpdateCustomerPayload = Partial<Omit<CreateCustomerPayload, 'addresses'>>
+/**
+ * PATCH body. `isTrusted` is PATCH-only (handoff 32 §4): a strict boolean, and POST answers 400
+ * when it is sent, so it is not part of `CreateCustomerPayload`.
+ */
+export type UpdateCustomerPayload = Partial<Omit<CreateCustomerPayload, 'addresses'>> & {
+  isTrusted?: boolean
+}
 
 export interface CreateCustomerAddressPayload {
   street: string
@@ -196,6 +209,84 @@ export interface CustomerFormInput {
   billingCity: string
   billingState: string
   showBillingAddress: boolean
+  /** Edit only: the loaded `isTrusted`, or `null` when unknown (create, or not in the response). */
+  isTrusted: boolean | null
+}
+
+// ── Customer page: sales summary and payments feed (handoff 32 §5-§6) ──────────
+
+/** Same metrics as the listing row. Without sales: counts and sums 0, the rest `null`. */
+export interface CustomerSalesMetrics {
+  openDebtCents: number
+  overdueDebtCents: number
+  overdueCount: number
+  /** A due day, `YYYY-MM-DD`. */
+  oldestOverdueDueDate: string | null
+  salesCount: number
+  totalSoldCents: number
+  averageTicketCents: number | null
+  /** An instant (ISO). */
+  lastPurchaseAt: string | null
+}
+
+export interface CustomerSalesSummaryResponse {
+  customerId: string
+  metrics: CustomerSalesMetrics
+}
+
+/** Lowercase on both kinds (handoff 32 §6). Unknown values are shown as they come. */
+export type CustomerPaymentMethod = 'cash' | 'card_credit' | 'card_debit' | 'transfer' | (string & {})
+
+export interface CustomerPaymentCatalog {
+  paymentMethodId?: string
+  name: string
+  subtitle?: string | null
+}
+
+export interface CustomerPaymentCashier {
+  id: string
+  name: string
+}
+
+export type CustomerPaymentSaleStatus = 'CONFIRMED' | 'CANCELED' | (string & {})
+
+/** «Cobrar todo»: `amountCents` is what was applied to the sales. */
+export interface CustomerCollectionEvent {
+  kind: 'collection'
+  eventId: string
+  occurredAt: string
+  amountCents: number
+  tenderedCents: number
+  changeDueCents: number
+  payments: Array<{ method: CustomerPaymentMethod; amountCents: number; catalog: CustomerPaymentCatalog | null }>
+  sales: Array<{ saleId: string; folio: string; status: CustomerPaymentSaleStatus; appliedCents: number }>
+  cashier: CustomerPaymentCashier | null
+  /** Relative; `?format=ticket|a4` is added. Still printable after a sale is cancelled. */
+  receiptPath: string | null
+}
+
+/** A single payment of one sale: `amountCents` = tendered − change (net). */
+export interface CustomerSalePaymentEvent {
+  kind: 'payment'
+  eventId: string
+  occurredAt: string
+  method: CustomerPaymentMethod
+  catalog: CustomerPaymentCatalog | null
+  reference: string | null
+  amountCents: number
+  tenderedCents: number
+  changeCents: number
+  sale: { id: string; folio: string; status: CustomerPaymentSaleStatus; totalCents: number }
+  cashier: CustomerPaymentCashier | null
+  /** Relative; `?format=receipt-a4|receipt-ticket` is added. `null` once the sale is not CONFIRMED. */
+  receiptPath: string | null
+}
+
+export type CustomerPaymentEvent = CustomerCollectionEvent | CustomerSalePaymentEvent
+
+export interface CustomerPaymentsResponse {
+  data: CustomerPaymentEvent[]
+  pagination: { page: number; limit: number; total: number; totalPages: number }
 }
 
 export interface AddressFormInput {

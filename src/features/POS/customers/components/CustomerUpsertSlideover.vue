@@ -311,7 +311,7 @@ function handleCancel() {
       <UTabs
         v-model="activeTab"
         :items="tabs"
-        class="customer-tabs w-full"
+        class="customer-tabs w-full min-w-0"
         variant="link"
         :ui="{ content: TAB_PANEL_CLASS }"
       >
@@ -351,7 +351,7 @@ function handleCancel() {
                         class="sales-pos-customer-form-country w-32 shrink-0"
                         :ui="{ content: selectContentClass }"
                       />
-                      <UFormField name="phone" :error="errors.phone" class="sales-pos-customer-form-phone-number flex-1">
+                      <UFormField name="phone" :error="errors.phone" class="sales-pos-customer-form-phone-number min-w-0 flex-1">
                         <UInput
                           v-model="state.phone"
                           class="w-full"
@@ -406,6 +406,24 @@ function handleCancel() {
                 </div>
               </HfSectionCard>
 
+              <!-- «Cliente de confianza» (handoff 32 §4): edit only, and only when the loaded customer
+                   carries `isTrusted`; PATCH sends it as a strict boolean, POST never. -->
+              <HfSectionCard
+                v-if="mode === 'edit' && state.isTrusted !== null"
+                title="Confianza"
+                class="sales-pos-customer-form-section"
+              >
+                <div class="clients-form-switch-group overflow-hidden rounded-(--hf-radius-card) border border-(--hf-border)">
+                  <HfSwitchRow
+                    :model-value="state.isTrusted === true"
+                    label="Cliente de confianza"
+                    description="Se marca como «De confianza» en su ficha."
+                    test-id="customer-is-trusted"
+                    @update:model-value="state.isTrusted = $event"
+                  />
+                </div>
+              </HfSectionCard>
+
               <HfSectionCard title="Direcciones" class="sales-pos-customer-form-section">
                 <!-- Pending addresses list (create mode): one bordered list, a row each -->
                 <div
@@ -417,8 +435,11 @@ function handleCancel() {
                     :key="idx"
                     class="sales-pos-customer-form-address-row flex min-h-14 items-center justify-between gap-3 py-2 pl-4 pr-1"
                   >
-                    <div class="flex min-w-0 flex-col gap-0.5">
-                      <span class="sales-pos-customer-form-address-text truncate text-sm text-(--hf-ink)">{{ formatAddress(addr) }}</span>
+                    <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span
+                        class="sales-pos-customer-form-address-text truncate text-sm text-(--hf-ink)"
+                        :title="formatAddress(addr)"
+                      >{{ formatAddress(addr) }}</span>
                       <AddressLocationStatus :address="addr" />
                     </div>
                     <UButton
@@ -444,8 +465,11 @@ function handleCancel() {
                     :data-testid="`address-row-${addr.id}`"
                     class="sales-pos-customer-form-address-row flex min-h-14 items-center justify-between gap-3 py-2 pl-4 pr-1"
                   >
-                    <div class="flex min-w-0 flex-col gap-0.5">
-                      <span class="sales-pos-customer-form-address-text truncate text-sm text-(--hf-ink)">{{ formatAddress(addr) }}</span>
+                    <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span
+                        class="sales-pos-customer-form-address-text truncate text-sm text-(--hf-ink)"
+                        :title="formatAddress(addr)"
+                      >{{ formatAddress(addr) }}</span>
                       <AddressLocationStatus :address="addr" />
                     </div>
                     <RowActionsMenu

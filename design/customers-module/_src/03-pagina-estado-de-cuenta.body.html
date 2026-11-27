@@ -1,0 +1,175 @@
+<div class="tools" role="group" aria-label="Opciones del artboard">
+  <span class="lbl">03 · B · Dos columnas, dinero primero</span>
+  <span class="lbl">Cliente</span>
+  <button type="button" data-state="saldo:debe" aria-pressed="true">Con deuda</button>
+  <button type="button" data-state="saldo:corriente" aria-pressed="false">Al corriente (cabecera)</button>
+  <span class="grow"></span>
+  <button type="button" id="t-notes" aria-expanded="false" aria-controls="notes"><svg class="icon sm"><use href="#i-notes"/></svg>Notas y datos</button>
+  <button type="button" id="t-theme" aria-pressed="false"><svg class="icon sm"><use href="#i-moon"/></svg><span>Tema claro</span></button>
+</div>
+
+<aside class="notes" id="notes" tabindex="-1" hidden aria-label="Notas del artboard">
+  <h2>B · Dos columnas, dinero primero</h2>
+  <p>Para cobrar: a la izquierda quién es (fija mientras bajas), a la derecha cuánto debe, qué vence y un estado de cuenta con ventas y cobros intercalados y saldo corrido, como el PDF pero vivo. Todo se ve sin pestañas; a cambio, la página es larga y las mascotas o cotizaciones quedan en segundo plano.</p>
+  <h3>Datos que ya llegan</h3>
+  <ul>
+    <li>Perfil: <code>fullName</code>, <code>phone</code>, <code>email</code>, <code>addresses[]</code>, <code>rfc</code>, <code>businessName</code>, <code>fiscalRegime</code>, <code>fiscalZipCode</code>, <code>comments</code>, <code>globalPriceList</code>, <code>createdAt</code>; mascotas (<code>species</code>, <code>size</code>, <code>status</code>, alergias).</li>
+    <li>Por cobrar: <code>GET /sales?customerId=&amp;paymentStatus=PARTIAL,CREDIT</code> con <code>debtCents</code> y <code>dueDate</code>.</li>
+    <li>Ventas por mes: <code>sales-monthly</code> (la gráfica que ya existe en el historial).</li>
+    <li>PDF del estado de cuenta: <code>CustomerStatementDownload</code>.</li>
+  </ul>
+  <h3>Requiere backend</h3>
+  <ul>
+    <li>Cobros del cliente con folio de recibo y método, para intercalarlos: no hay lista por cliente (el índice existe, es barato).</li>
+    <li>Saldo inicial del periodo y saldo corrido: lo más simple es que el endpoint del estado de cuenta devuelva los movimientos ya ordenados con saldo (el PDF ya lo calcula).</li>
+  </ul>
+</aside>
+
+<div class="app" style="min-height:1560px">
+<!--@side-->
+  <div class="mainarea">
+    <header class="top">
+      <nav class="crumbs" aria-label="Ruta"><a href="#pos">POS</a><svg class="icon xs"><use href="#i-chev-r"/></svg><a href="#clientes">Clientes</a><svg class="icon xs"><use href="#i-chev-r"/></svg><b aria-current="page">Ana Sofía Treviño Garza</b></nav>
+    </header>
+    <div class="dpf">
+      <header class="dph">
+        <a class="back" href="#clientes"><svg class="icon sm"><use href="#i-arrow-l"/></svg>Clientes</a>
+        <div class="hrow">
+          <span class="avatar" aria-hidden="true">AT</span>
+          <div class="who">
+            <p class="meta"><span data-when="saldo:debe" class="badge danger">$498.00 vencido</span><span data-when="saldo:corriente" hidden class="badge success">Al corriente</span><span>Cliente desde mar 2025</span><span class="sep">·</span><span>23 ventas</span><span class="sep">·</span><span>última hace 4 días</span></p>
+            <h1>Ana Sofía Treviño Garza</h1>
+          </div>
+          <div class="acts">
+            <button type="button" class="btn" data-when="saldo:debe"><svg class="icon sm"><use href="#i-coins"/></svg>Cobrar todo <span class="fig">$1,284.00</span></button>
+            <button type="button" class="btn primary"><svg class="icon sm"><use href="#i-cart"/></svg>Nueva venta</button>
+            <button type="button" class="icon-btn" aria-label="Más acciones de Ana Sofía Treviño Garza" aria-haspopup="menu"><svg class="icon"><use href="#i-more"/></svg></button>
+          </div>
+        </div>
+      </header>
+
+      <div class="cols">
+        <!-- left: profile (sticky) -->
+        <aside class="panel profile" aria-label="Perfil del cliente">
+          <section class="psec">
+            <h2>Contacto<span class="grow"></span><a class="link-inline" href="#editar">Editar</a></h2>
+            <dl class="kv2">
+              <dt>Teléfono</dt><dd><a class="link-inline fig" href="tel:+528123456789">81 2345 6789</a> · <a class="link-inline" href="#wa">WhatsApp</a></dd>
+              <dt>Correo</dt><dd>ana.trevino@outlook.com</dd>
+              <dt>Paga con</dt><dd>Efectivo, de preferencia</dd>
+              <dt>Lista</dt><dd>Público</dd>
+              <dt>Confianza</dt><dd><span class="trust"><svg class="icon"><use href="#i-shield"/></svg>Cliente de confianza</span></dd>
+            </dl>
+          </section>
+          <section class="psec">
+            <h2>Mascotas · 2<span class="grow"></span><a class="link-inline" href="#mascotas">Gestionar</a></h2>
+            <div class="list-div">
+              <div class="petrow"><span class="pi"><svg class="icon"><use href="#i-dog"/></svg></span><span class="txt"><b>Bruno</b><small>Perro · Grande · alérgico al pollo</small></span></div>
+              <div class="petrow"><span class="pi"><svg class="icon"><use href="#i-cat"/></svg></span><span class="txt"><b>Mishi</b><small>Gato · Chico</small></span></div>
+              <div class="petrow archived"><span class="pi"><svg class="icon"><use href="#i-dog"/></svg></span><span class="txt"><b>Canela</b><small>Perro · archivada</small></span></div>
+            </div>
+          </section>
+          <section class="psec">
+            <h2>Direcciones · 2</h2>
+            <div class="addr"><b><svg class="icon xs"><use href="#i-pin"/></svg>Padre Mier 1450</b><span>Mitras Centro, Monterrey, N.L. 64460</span><small>Principal · zona de reparto Mitras</small></div>
+            <div class="addr"><b><svg class="icon xs"><use href="#i-pin"/></svg>Av. Diego Díaz de Berlanga 320</b><span>Anáhuac, San Nicolás de los Garza, N.L. 66450</span></div>
+          </section>
+          <section class="psec">
+            <h2>Datos fiscales</h2>
+            <dl class="kv2">
+              <dt>RFC</dt><dd class="fig">TEGA880312KJ4</dd>
+              <dt>Razón social</dt><dd>Ana Sofía Treviño Garza</dd>
+              <dt>Régimen</dt><dd>626 · Régimen Simplificado de Confianza</dd>
+              <dt>CP fiscal</dt><dd class="fig">64460</dd>
+            </dl>
+          </section>
+          <section class="psec">
+            <h2>Notas</h2>
+            <p style="font-size:13px">Prefiere entregas después de las 6 pm. Si no contesta, dejar con la vecina del 1452.</p>
+          </section>
+        </aside>
+
+        <!-- right: money -->
+        <div class="money">
+          <section class="panel" aria-labelledby="owe-h" data-when="saldo:debe">
+            <div class="panel-h"><h2 id="owe-h">Por cobrar</h2><span class="c">2 ventas · <b class="fig warn-ink">$1,284.00</b></span><span class="grow"></span><button type="button" class="btn sm"><svg class="icon sm"><use href="#i-coins"/></svg>Cobrar todo</button></div>
+            <div>
+              <div class="owe-row">
+                <span><span class="p">S-000398</span> <span class="s">· 15 nov · a crédito · Shampoo hipoalergénico</span></span>
+                <span><span class="badge danger">Venció 20 nov</span></span>
+                <span class="num p warn-ink">$498.00</span>
+                <button type="button" class="btn sm">Cobrar</button>
+              </div>
+              <div class="owe-row">
+                <span><span class="p">S-000412</span> <span class="s">· 22 nov · pagó $700.00 de $1,486.00</span></span>
+                <span><span class="badge warning">Vence 6 dic</span></span>
+                <span class="num p warn-ink">$786.00</span>
+                <button type="button" class="btn sm">Cobrar</button>
+              </div>
+            </div>
+          </section>
+          <section class="banner" data-when="saldo:corriente" hidden><svg class="icon sm" style="color:var(--hf-success)"><use href="#i-check"/></svg><div class="txt"><b>Al corriente</b><span>No debe nada. Último pago el 22 nov.</span></div></section>
+
+          <section class="panel" aria-labelledby="chart-h">
+            <div class="panel-b">
+              <div class="chart">
+                <p class="chart-h"><b id="chart-h">Ventas por mes</b><span>dic 2025 – nov 2026 · $17,293.50</span></p>
+                <ol class="bars" aria-label="Ventas por mes, diciembre 2025 a noviembre 2026">
+                  <li><span class="col"><span class="b" style="height:24%"></span></span><span class="m">dic</span><span class="sr">diciembre 2025: $1,180.00</span></li>
+                  <li><span class="col"><span class="b" style="height:15%"></span></span><span class="m">ene</span><span class="sr">enero: $760.00</span></li>
+                  <li><span class="col"><span class="b zero"></span></span><span class="m">feb</span><span class="sr">febrero: sin ventas</span></li>
+                  <li><span class="col"><span class="b" style="height:27%"></span></span><span class="m">mar</span><span class="sr">marzo: $1,325.00</span></li>
+                  <li><span class="col"><span class="b" style="height:19%"></span></span><span class="m">abr</span><span class="sr">abril: $940.00</span></li>
+                  <li><span class="col"><span class="b" style="height:33%"></span></span><span class="m">may</span><span class="sr">mayo: $1,610.00</span></li>
+                  <li><span class="col"><span class="b" style="height:15%"></span></span><span class="m">jun</span><span class="sr">junio: $720.00</span></li>
+                  <li><span class="col"><span class="b" style="height:21%"></span></span><span class="m">jul</span><span class="sr">julio: $1,050.00</span></li>
+                  <li><span class="col"><span class="b" style="height:12%"></span></span><span class="m">ago</span><span class="sr">agosto: $598.00</span></li>
+                  <li><span class="col"><span class="b" style="height:44%"></span></span><span class="m">sep</span><span class="sr">septiembre: $2,185.00</span></li>
+                  <li><span class="col"><span class="b" style="height:40%"></span></span><span class="m">oct</span><span class="sr">octubre: $1,984.00</span></li>
+                  <li><span class="col"><span class="b cur" style="height:100%"></span></span><span class="m" style="color:var(--hf-ink);font-weight:600">nov</span><span class="sr">noviembre: $4,941.50</span></li>
+                </ol>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="led-h">
+            <div class="panel-h">
+              <h2 id="led-h">Estado de cuenta</h2>
+              <span class="bk"><svg class="icon"><use href="#i-server"/></svg>cobros: backend</span>
+              <span class="grow"></span>
+              <div class="seg" data-single role="radiogroup" aria-label="Periodo: 1 sep a 26 nov 2026"><button type="button" aria-pressed="true">90 días</button><button type="button" aria-pressed="false">Este año</button><button type="button" aria-pressed="false">Todo</button><button type="button" aria-pressed="false" aria-label="Elegir fechas"><svg class="icon sm" style="vertical-align:-3px"><use href="#i-calendar"/></svg></button></div>
+              <button type="button" class="btn sm"><svg class="icon sm"><use href="#i-download"/></svg>PDF</button>
+            </div>
+            <dl class="kpis" style="border:0;border-bottom:1px solid var(--hf-border);border-radius:0" aria-label="Resumen del periodo">
+              <div><dt>Saldo al 31 ago</dt><dd>$0.00</dd></div>
+              <div><dt>Ventas (cargos)</dt><dd>$9,110.50<small>8 ventas</small></dd></div>
+              <div><dt>Cobros (abonos)</dt><dd style="color:var(--hf-success)">$7,826.50<small>7 recibos</small></dd></div>
+              <div class="hot" style="border-radius:0"><dt>Saldo al 26 nov</dt><dd>$1,284.00</dd></div>
+            </dl>
+            <table class="t ledger">
+              <caption class="sr">Movimientos del 1 de septiembre al 26 de noviembre de 2026 con saldo corrido</caption>
+              <colgroup><col style="width:96px"><col><col style="width:116px"><col style="width:116px"><col style="width:124px"></colgroup>
+              <thead><tr><th>Fecha</th><th>Movimiento</th><th class="num">Cargo</th><th class="num">Abono</th><th class="num">Saldo</th></tr></thead>
+              <tbody>
+                <tr class="sum"><td>31 ago</td><td>Saldo inicial</td><td></td><td></td><td class="num">$0.00</td></tr>
+                <tr><td class="fig">14 sep</td><td><span class="cell"><span class="kind"><svg class="icon"><use href="#i-receipt"/></svg></span><span><span class="p">Venta S-000263</span><span class="s">Chatbot · entregada</span></span></span></td><td class="num">$1,730.00</td><td></td><td class="num bal owe">$1,730.00</td></tr>
+                <tr class="pay"><td class="fig">15 sep</td><td><span class="cell"><span class="kind pay"><svg class="icon"><use href="#i-coins"/></svg></span><span><span class="p">Cobro R-0912</span><span class="s">Tarjeta, al entregar · S-000263</span></span></span></td><td></td><td class="num abono">$1,730.00</td><td class="num bal">$0.00</td></tr>
+                <tr><td class="fig">28 sep</td><td><span class="cell"><span class="kind"><svg class="icon"><use href="#i-receipt"/></svg></span><span><span class="p">Venta S-000287</span><span class="s">Mostrador · pagada al momento</span></span></span></td><td class="num">$455.00</td><td class="num abono">$455.00</td><td class="num bal">$0.00</td></tr>
+                <tr><td class="fig">5 oct</td><td><span class="cell"><span class="kind"><svg class="icon"><use href="#i-receipt"/></svg></span><span><span class="p">Venta S-000301</span><span class="s">Mostrador · transferencia al momento</span></span></span></td><td class="num">$864.00</td><td class="num abono">$864.00</td><td class="num bal">$0.00</td></tr>
+                <tr><td class="fig">19 oct</td><td><span class="cell"><span class="kind"><svg class="icon"><use href="#i-receipt"/></svg></span><span><span class="p">Venta S-000329</span><span class="s">Mostrador · pagada al momento</span></span></span></td><td class="num">$1,120.00</td><td class="num abono">$1,120.00</td><td class="num bal">$0.00</td></tr>
+                <tr class="canceled"><td class="fig">26 oct</td><td><span class="cell"><span class="kind"><svg class="icon"><use href="#i-ban"/></svg></span><span><span class="p">Venta S-000344</span><span class="s">Cancelada · no suma</span></span></span></td><td class="num">$380.00</td><td></td><td class="num">—</td></tr>
+                <tr><td class="fig">1 nov</td><td><span class="cell"><span class="kind"><svg class="icon"><use href="#i-receipt"/></svg></span><span><span class="p">Venta S-000361</span><span class="s">Chatbot · entregada</span></span></span></td><td class="num">$2,315.00</td><td></td><td class="num bal owe">$2,315.00</td></tr>
+                <tr class="pay"><td class="fig">2 nov</td><td><span class="cell"><span class="kind pay"><svg class="icon"><use href="#i-coins"/></svg></span><span><span class="p">Cobro R-1044</span><span class="s">Tarjeta, al entregar · S-000361</span></span></span></td><td></td><td class="num abono">$2,315.00</td><td class="num bal">$0.00</td></tr>
+                <tr><td class="fig">8 nov</td><td><span class="cell"><span class="kind"><svg class="icon"><use href="#i-receipt"/></svg></span><span><span class="p">Venta S-000377</span><span class="s">Mostrador · pagada al momento</span></span></span></td><td class="num">$642.50</td><td class="num abono">$642.50</td><td class="num bal">$0.00</td></tr>
+                <tr><td class="fig">15 nov</td><td><span class="cell"><span class="kind"><svg class="icon"><use href="#i-receipt"/></svg></span><span><span class="p">Venta S-000398</span><span class="s warn">A crédito · venció 20 nov</span></span></span></td><td class="num">$498.00</td><td></td><td class="num bal owe">$498.00</td></tr>
+                <tr><td class="fig">22 nov</td><td><span class="cell"><span class="kind"><svg class="icon"><use href="#i-receipt"/></svg></span><span><span class="p">Venta S-000412</span><span class="s">Mostrador · vence 6 dic</span></span></span></td><td class="num">$1,486.00</td><td></td><td class="num bal owe">$1,984.00</td></tr>
+                <tr class="pay"><td class="fig">22 nov</td><td><span class="cell"><span class="kind pay"><svg class="icon"><use href="#i-coins"/></svg></span><span><span class="p">Cobro R-1102</span><span class="s">Efectivo, anticipo · S-000412</span></span></span></td><td></td><td class="num abono">$700.00</td><td class="num bal owe">$1,284.00</td></tr>
+              </tbody>
+              <tfoot><tr><td>26 nov</td><td>Saldo al día de hoy</td><td class="num fig">$9,110.50</td><td class="num fig" style="color:var(--hf-success)">$7,826.50</td><td class="num fig" style="color:var(--hf-warning)">$1,284.00</td></tr></tfoot>
+            </table>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
