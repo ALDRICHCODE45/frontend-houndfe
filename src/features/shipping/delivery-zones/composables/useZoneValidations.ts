@@ -1,5 +1,6 @@
-import { computed, ref, toValue, type MaybeRefOrGetter } from 'vue'
+import { computed, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import { keepPreviousData, useQuery } from '@tanstack/vue-query'
+import { useTablePageSize } from '@/core/shared/composables/useTablePageSize'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { zoneValidationsApi } from '../api/deliveryZones.api'
@@ -12,7 +13,16 @@ export const VALIDATIONS_REFETCH_MS = 60_000
 export function useZoneValidationsQueue() {
   const auth = useAuthStore()
   const tenantId = useSafeTenantId()
-  const pagination = ref({ pageIndex: 0, pageSize: 20 })
+  // The page size is remembered across reloads under the table's persistKey (page-size-memory S3),
+  // so the first request already asks for it.
+  const { pageSize } = useTablePageSize({ persistKey: 'shipping-zone-validations', defaultPageSize: 20 })
+  const pagination = ref({ pageIndex: 0, pageSize: pageSize.value })
+  watch(
+    () => pagination.value.pageSize,
+    (size) => {
+      pageSize.value = size
+    },
+  )
   const params = computed(() => ({ page: pagination.value.pageIndex + 1, limit: pagination.value.pageSize }))
   const enabled = computed(() => tenantId.value.length > 0 && auth.userCan('validate', 'DeliveryZone'))
 

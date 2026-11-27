@@ -83,7 +83,6 @@ const clickable = useClickableRow<ZoneValidation>((validation) => emit('open', v
     :total-count="totalCount"
     :showing-from="showingFrom"
     :showing-to="showingTo"
-    :page-size-options="[20, 50, 100]"
     :show-toolbar="false"
     display-mode="auto"
     mobile-render="cards"

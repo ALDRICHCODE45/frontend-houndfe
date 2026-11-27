@@ -15,6 +15,7 @@ import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActi
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import { useTablePreferences } from '@/core/shared/composables/useTablePreferences'
+import { useTablePageSize } from '@/core/shared/composables/useTablePageSize'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import SettleRefundSlideover from '../components/SettleRefundSlideover.vue'
 import {
@@ -36,7 +37,16 @@ const router = useRouter()
 const canRead = computed(() => authStore.userCan('read', 'SaleRefund'))
 const canSettle = computed(() => authStore.userCan('update', 'SaleRefund'))
 
-const pagination = ref({ pageIndex: 0, pageSize: 20 })
+// The page size is remembered across reloads under the table's persistKey (page-size-memory S3),
+// so the first request already asks for it.
+const { pageSize } = useTablePageSize({ persistKey: 'pos-pending-refunds', defaultPageSize: 20 })
+const pagination = ref({ pageIndex: 0, pageSize: pageSize.value })
+watch(
+  () => pagination.value.pageSize,
+  (size) => {
+    pageSize.value = size
+  },
+)
 const search = ref('')
 
 const list = usePendingRefundsList({
@@ -201,7 +211,6 @@ const rowLabel = (row: PendingRefundListRow) => `${row.folioLabel}, ${row.custom
           :total-count="list.total.value"
           :showing-from="showingFrom"
           :showing-to="showingTo"
-          :page-size-options="[10, 20, 50]"
           :row-open="rowOpen"
           display-mode="auto"
           mobile-render="cards"

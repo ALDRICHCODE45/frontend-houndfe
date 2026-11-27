@@ -1,6 +1,7 @@
 import { computed, ref, shallowRef, watch } from 'vue'
 import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 import { refDebounced } from '@vueuse/core'
+import { useTablePageSize } from '@/core/shared/composables/useTablePageSize'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { deliveryZonesApi } from '../api/deliveryZones.api'
@@ -18,7 +19,16 @@ export function useDeliveryZones() {
   const debouncedSearch = refDebounced(search, 300)
   const type = shallowRef<DeliveryZoneType | undefined>(undefined)
   const active = shallowRef<ZoneActiveFilter>(DEFAULT_ZONE_ACTIVE)
-  const pagination = ref({ pageIndex: 0, pageSize: 20 })
+  // The page size is remembered across reloads under the table's persistKey (page-size-memory S3),
+  // so the first request already asks for it.
+  const { pageSize } = useTablePageSize({ persistKey: 'shipping-delivery-zones', defaultPageSize: 20 })
+  const pagination = ref({ pageIndex: 0, pageSize: pageSize.value })
+  watch(
+    () => pagination.value.pageSize,
+    (size) => {
+      pageSize.value = size
+    },
+  )
 
   watch([debouncedSearch, type, active, tenantId], () => {
     pagination.value = { ...pagination.value, pageIndex: 0 }

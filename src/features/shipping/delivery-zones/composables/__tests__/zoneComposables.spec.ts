@@ -1,6 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
-import { nextTick } from 'vue'
+import { nextTick, type Ref } from 'vue'
 import { withQuery } from './withQuery'
 
 vi.mock('../../api/deliveryZones.api', () => ({
@@ -26,11 +26,13 @@ import { deliveryZonesApi, zoneValidationsApi } from '../../api/deliveryZones.ap
 import { useDeliveryZones } from '../useDeliveryZones'
 import { usePendingZoneValidationsCount } from '../usePendingZoneValidationsCount'
 import { useResolveValidation } from '../useResolveValidation'
+import { useZoneValidationsQueue } from '../useZoneValidations'
 
 const emptyPage = { data: [], pagination: { pageIndex: 0, pageSize: 20, totalCount: 0, pageCount: 0 } }
 const validation = { id: 'v1', version: 1 }
 
 beforeEach(() => {
+  localStorage.clear()
   vi.mocked(deliveryZonesApi.list).mockReset().mockResolvedValue(emptyPage)
   vi.mocked(zoneValidationsApi.list).mockReset().mockResolvedValue(emptyPage)
   vi.mocked(zoneValidationsApi.resolve).mockReset()
@@ -115,5 +117,53 @@ describe('useResolveValidation (resolutionRequestId)', () => {
     const { result } = withQuery(() => useResolveValidation())
     expect(await result.submit(validation, decision)).toMatchObject({ ok: false, error: { kind: 'reload' } })
     expect(result.canRetry.value).toBe(false)
+  })
+})
+
+type PagedTable = { pagination: Ref<{ pageIndex: number; pageSize: number }> }
+
+describe.each<{ table: string; key: string; setup: () => PagedTable; api: () => MockInstance }>([
+  {
+    table: 'delivery zones',
+    key: 'table-page-size-shipping-delivery-zones',
+    setup: () => useDeliveryZones(),
+    api: () => vi.mocked(deliveryZonesApi.list),
+  },
+  {
+    table: 'zone validations',
+    key: 'table-page-size-shipping-zone-validations',
+    setup: () => useZoneValidationsQueue(),
+    api: () => vi.mocked(zoneValidationsApi.list),
+  },
+])('$table — page size memory (page-size-memory T1b)', ({ key, setup, api }) => {
+  it('starts at 20 when nothing is stored', async () => {
+    const { result } = withQuery(setup)
+    await flushPromises()
+    expect(result.pagination.value).toEqual({ pageIndex: 0, pageSize: 20 })
+    expect(api().mock.calls[0]![0]).toMatchObject({ page: 1, limit: 20 })
+  })
+
+  it('remembers a chosen size: a remount requests it on its first fetch', async () => {
+    const first = withQuery(setup)
+    await flushPromises()
+    first.result.pagination.value = { pageIndex: 0, pageSize: 35 }
+    await flushPromises()
+    expect(localStorage.getItem(key)).toBe('35')
+    first.wrapper.unmount()
+    api().mockClear()
+
+    const second = withQuery(setup)
+    expect(second.result.pagination.value).toEqual({ pageIndex: 0, pageSize: 35 })
+    await flushPromises()
+    expect(api()).toHaveBeenCalledTimes(1)
+    expect(api().mock.calls[0]![0]).toMatchObject({ page: 1, limit: 35 })
+  })
+
+  it.each([['100'], ['7'], ['"abc"']])('falls back to 20 for an invalid stored size %s', async (stored) => {
+    localStorage.setItem(key, stored)
+    const { result } = withQuery(setup)
+    await flushPromises()
+    expect(result.pagination.value.pageSize).toBe(20)
+    expect(api().mock.calls[0]![0]).toMatchObject({ limit: 20 })
   })
 })

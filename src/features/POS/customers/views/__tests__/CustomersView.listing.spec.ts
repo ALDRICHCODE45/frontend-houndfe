@@ -47,7 +47,7 @@ vi.mock('@/core/shared/composables/useServerTable', () => ({
       isError: computed(() => mockState.isError.value),
       error: computed(() => null),
       refresh: vi.fn(),
-      pageSizeOptions: [20, 50, 100],
+      pageSizeOptions: [5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
       showingFrom: computed(() => 1),
       showingTo: computed(() => 1),
     }

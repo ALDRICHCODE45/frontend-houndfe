@@ -119,7 +119,6 @@ const clickable = useClickableRow<DeliveryZone>(open, { focusable: false })
     :total-count="totalCount"
     :showing-from="showingFrom"
     :showing-to="showingTo"
-    :page-size-options="[20, 50, 100]"
     display-mode="auto"
     mobile-render="cards"
     search-placeholder="Buscar por código postal o colonia..."
