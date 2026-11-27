@@ -50,6 +50,20 @@ export function useFiltersUrlAdapter(schemaInput: MaybeRefOrGetter<FiltersSchema
     }
   }
 
+  const ownedKeys = () => new Set(Array.from(ownedParams(schema.value.fields), prefix))
+
+  // Signature of only the query params this adapter owns: unrelated writers
+  // (sort/page/tab…) never change it, so they cannot overwrite filter state
+  // that is still waiting for the debounced write (customers-module L15).
+  function ownedSignature(query: Record<string, unknown>): string {
+    const owned = ownedKeys()
+    const entries = Object.entries(query)
+      .filter(([key, value]) => owned.has(key) && value != null)
+      .map(([key, value]) => [key, Array.isArray(value) ? value.map(String) : [String(value)]] as const)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    return JSON.stringify(entries)
+  }
+
   return {
     read() {
       const query = Object.fromEntries(Object.entries(route.query).map(([k, v]) => [unprefix(k), v as string | string[] | undefined]))
@@ -57,14 +71,18 @@ export function useFiltersUrlAdapter(schemaInput: MaybeRefOrGetter<FiltersSchema
     },
     write(state) {
       const serialized = schema.value.serialize(state)
-      const owned = new Set(Array.from(ownedParams(schema.value.fields), prefix))
+      const owned = ownedKeys()
       const preserved = Object.fromEntries(Object.entries(route.query).filter(([key]) => !owned.has(key)))
       const next = Object.fromEntries(Object.entries(serialized).map(([k, v]) => [prefix(k), v]))
       lastWrittenCanonical = schema.value.canonicalize(state)
       router.replace({ query: { ...preserved, ...next } })
     },
     watch(cb) {
-      const stop = watch(() => route.query, () => {
+      let lastSeenSignature = ownedSignature(route.query)
+      const stop = watch(() => route.query, (query) => {
+        const signature = ownedSignature(query)
+        if (signature === lastSeenSignature) return
+        lastSeenSignature = signature
         const nextState = this.read()
         const canonical = schema.value.canonicalize(nextState)
         if (canonical === lastWrittenCanonical) return
