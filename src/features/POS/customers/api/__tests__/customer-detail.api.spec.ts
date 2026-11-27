@@ -73,6 +73,12 @@ describe('customerDetailApi.getPayments', () => {
     expect(CUSTOMER_PAYMENTS_PAGE_SIZE).toBe(50)
     expect(httpGet).toHaveBeenCalledWith('/customers/c-1/payments', { params: { page: 2, limit: 50 } })
   })
+
+  it('sends the chosen page size (owner-ideas-batch S5)', async () => {
+    httpGet.mockResolvedValue({ data: { data: [], pagination: { page: 1, limit: 15, total: 0, totalPages: 0 } } })
+    await customerDetailApi.getPayments('c-1', 1, 15)
+    expect(httpGet).toHaveBeenLastCalledWith('/customers/c-1/payments', { params: { page: 1, limit: 15 } })
+  })
 })
 
 describe('receipt format and path', () => {
@@ -140,5 +146,10 @@ describe('customerDetailQueryKeys', () => {
     expect(customerDetailQueryKeys.salesSummary('t-1', 'c-1').slice(0, prefix.length)).toEqual([...prefix])
     expect(customerDetailQueryKeys.payments('t-1', 'c-1', 3).slice(0, prefix.length)).toEqual([...prefix])
     expect(customerDetailQueryKeys.payments('t-1', 'c-1', 3)).not.toEqual(customerDetailQueryKeys.payments('t-1', 'c-1', 4))
+  })
+
+  it('the payments key tells page sizes apart and defaults to 50 (owner-ideas-batch S5)', () => {
+    expect(customerDetailQueryKeys.payments('t-1', 'c-1', 1)).toEqual(customerDetailQueryKeys.payments('t-1', 'c-1', 1, 50))
+    expect(customerDetailQueryKeys.payments('t-1', 'c-1', 1, 15)).not.toEqual(customerDetailQueryKeys.payments('t-1', 'c-1', 1, 50))
   })
 })

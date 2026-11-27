@@ -5,10 +5,7 @@
  * the list (`page`).
  */
 import { computed } from 'vue'
-import {
-  CUSTOMER_HISTORY_PAGE_SIZE,
-  type CustomerSalesHistoryView,
-} from '../composables/useCustomerSalesHistoryView'
+import type { CustomerSalesHistoryView } from '../composables/useCustomerSalesHistoryView'
 
 const props = withDefaults(
   defineProps<{ history: CustomerSalesHistoryView; variant?: 'drawer' | 'page' }>(),
@@ -16,7 +13,23 @@ const props = withDefaults(
 )
 
 // The controller is created once by the parent and never replaced: its refs are read as bindings.
-const { page, response, isFetching, rangeLabel, filterSummaryLabel } = props.history
+const { page, pageSize, pageSizeOptions, response, isFetching, rangeLabel, filterSummaryLabel } = props.history
+
+// owner-ideas-batch S5: the shared «N por página» choice, same menu as DataTablePagination. Only
+// offered when the sales do not all fit in the smallest page.
+const showPageSize = computed(() => (response.value?.pagination.total ?? 0) > Math.min(...pageSizeOptions))
+const pageSizeItems = computed(() =>
+  pageSizeOptions.map((size) => [
+    {
+      label: `${size} por página`,
+      type: 'checkbox' as const,
+      checked: pageSize.value === size,
+      onSelect: () => {
+        pageSize.value = size
+      },
+    },
+  ]),
+)
 
 const layoutClass = computed(() =>
   props.variant === 'drawer'
@@ -44,16 +57,33 @@ const layoutClass = computed(() =>
         class="hf-figure text-xs text-[var(--hf-muted)]"
       >{{ filterSummaryLabel }}</span>
     </div>
-    <div v-if="response.pagination.totalPages > 1" data-testid="history-pagination-controls">
-      <UPagination
-        v-model:page="page"
-        :items-per-page="CUSTOMER_HISTORY_PAGE_SIZE"
-        :total="response.pagination.total"
-        :disabled="isFetching"
-        show-edges
-        :sibling-count="0"
-        size="sm"
-      />
+    <div
+      v-if="showPageSize || response.pagination.totalPages > 1"
+      class="flex min-w-0 flex-wrap items-center justify-end gap-2"
+    >
+      <UDropdownMenu v-if="showPageSize" :items="pageSizeItems" :content="{ align: 'end' as const }">
+        <UButton
+          color="neutral"
+          variant="outline"
+          size="sm"
+          trailing-icon="i-lucide-chevron-down"
+          :aria-label="`${pageSize} por página`"
+          data-testid="history-page-size"
+        >
+          <span class="hf-figure">{{ pageSize }}</span><span class="hidden sm:inline">&nbsp;por página</span>
+        </UButton>
+      </UDropdownMenu>
+      <div v-if="response.pagination.totalPages > 1" data-testid="history-pagination-controls">
+        <UPagination
+          v-model:page="page"
+          :items-per-page="pageSize"
+          :total="response.pagination.total"
+          :disabled="isFetching"
+          show-edges
+          :sibling-count="0"
+          size="sm"
+        />
+      </div>
     </div>
   </div>
 </template>

@@ -101,7 +101,7 @@ afterEach(() => {
 describe('CustomerPaymentsTab — desktop table', () => {
   it('asks for page 1 of the feed and shows Fecha, Tipo, Monto, Cajero and Comprobante', async () => {
     await mountTab()
-    expect(api.getPayments).toHaveBeenCalledWith('c-1', 1)
+    expect(api.getPayments).toHaveBeenCalledWith('c-1', 1, 50)
     const table = q('table.hf-plain-table')
     expect(table).not.toBeNull()
     expect(qa('thead th').map(text)).toEqual(['Fecha', 'Tipo', 'Monto', 'Cajero', 'Comprobante'])
@@ -211,7 +211,7 @@ describe('CustomerPaymentsTab — empty, errors and pagination', () => {
     expect(second).toBeDefined()
     second!.click()
     await flushPromises()
-    expect(api.getPayments).toHaveBeenLastCalledWith('c-1', 2)
+    expect(api.getPayments).toHaveBeenLastCalledWith('c-1', 2, 50)
   })
 
   it('one page has no pager', async () => {
