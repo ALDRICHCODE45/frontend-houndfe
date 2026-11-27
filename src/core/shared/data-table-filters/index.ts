@@ -1,6 +1,7 @@
 export * from './schema/types'
 export * from './schema/defineFiltersSchema'
 export * from './schema/filterFactories'
+export * from './schema/filterDisplay'
 export * from './composables/adapterTypes'
 export * from './composables/useFiltersMemoryAdapter'
 export * from './composables/useFiltersUrlAdapter'

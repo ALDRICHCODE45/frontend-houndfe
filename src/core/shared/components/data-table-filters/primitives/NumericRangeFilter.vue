@@ -64,6 +64,9 @@ const localError = computed(() => {
 
 const resolvedError = computed(() => props.error ?? localError.value)
 
+// «$ mín» for money, «mín» for a count (customers-module L12: no «$» on counts).
+const unitPrefix = computed(() => (props.unit ? `${props.unit} ` : ''))
+
 function emitRange() {
   const next: { min?: number; max?: number } = {}
 
@@ -101,7 +104,7 @@ function updateMax(value: unknown) {
         :format-options="formatOptions"
         :increment="false"
         :decrement="false"
-        placeholder="$ mín"
+        :placeholder="`${unitPrefix}mín`"
         @update:model-value="updateMin"
       />
 
@@ -116,7 +119,7 @@ function updateMax(value: unknown) {
         :format-options="formatOptions"
         :increment="false"
         :decrement="false"
-        placeholder="$ máx"
+        :placeholder="`${unitPrefix}máx`"
         @update:model-value="updateMax"
       />
     </div>

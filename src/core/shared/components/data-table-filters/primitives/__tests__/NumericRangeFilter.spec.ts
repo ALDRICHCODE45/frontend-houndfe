@@ -142,4 +142,15 @@ describe('NumericRangeFilter', () => {
     expect(numbers[0]?.classes()).toContain('w-full')
     expect(numbers[1]?.classes()).toContain('w-full')
   })
+
+  // customers-module L12: count ranges must not show «$»; the placeholder follows the unit.
+  it('shows «$ mín» / «$ máx» for money and «mín» / «máx» for a range without unit', () => {
+    const money = mountComponent({}, { unit: '$' })
+    expect(money.get('[data-testid="numeric-min"]').attributes('placeholder')).toBe('$ mín')
+    expect(money.get('[data-testid="numeric-max"]').attributes('placeholder')).toBe('$ máx')
+
+    const count = mountComponent({}, { unit: '', formatAs: 'plain' })
+    expect(count.get('[data-testid="numeric-min"]').attributes('placeholder')).toBe('mín')
+    expect(count.get('[data-testid="numeric-max"]').attributes('placeholder')).toBe('máx')
+  })
 })
