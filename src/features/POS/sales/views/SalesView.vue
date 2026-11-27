@@ -31,10 +31,8 @@ import type {
   OverrideItemPricePayload,
   Sale,
 } from '../interfaces/sale.types'
-import {
-  DraftCustomerAssignmentError,
-  useDraftCustomerAssignment,
-} from '../composables/useDraftCustomerAssignment'
+import { useDraftCustomerAssignment } from '../composables/useDraftCustomerAssignment'
+import { mapCustomerAssignmentErrorMessage } from '../utils/customerAssignmentErrors'
 import { useDraftLinePets } from '../composables/useDraftLinePets'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { promotionQueryKeys, saleQueryKeys } from '@/core/shared/constants/query-keys'
@@ -276,28 +274,6 @@ const { pets: customerPets, canReadPets, setLinePet } = useDraftLinePets(
 const productSearchPanelRef = ref<{
   searchInputRef?: { focus?: () => void } | HTMLInputElement | null
 } | null>(null)
-
-function mapCustomerAssignmentErrorMessage(error: unknown): string {
-  const code =
-    error instanceof DraftCustomerAssignmentError ? error.code : (error as { code?: string })?.code
-
-  switch (code) {
-    case 'CUSTOMER_NOT_FOUND':
-      return 'No se encontró el cliente. Recarga la lista.'
-    case 'SHIPPING_ADDRESS_NOT_FOUND':
-      return 'No se encontró la dirección. Recarga la lista.'
-    case 'SHIPPING_ADDRESS_NOT_FOR_CUSTOMER':
-      return 'Esa dirección no pertenece al cliente seleccionado.'
-    case 'SHIPPING_ADDRESS_REQUIRES_CUSTOMER':
-      return 'Asigna un cliente antes de elegir la dirección.'
-    case 'SALE_NOT_DRAFT':
-      return 'Esta venta ya no es un borrador. Recarga la página.'
-    case 'SALE_UPDATE_FORBIDDEN':
-      return 'No tienes permisos para modificar esta venta.'
-    default:
-      return 'No se pudo completar la operación'
-  }
-}
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 

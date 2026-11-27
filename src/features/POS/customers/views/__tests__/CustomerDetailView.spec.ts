@@ -105,6 +105,15 @@ vi.mock('@/features/POS/quotations/composables/useCustomerQuotations', () => ({
   },
 }))
 
+// ── «Nueva venta» (owner-ideas-batch T4; the composable has its own spec) ──────────────────
+const startSale = vi.hoisted(() => ({ start: vi.fn(), pending: { value: false } }))
+vi.mock('@/features/POS/sales/composables/useStartSaleForCustomer', async () => {
+  const { shallowRef } = await import('vue')
+  const pending = shallowRef(false)
+  startSale.pending = pending
+  return { useStartSaleForCustomer: () => ({ start: startSale.start, isPending: pending }) }
+})
+
 // ── Heavy children (their own specs cover them) ──────────────────────────────
 const stub = vi.hoisted(() => (name: string, testid: string, props: string[] = []) =>
   defineComponent({ name, props, setup: (_, { attrs }) => () => h('div', { 'data-testid': testid, ...attrs }) }))
@@ -228,6 +237,8 @@ beforeEach(() => {
   api.getById.mockReset().mockResolvedValue(detail())
   api.remove.mockReset().mockResolvedValue(undefined)
   toast.add.mockClear()
+  startSale.start.mockReset().mockResolvedValue(true)
+  startSale.pending.value = false
   historyCalls.length = 0
   monthlyOpen.length = 0
   quotationsEnabled.length = 0
@@ -326,6 +337,103 @@ describe('CustomerDetailView — header', () => {
     wrapper!.findComponent({ name: 'ConfirmModal' }).vm.$emit('confirm')
     await flushPromises()
     expect(router.push).not.toHaveBeenCalled()
+  })
+})
+
+describe('CustomerDetailView — «Nueva venta» (owner-ideas-batch T4, S2)', () => {
+  const SELLER = [...ALL, 'create:Sale']
+  const newSale = () => q('[data-testid="customer-detail-new-sale"]') as HTMLButtonElement | null
+  const collect = () => q('[data-testid="customer-detail-collect"]')
+  const isPrimary = (el: HTMLElement | null) => !!el?.classList.contains('hf-primary-control')
+
+  it('needs read + create + update:Sale', async () => {
+    for (const missing of ['read:Sale', 'create:Sale', 'update:Sale']) {
+      grants.set = new Set(SELLER.filter((grant) => grant !== missing))
+      await mountPage()
+      expect(newSale()).toBeNull()
+      wrapper?.vm.$root?.$?.appContext.app.unmount()
+      document.body.innerHTML = ''
+    }
+    grants.set = new Set(SELLER)
+    await mountPage()
+    expect(newSale()?.textContent).toContain('Nueva venta')
+  })
+
+  it('is the one solid primary; «Cobrar todo» turns secondary outline and comes first (artboard order)', async () => {
+    grants.set = new Set(SELLER)
+    await mountPage()
+    expect(isPrimary(newSale())).toBe(true)
+    expect(isPrimary(collect())).toBe(false)
+    expect(collect()?.textContent).toContain('Cobrar todo')
+    expect(collect()!.compareDocumentPosition(newSale()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(qa('.customer-detail-header .hf-primary-control')).toHaveLength(1)
+  })
+
+  it('without create:Sale «Cobrar todo» stays the primary', async () => {
+    await mountPage()
+    expect(newSale()).toBeNull()
+    expect(isPrimary(collect())).toBe(true)
+  })
+
+  it('pressing it starts the sale for this customer', async () => {
+    grants.set = new Set(SELLER)
+    await mountPage()
+    newSale()!.click()
+    await flushPromises()
+    expect(startSale.start).toHaveBeenCalledTimes(1)
+    expect(startSale.start).toHaveBeenCalledWith('c-1')
+  })
+
+  it('shows a loading, disabled state while the sale is being opened', async () => {
+    grants.set = new Set(SELLER)
+    await mountPage()
+    startSale.pending.value = true
+    await flushPromises()
+    expect(newSale()!.disabled).toBe(true)
+    expect(newSale()!.getAttribute('aria-busy')).toBe('true')
+  })
+
+  describe('phone', () => {
+    const originalMatchMedia = window.matchMedia
+    beforeEach(() => {
+      window.matchMedia = vi.fn((query: string) => ({
+        matches: query.includes('max-width'),
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })) as unknown as typeof window.matchMedia
+    })
+    afterEach(() => {
+      window.matchMedia = originalMatchMedia
+    })
+    const bar = () => q('[data-testid="customer-detail-mobile-bar"]')
+
+    it('with debt the sticky bar keeps «Cobrar todo»; «Nueva venta» is a compact header button', async () => {
+      grants.set = new Set(SELLER)
+      await mountPage()
+      expect(bar()?.querySelector('[data-testid="customer-detail-collect-mobile"]')).not.toBeNull()
+      expect(bar()?.querySelector('[data-testid="customer-detail-new-sale-mobile"]')).toBeNull()
+      expect(newSale()?.getAttribute('aria-label')).toBe('Nueva venta')
+      expect(isPrimary(newSale())).toBe(false)
+      newSale()!.click()
+      expect(startSale.start).toHaveBeenCalledWith('c-1')
+    })
+
+    it('without debt the sticky bar offers «Nueva venta» as the primary', async () => {
+      grants.set = new Set(SELLER)
+      withSales(0)
+      await mountPage()
+      const button = bar()?.querySelector<HTMLButtonElement>('[data-testid="customer-detail-new-sale-mobile"]')
+      expect(button?.textContent).toContain('Nueva venta')
+      expect(isPrimary(button ?? null)).toBe(true)
+      expect(newSale()).toBeNull()
+      button!.click()
+      expect(startSale.start).toHaveBeenCalledWith('c-1')
+    })
   })
 })
 
@@ -439,7 +547,7 @@ describe('CustomerDetailView — tabs', () => {
     await flushPromises()
     expect(q('[role="tab"][aria-selected="true"]')?.textContent).toContain('Cobros y recibos')
     expect(q('[data-testid="customer-tab-cobros"]')).not.toBeNull()
-    expect(detailApi.getPayments).toHaveBeenCalledWith('c-1', 1)
+    expect(detailApi.getPayments).toHaveBeenCalledWith('c-1', 1, 50)
     expect(q('[data-testid="customer-payments-empty"]')?.textContent).toContain('Sin cobros todavía')
   })
 
