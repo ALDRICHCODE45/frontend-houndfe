@@ -55,3 +55,6 @@ artifacts/responsive/
 # Playwright MCP session logs and ad-hoc browser review evidence (never committed)
 /.playwright-mcp/
 /.playwright-review/
+
+# gentle-design canvas board positions (local UI state)
+design/*/layout.json
