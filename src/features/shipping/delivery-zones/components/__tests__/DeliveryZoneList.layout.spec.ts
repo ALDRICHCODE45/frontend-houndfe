@@ -69,3 +69,10 @@ describe('DeliveryZoneList — persisted column layout', () => {
     expect(columns[columns.length - 1]!.id).toBe('actions')
   })
 })
+
+describe('DeliveryZoneList — page size (page-size-memory T1b)', () => {
+  it('offers 5 to 50 in steps of 5', () => {
+    const table = mountList().getComponent({ name: 'AppDataTable' })
+    expect(table.props('pageSizeOptions')).toEqual([5, 10, 15, 20, 25, 30, 35, 40, 45, 50])
+  })
+})

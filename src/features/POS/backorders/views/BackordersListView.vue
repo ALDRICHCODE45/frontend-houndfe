@@ -17,6 +17,7 @@ import EmptyState from '@/core/shared/components/EmptyState.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { useTablePreferences } from '@/core/shared/composables/useTablePreferences'
+import { useTablePageSize } from '@/core/shared/composables/useTablePageSize'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import BackorderDateFilter from '../components/BackorderDateFilter.vue'
 import BackorderProductThumb from '../components/BackorderProductThumb.vue'
@@ -34,6 +35,7 @@ import {
   productLabel,
 } from '../utils/backorderView'
 import {
+  DEFAULT_LIMIT,
   PAGE_SIZE_OPTIONS,
   SEARCH_MAX_LENGTH,
   clearListFilters,
@@ -53,8 +55,16 @@ const route = useRoute()
 const router = useRouter()
 const { canRead } = useBackorderAccess()
 
+// The page size the table remembers across reloads (page-size-memory S3), under its layout key. A
+// `limit` in the URL wins and is never stored; only a size picked in the table is.
+const { pageSize: rememberedLimit } = useTablePageSize({
+  persistKey: 'pos-backorders-v2',
+  defaultPageSize: DEFAULT_LIMIT,
+  options: PAGE_SIZE_OPTIONS,
+})
+
 // ── State: the URL is the single source of truth ─────────────────────────────
-const state = computed<BackorderListState>(() => parseListQuery(route.query))
+const state = computed<BackorderListState>(() => parseListQuery(route.query, rememberedLimit.value))
 
 function update(next: BackorderListState) {
   void router.replace({ query: mergeListQuery(route.query, next) as Record<string, string> })
@@ -91,7 +101,14 @@ const pagination = computed({
   get: () => ({ pageIndex: state.value.page - 1, pageSize: state.value.limit }),
   set: (next: { pageIndex: number; pageSize: number }) => {
     const sizeChanged = next.pageSize !== state.value.limit
-    update({ ...state.value, limit: next.pageSize, page: sizeChanged ? 1 : next.pageIndex + 1 })
+    if (!sizeChanged) return update({ ...state.value, page: next.pageIndex + 1 })
+    // A new size: page 1 with the size spelled out in the URL, and only then remembered, so the
+    // list moves once (never the old page at the new size, nor the old remembered size meanwhile).
+    const size = next.pageSize
+    const query = { ...mergeListQuery(route.query, { ...state.value, limit: size, page: 1 }), limit: String(size) }
+    void router.replace({ query: query as Record<string, string> }).finally(() => {
+      rememberedLimit.value = size
+    })
   },
 })
 

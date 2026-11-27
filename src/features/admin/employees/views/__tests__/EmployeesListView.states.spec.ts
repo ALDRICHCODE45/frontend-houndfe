@@ -378,7 +378,8 @@ describe('EmployeesListView states — wiring', () => {
     }
     expect(config.persistKey).toBe('admin-employees')
     expect(config.urlSync).toBe(false)
-    expect(config.pageSizeOptions).toEqual([10, 20, 50])
+    // No list of its own: useServerTable's shared 5..50 options apply.
+    expect(config.pageSizeOptions).toBeUndefined()
     expect(config.defaultPinning).toEqual({ left: [], right: ['actions'] })
   })
 

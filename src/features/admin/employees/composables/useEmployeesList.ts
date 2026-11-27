@@ -23,7 +23,7 @@
  *  - `clearSelection` watcher: `[statusTab, globalFilter]`.
  *  - Persist table prefs (column pinning/visibility) under `admin-employees`.
  *  - `defaultPinning: { left: [], right: ['actions'] }` (REQ-10 invariant).
- *  - `pageSizeOptions: [10, 20, 50]`.
+ *  - page-size options: the shared 5..50 (`TABLE_PAGE_SIZE_OPTIONS`, useServerTable's default).
  */
 
 import { computed, ref, watch } from 'vue'
@@ -108,7 +108,6 @@ export function useEmployeesList(options: UseEmployeesListOptions = {}) {
       ),
     defaultPageSize,
     debounceMs,
-    pageSizeOptions: [10, 20, 50],
     defaultPinning: { left: [], right: ['actions'] },
     persistKey: 'admin-employees',
     urlSync: false,

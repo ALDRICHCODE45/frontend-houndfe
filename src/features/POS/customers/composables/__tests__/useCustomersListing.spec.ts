@@ -184,6 +184,13 @@ describe('useCustomersListing', () => {
     expect(result.filterErrors.value).toEqual({})
   })
 
+  it('offers the shared 5..50 page sizes, default 50 (page-size-memory T1b)', () => {
+    run()
+    expect(capturedConfig?.defaultPageSize).toBe(50)
+    // No own list: useServerTable falls back to TABLE_PAGE_SIZE_OPTIONS.
+    expect(capturedConfig?.pageSizeOptions).toBeUndefined()
+  })
+
   it('keys the query under the customers list key so every customer write refreshes it', () => {
     run(ref({ petSpecies: 'DOG' }))
     const key = (capturedConfig!.queryKey as () => readonly unknown[])()

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { TABLE_PAGE_SIZE_OPTIONS } from '../../constants/table-page-size'
 
 const props = withDefaults(
   defineProps<{
@@ -15,7 +16,7 @@ const props = withDefaults(
     portalClass?: string
   }>(),
   {
-    pageSizeOptions: () => [5, 10, 20, 50],
+    pageSizeOptions: () => [...TABLE_PAGE_SIZE_OPTIONS],
     fetching: false,
   },
 )

@@ -6,6 +6,7 @@
  * (`listQueryOf`). Only the params named in `listParamsOf` reach the API.
  */
 import { closingDateRange } from '@/features/POS/cash-register/closing/closingView'
+import { TABLE_PAGE_SIZE_OPTIONS } from '@/core/shared/constants/table-page-size'
 import type {
   BackorderListParams,
   BackorderSortBy,
@@ -31,7 +32,8 @@ export interface BackorderListState {
 export const SEARCH_MAX_LENGTH = 100
 export const DEFAULT_TAB: BackorderStatus = 'WAITING'
 export const DEFAULT_LIMIT = 20
-export const PAGE_SIZE_OPTIONS = [10, 20, 50]
+/** The shared 5..50 sizes (page-size-memory S2); `GET /backorders` accepts up to 100. */
+export const PAGE_SIZE_OPTIONS: number[] = [...TABLE_PAGE_SIZE_OPTIONS]
 
 /** Query params of this screen; any other param of the URL is left alone. */
 /** `tab` is the legacy name of `status` (still read, never written). */
@@ -66,13 +68,21 @@ function positiveInt(value: string | null, fallback: number): number {
   return Number.isSafeInteger(n) && n >= 1 ? n : fallback
 }
 
-export function parseListQuery(query: Record<string, unknown>): BackorderListState {
+/**
+ * `rememberedLimit` is the size the table remembers (page-size-memory S3): used when the URL has no
+ * valid `limit`, which always wins. Not an option → {@link DEFAULT_LIMIT}.
+ */
+export function parseListQuery(
+  query: Record<string, unknown>,
+  rememberedLimit: number = DEFAULT_LIMIT,
+): BackorderListState {
   const tab = tabOf(query)
+  const fallbackLimit = PAGE_SIZE_OPTIONS.includes(rememberedLimit) ? rememberedLimit : DEFAULT_LIMIT
   const sort = firstValue(query.sort)
   // `reservedUntil` only orders Apartados; `status` is one value per tab, so it is never offered.
   const sortBy: BackorderSortBy =
     sort === 'scheduledAt' || (sort === 'reservedUntil' && tab === 'RESERVED') ? sort : defaultSortFor(tab)
-  const limit = positiveInt(firstValue(query.limit), DEFAULT_LIMIT)
+  const limit = positiveInt(firstValue(query.limit), fallbackLimit)
   return {
     tab,
     q: (firstValue(query.q) ?? '').trim().slice(0, SEARCH_MAX_LENGTH),
@@ -81,7 +91,7 @@ export function parseListQuery(query: Record<string, unknown>): BackorderListSta
     sortBy,
     sortOrder: firstValue(query.order) === 'desc' ? 'desc' : 'asc',
     page: positiveInt(firstValue(query.page), 1),
-    limit: PAGE_SIZE_OPTIONS.includes(limit) ? limit : DEFAULT_LIMIT,
+    limit: PAGE_SIZE_OPTIONS.includes(limit) ? limit : fallbackLimit,
   }
 }
 

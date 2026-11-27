@@ -9,7 +9,12 @@ const list = vi.hoisted(() => ({
   loading: null as unknown as import('vue').Ref<boolean>,
   error: null as unknown as import('vue').Ref<boolean>,
   refetch: vi.fn(),
-  lastOptions: null as null | { enabled: () => boolean; search: { value: string } },
+  lastOptions: null as null | {
+    enabled: () => boolean
+    search: { value: string }
+    page: () => number
+    limit: () => number
+  },
 }))
 
 vi.mock('../../composables/usePendingRefundsList', async () => {
@@ -73,9 +78,12 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
       'columnVisibility',
       'density',
       'persistLayout',
+      'pagination',
+      'pageSizeOptions',
     ],
     emits: [
       'refresh',
+      'update:pagination',
       'clear-filters',
       'reset-columns',
       'update:columnOrder',
@@ -322,5 +330,45 @@ describe('PendingRefundsView — column layout (premium tables T9)', () => {
     const table = mountView().getComponent({ name: 'AppDataTable' })
     const labels = (table.props('columns') as Parameters<typeof columnLabel>[0][]).map(columnLabel)
     expect(labels).toEqual(['Venta', 'Motivo', 'Pagó con', 'Total', 'Devuelto', 'Pendiente', 'Acciones'])
+  })
+})
+
+describe('PendingRefundsView — page size (page-size-memory T1b)', () => {
+  const SIZE_KEY = 'table-page-size-pos-pending-refunds'
+  beforeEach(() => {
+    localStorage.clear()
+    list.rows = ref([row('1')])
+    list.loading = ref(false)
+    list.error = ref(false)
+    auth.grants = new Set(['read:SaleRefund', 'update:SaleRefund'])
+  })
+  afterEach(() => localStorage.clear())
+
+  it('offers 5 to 50 in steps of 5 and starts at 20', () => {
+    const table = mountView().getComponent({ name: 'AppDataTable' })
+    // No own list: AppDataTable offers TABLE_PAGE_SIZE_OPTIONS (5..50) by default.
+    expect(table.props('pageSizeOptions')).toBeUndefined()
+    expect(table.props('pagination')).toEqual({ pageIndex: 0, pageSize: 20 })
+    expect(list.lastOptions!.limit()).toBe(20)
+  })
+
+  it('remembers a chosen size: a remount requests it from the first fetch', async () => {
+    const first = mountView()
+    first.getComponent({ name: 'AppDataTable' }).vm.$emit('update:pagination', { pageIndex: 0, pageSize: 35 })
+    await nextTick()
+    expect(list.lastOptions!.limit()).toBe(35)
+    expect(localStorage.getItem(SIZE_KEY)).toBe('35')
+    first.unmount()
+
+    const second = mountView()
+    expect(list.lastOptions!.limit()).toBe(35)
+    expect(list.lastOptions!.page()).toBe(1)
+    expect(second.getComponent({ name: 'AppDataTable' }).props('pagination')).toEqual({ pageIndex: 0, pageSize: 35 })
+  })
+
+  it.each([['100'], ['7'], ['"abc"']])('falls back to 20 for an invalid stored size %s', (stored) => {
+    localStorage.setItem(SIZE_KEY, stored)
+    mountView()
+    expect(list.lastOptions!.limit()).toBe(20)
   })
 })

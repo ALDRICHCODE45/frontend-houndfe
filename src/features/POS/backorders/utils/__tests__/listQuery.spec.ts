@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_LIMIT,
+  PAGE_SIZE_OPTIONS,
   clearListFilters,
   hasActiveFilters,
   listParamsOf,
@@ -151,5 +153,37 @@ describe('listParamsOf (S3 params)', () => {
   it('omits what is empty', () => {
     const params = listParamsOf(parseListQuery({}))
     expect(params).toEqual({ page: 1, limit: 20, status: ['WAITING'], sortBy: 'scheduledAt', sortOrder: 'asc' })
+  })
+})
+
+describe('page size (page-size-memory T1b, S2-S3)', () => {
+  it('offers 5 to 50 in steps of 5, default 20', () => {
+    expect(PAGE_SIZE_OPTIONS).toEqual([5, 10, 15, 20, 25, 30, 35, 40, 45, 50])
+    expect(DEFAULT_LIMIT).toBe(20)
+  })
+
+  it.each([['5', 5], ['15', 15], ['35', 35], ['50', 50]])('accepts limit=%s from the URL', (limit, expected) => {
+    expect(parseListQuery({ limit }).limit).toBe(expected)
+  })
+
+  it.each([['100'], ['7'], ['0']])('rejects limit=%s (not an option) for the default', (limit) => {
+    expect(parseListQuery({ limit }).limit).toBe(20)
+  })
+
+  it('without a limit in the URL uses the remembered size', () => {
+    expect(parseListQuery({}, 35).limit).toBe(35)
+    expect(parseListQuery({ limit: 'x' }, 35).limit).toBe(35)
+  })
+
+  it('a limit in the URL wins over the remembered size', () => {
+    expect(parseListQuery({ limit: '10' }, 35).limit).toBe(10)
+  })
+
+  it('an invalid remembered size falls back to the default', () => {
+    expect(parseListQuery({}, 100).limit).toBe(20)
+  })
+
+  it('writes any non-default size to the URL', () => {
+    expect(listQueryOf(parseListQuery({ limit: '35' }))).toEqual({ limit: '35' })
   })
 })

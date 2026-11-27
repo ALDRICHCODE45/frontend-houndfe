@@ -155,8 +155,8 @@ export function useCustomersListing(options: {
         throw error
       }
     },
+    // The shared 5..50 sizes (page-size-memory S2; 50 is one of them), remembered under persistKey.
     defaultPageSize: CUSTOMERS_LISTING_LIMIT,
-    pageSizeOptions: [20, 50, 100],
     // A new key: the old 'pos-customers' layout had other columns.
     persistKey: 'pos-customers-listing',
     defaultSorting: CUSTOMERS_DEFAULT_SORTING,

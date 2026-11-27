@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { flushPromises, mount } from '@vue/test-utils'
-import { ref, type Ref } from 'vue'
+import { ref, watch, type Ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { countsFixture, makeBackorder, makeWaitingBackorder } from '../../interfaces/__tests__/backorder.fixture'
 import type { BackorderCounts, BackorderListParams, BackorderStaff } from '../../interfaces/backorder.types'
@@ -48,7 +48,7 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
     props: [
       'data', 'loading', 'error', 'errorMessage', 'emptyState', 'filtered', 'rowOpen', 'columns', 'sorting',
       'pagination', 'globalFilter', 'totalCount', 'pageCount', 'activeFilterCount', 'columnOrder',
-      'columnPinning', 'columnSizing', 'columnVisibility', 'density',
+      'columnPinning', 'columnSizing', 'columnVisibility', 'density', 'pageSizeOptions',
     ],
     emits: [
       'refresh', 'clear-filters', 'reset-columns', 'update:sorting', 'update:pagination', 'update:globalFilter',
@@ -77,6 +77,8 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
         <button data-testid="sort-clear" @click="$emit('update:sorting', [])" />
         <button data-testid="page-3" @click="$emit('update:pagination', { pageIndex: 2, pageSize: 20 })" />
         <button data-testid="size-50" @click="$emit('update:pagination', { pageIndex: 2, pageSize: 50 })" />
+        <button data-testid="size-35" @click="$emit('update:pagination', { pageIndex: 0, pageSize: 35 })" />
+        <button data-testid="size-20" @click="$emit('update:pagination', { pageIndex: 0, pageSize: 20 })" />
       </div>`,
   },
 }))
@@ -122,6 +124,7 @@ const lastParams = () => list.lastParams!()
 
 beforeEach(() => {
   vi.useRealTimers()
+  localStorage.clear()
   auth.grants = new Set(['read:Backorder'])
   list.items = ref([makeBackorder()])
   list.counts = ref(countsFixture)
@@ -488,5 +491,72 @@ describe('BackordersListView — opening and row actions', () => {
     expect(card.text()).toContain('Croquetas Adulto Raza Grande 18 kg')
     expect(card.text()).toMatch(/Apartado hasta 21 nov/)
     expect(card.text()).toContain('$1,099.00')
+  })
+})
+
+describe('BackordersListView — page size (page-size-memory T1b)', () => {
+  const SIZE_KEY = 'table-page-size-pos-backorders-v2'
+  const tablePage = (wrapper: Awaited<ReturnType<typeof mountAt>>['wrapper']) =>
+    JSON.parse(wrapper.get('[data-testid="table"]').attributes('data-page')!)
+
+  it('offers 5 to 50 in steps of 5 and starts at 20', async () => {
+    const { wrapper } = await mountAt('/pos/pedidos-reposicion')
+    expect(wrapper.getComponent({ name: 'AppDataTable' }).props('pageSizeOptions')).toEqual([
+      5, 10, 15, 20, 25, 30, 35, 40, 45, 50,
+    ])
+    expect(lastParams().limit).toBe(20)
+  })
+
+  it('remembers a chosen size: a remount without ?limit requests it from the first fetch', async () => {
+    const first = await mountAt('/pos/pedidos-reposicion')
+    await first.wrapper.find('[data-testid="size-35"]').trigger('click')
+    await flushPromises()
+    expect(first.router.currentRoute.value.query).toEqual({ limit: '35' })
+    expect(localStorage.getItem(SIZE_KEY)).toBe('35')
+    first.wrapper.unmount()
+
+    const second = await mountAt('/pos/pedidos-reposicion')
+    expect(lastParams()).toMatchObject({ page: 1, limit: 35 })
+    expect(tablePage(second.wrapper)).toEqual({ pageIndex: 0, pageSize: 35 })
+  })
+
+  it('going back to the default size is remembered too', async () => {
+    localStorage.setItem(SIZE_KEY, '35')
+    const { wrapper, router } = await mountAt('/pos/pedidos-reposicion')
+    await wrapper.find('[data-testid="size-20"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({ limit: '20' })
+    expect(localStorage.getItem(SIZE_KEY)).toBe('20')
+    expect(lastParams().limit).toBe(20)
+    // The next URL write drops the default size again; the remembered 20 keeps it.
+    await wrapper.find('[data-testid="page-3"]').trigger('click')
+    await flushPromises()
+    expect(router.currentRoute.value.query).toEqual({ page: '3' })
+    expect(lastParams()).toMatchObject({ page: 3, limit: 20 })
+  })
+
+  it('a new size moves the list once: page 1 at the new size, never the old page at it', async () => {
+    const { wrapper, router } = await mountAt('/pos/pedidos-reposicion?page=3')
+    const seen: string[] = []
+    const stop = watch(() => `${lastParams().page}/${lastParams().limit}`, (p) => seen.push(p), { flush: 'sync' })
+    await wrapper.find('[data-testid="size-35"]').trigger('click')
+    await flushPromises()
+    stop()
+    expect(seen).toEqual(['1/35'])
+    expect(router.currentRoute.value.query).toEqual({ limit: '35' })
+  })
+
+  it('a ?limit in the URL wins over the remembered size and is not stored', async () => {
+    localStorage.setItem(SIZE_KEY, '35')
+    const { wrapper } = await mountAt('/pos/pedidos-reposicion?limit=10')
+    expect(lastParams().limit).toBe(10)
+    expect(tablePage(wrapper).pageSize).toBe(10)
+    expect(localStorage.getItem(SIZE_KEY)).toBe('35')
+  })
+
+  it.each([['100'], ['7'], ['"abc"']])('falls back to 20 for an invalid stored size %s', async (stored) => {
+    localStorage.setItem(SIZE_KEY, stored)
+    await mountAt('/pos/pedidos-reposicion')
+    expect(lastParams().limit).toBe(20)
   })
 })

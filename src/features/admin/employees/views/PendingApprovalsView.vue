@@ -53,6 +53,7 @@ import { computed, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import { useTablePreferences } from '@/core/shared/composables/useTablePreferences'
+import { useTablePageSize } from '@/core/shared/composables/useTablePageSize'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
@@ -153,7 +154,11 @@ function clearSearch(): void {
 // name search. Page size is shared with the "Documentos por vencer" table for a
 // consistent feel across the two tenant-wide list views.
 const page = ref(FIRST_PAGE)
-const pageSize = ref(DEFAULT_TABLE_PAGE_SIZE)
+// Remembered across reloads under the table's persistKey (page-size-memory S3).
+const { pageSize } = useTablePageSize({
+  persistKey: 'admin-pending-approvals',
+  defaultPageSize: DEFAULT_TABLE_PAGE_SIZE,
+})
 
 /** Current page slice of the searched queue — page clamped so it is always valid. */
 const paged = computed(() => {
@@ -358,7 +363,6 @@ function rowLabelOf(request: TimeOffRequest): string {
           :total-count="paged.total"
           :showing-from="showingFrom"
           :showing-to="showingTo"
-          :page-size-options="[10, 20, 50]"
           empty="Sin solicitudes pendientes"
           class="hf-data-table"
           portal-class="hf-theme hf-ui employees-list-portal"

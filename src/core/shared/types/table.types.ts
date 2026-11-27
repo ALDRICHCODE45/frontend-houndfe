@@ -94,12 +94,14 @@ export interface ServerTableConfig<T> {
     params: ServerTableParams,
     context: { readonly queryKey: readonly unknown[] },
   ) => Promise<PaginatedResponse<T>>
+  /** One of the options; a size that is not one is rounded to the nearest. */
   defaultPageSize?: number
+  /** Defaults to the shared 5..50 options (`TABLE_PAGE_SIZE_OPTIONS`). */
   pageSizeOptions?: number[]
   defaultSorting?: SortingState
   defaultPinning?: ColumnPinningState
   defaultColumnVisibility?: VisibilityState
-  persistKey?: string // for localStorage persistence + URL sync
+  persistKey?: string // localStorage persistence (layout and page size) + URL sync
   debounceMs?: number // search debounce, default 300
   staleTime?: number // TanStack Query stale time, default 30000
   urlSync?: boolean // enable URL state sync, default true
