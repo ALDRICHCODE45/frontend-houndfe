@@ -15,7 +15,7 @@ Owner items 1-3 of `odd/pending-owner-ideas.md` (then the cash picker bug, then 
 - [x] T4 S4 Customer page `/pos/clientes/:id` (artboard 02, handoff): header, KPI strip, tabs Resumen · Ventas · Mascotas · Cotizaciones · Datos y direcciones on existing endpoints; row click in the customers table opens it («Editar» to ⋮) — worker
 - [x] T5 S4 «Cobros y recibos» tab + KPI fields from the new customer endpoint (after T3) — worker
 - [x] T6 S3 Customers table: new columns, 25 filters, saved views, totals on the new list endpoint (after T3) — worker
-- [ ] T7 Full suite, preview check, owner check, merge — parent
+- [x] T7 Full suite, preview check, owner check, merge — parent
 
 ## Log
 - L1 Owner: S1 (pending ideas note) and S2.
@@ -34,3 +34,4 @@ Owner items 1-3 of `odd/pending-owner-ideas.md` (then the cash picker bug, then 
 - L14 Owner check (2026-11-26, verbatim): «merge hermano, pero antess encontre algo raro: cuando le doy click a las vistas que ya estan ahi, no se por que, pero se cambian, o sea, se reinician, y por eso me aparece ese punto naranja, y tengo que clicar "restablecer", pero se reinicia sin que yo haga nada.. osea, se resetea sin que yo haga nada, se quita el filtro sin que yo haga nada, no se por que pasa eso. pero hay que revisarlo hemano por favor.» Screenshots: «Nuevos este mes» and «Con deuda vencida» show the orange unsaved dot + «Cambios sin guardar · Restablecer» right after clicking the view; URL only carries `?sort=createdAt:desc` / `?sort=oldestOverdue:asc` (no filter params). Merge after the fix (T8).
 - [x] T8 L14 Saved views reset/dirty right after selecting a built-in view — worker
 - L15 T8 (worker mwybrwk6-i-t4pr): root cause = two URL writers raced. `useCustomersListing.ts` called useServerTable with default `urlSync: true` (useServerTable.ts:76), so useTableUrlSync wrote `?sort=` after 100 ms from a route without the view's filters (useTableUrlSync.ts:77-100); the filters adapter's route watcher (useFiltersUrlAdapter.ts:64-70) took that URL as truth and cleared the filter before its own 250 ms write → view dirty. Only views changing sort AND carrying a filter broke. Fix like Sales (useConfirmedSales.ts:184): `urlSync: false`, filters adapter is the only URL writer; page/sort/search no longer in the URL (same as Sales). Real-router test CustomersView.views-sync.spec.ts (6) RED 4/6 → GREEN; customers 63 files / 720; lint, type-check clean. Shared follow-up noted: useFiltersUrlAdapter reacts to any query change.
+- L16 Owner (2026-11-26): «merge hermano» (after T8). Merged --no-ff to local main with fix/cash-picker-unreleased; owner pushes.
