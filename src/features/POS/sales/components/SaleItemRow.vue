@@ -29,12 +29,6 @@ const props = withDefaults(
       /** Presentation-only density flag for the mobile cart sheet. */
       mobileSheet?: boolean
       /**
-       * Presentation-only opt-in for the exact v0 cart composition (T11).
-       * False by default, so the row keeps its previous nested-card paint and
-       * its prior DOM for every other consumer.
-       */
-      composition?: boolean
-      /**
        * Optional teleport boundary marker forwarded to the installed row menu
        * and to the owned item dialogs. Absent by default, so the row and its
        * dialogs keep their native defaults and prior paint.
@@ -56,7 +50,6 @@ const props = withDefaults(
     isUpdating: false,
     isDraft: true,
     mobileSheet: false,
-    composition: false,
     onSubmitPriceOverride: async () => undefined,
     onApplyDiscount: async () => undefined,
     onRemoveDiscount: async () => undefined,
@@ -78,17 +71,9 @@ function handleSelectPet(petId: string | null) {
   void props.onSetPet?.(props.item.id, petId)
 }
 
-// T11 (unit B): the exact v0 cart composition is a divider-separated row.
-// style-cleanup U4: without the opt-in the row is a divider line too (no
-// nested bordered card inside the cart surface); only the spacing differs.
-const cardClass = computed(() => {
-  if (props.composition) {
-    return 'sales-pos-cart-row sales-pos-cart-row-composition transition-all duration-150'
-  }
-  return props.mobileSheet
-    ? 'border-b border-default transition-all duration-150 sales-pos-cart-row px-3.5 py-3'
-    : 'border-b border-default transition-all duration-150 sales-pos-cart-row hover:bg-elevated/40 px-3 py-2'
-})
+// T11 (unit B): the v0 cart composition is a divider-separated row
+// (small-pending S4: the only markup; the old nested-card branch was removed).
+const cardClass = 'sales-pos-cart-row sales-pos-cart-row-composition transition-all duration-150'
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
 
@@ -253,9 +238,8 @@ function handleQtyCommit() {
 </script>
 
 <template>
-  <!-- Phase 14b — horizontal compact card layout.
-       Left: thumbnail · Center: name/specs/qty · Right: pricing stack.
-       All props, emits, computed, and data-testid attrs preserved. -->
+  <!-- Phase 14b / T11 — divider row: left thumbnail; center name + menu,
+       variant, unit price, qty row with the line total, inline badges. -->
   <div data-testid="sale-item-card" :class="cardClass">
     <div class="flex items-start gap-3">
       <!-- LEFT — Thumbnail (48px square) -->
@@ -286,7 +270,6 @@ function handleQtyCommit() {
       <div class="flex-1 min-w-0 flex flex-col sales-pos-cart-row-content" :class="mobileSheet ? 'gap-1' : 'gap-0.5'">
         <!-- Composition head: clean name + item menu on the same line. -->
         <div
-          v-if="composition"
           data-testid="sale-item-head"
           class="min-w-0 flex items-start justify-between gap-2 sales-pos-cart-row-head"
         >
@@ -313,43 +296,18 @@ function handleQtyCommit() {
             />
           </UDropdownMenu>
         </div>
-        <p
-          v-else
-          data-testid="sale-item-name"
-          class="font-medium text-highlighted truncate sales-pos-cart-row-name"
-          :class="mobileSheet ? 'text-base' : 'text-sm'"
-        >
-          {{ item.productName }}
-        </p>
 
         <!-- Composition detail line: the available identity only. -->
         <p
-          v-if="composition && item.variantName"
+          v-if="item.variantName"
           data-testid="sale-item-detail"
           class="sales-pos-cart-row-detail"
         >
           {{ item.variantName }}
         </p>
 
-        <!-- Specs line (prior paint): variant + unit price context. -->
-        <p v-if="!composition" class="text-[11px] text-muted truncate">
-          <span v-if="item.variantName">{{ item.variantName }}</span>
-          <span v-if="item.variantName"> · </span>
-          <span
-            v-if="showPriceOrigin"
-            data-testid="sale-item-unit-strike-original"
-            class="line-through mr-1"
-          >{{ formatCentsMXN(item.originalPriceCents ?? 0) }}</span>
-          <span
-            v-if="showDiscountOrigin"
-            data-testid="sale-item-unit-strike-pre-discount"
-            class="line-through mr-1"
-          >{{ formatCentsMXN(item.prePriceCentsBeforeDiscount ?? 0) }}</span>
-          <span class="font-medium text-toned">{{ formatCentsMXN(item.unitPriceCents) }} c/u</span>
-        </p>
-
         <!-- Composition unit-price line: original/current price context. -->
-        <p v-else data-testid="sale-item-unit" class="sales-pos-cart-row-unit">
+        <p data-testid="sale-item-unit" class="sales-pos-cart-row-unit">
           <span
             v-if="showPriceOrigin"
             data-testid="sale-item-unit-strike-original"
@@ -407,26 +365,12 @@ function handleQtyCommit() {
             variant="ghost"
             @click="void props.onRemoveItem?.(props.item.id)"
           />
-          <UDropdownMenu
-            v-if="!composition"
-            :items="itemActions"
-            :ui="portalClass ? { content: portalClass } : undefined"
-          >
-            <UButton
-              :size="mobileSheet ? 'sm' : 'xs'"
-              :class="mobileSheet ? 'min-h-[44px] min-w-[44px]' : undefined"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-ellipsis-vertical"
-            />
-          </UDropdownMenu>
           <strong
-            v-if="composition"
             data-testid="sale-item-line-net"
             class="sales-pos-cart-row-line tabular-nums"
           >{{ formatCentsMXN(lineDisplay.netLine) }}</strong>
           <span
-            v-if="composition && lineDisplay.showStruckGross"
+            v-if="lineDisplay.showStruckGross"
             data-testid="sale-item-line-gross-strike"
             class="text-[10px] text-muted line-through tabular-nums"
           >{{ formatCentsMXN(lineDisplay.grossLine) }}</span>
@@ -490,36 +434,6 @@ function handleQtyCommit() {
         </div>
       </div>
 
-      <!-- RIGHT — pricing stack (prior paint; the composition moves the unit
-           price and the line total into the row body). -->
-      <div
-        v-if="!composition"
-        class="shrink-0 text-right flex flex-col items-end min-w-[64px] sales-pos-cart-row-price"
-      >
-        <p class="text-xs text-muted tabular-nums leading-tight">
-          {{ formatCentsMXN(item.unitPriceCents) }}
-        </p>
-        <p
-          v-if="item.discountType"
-          class="text-[10px] text-primary tabular-nums leading-tight"
-        >
-          {{ inlineDiscountLabel }}
-        </p>
-        <p
-          data-testid="sale-item-line-net"
-          class="font-semibold text-highlighted tabular-nums leading-tight"
-          :class="mobileSheet ? 'text-base' : 'text-sm'"
-        >
-          {{ formatCentsMXN(lineDisplay.netLine) }}
-        </p>
-        <p
-          v-if="lineDisplay.showStruckGross"
-          data-testid="sale-item-line-gross-strike"
-          class="text-[10px] text-muted line-through tabular-nums"
-        >
-          {{ formatCentsMXN(lineDisplay.grossLine) }}
-        </p>
-      </div>
     </div>
 
     <!-- Non-draft (confirmed sale) — render SaleItemBadges as before -->

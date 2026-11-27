@@ -42,7 +42,6 @@ import {
   useCashOwnShift,
   useCashSessionDetail,
   useCashSessions,
-  useCashUnreleasedSessions,
 } from '../composables/useCashSessions'
 import { useCashSessionCommands } from '../composables/useCashSessionCommands'
 import { useCashCustody } from '../composables/useCashCustody'
@@ -151,28 +150,6 @@ const registerNames = computed(() =>
 )
 const detailQuery = useCashSessionDetail(selectedSessionId)
 
-/**
- * Held drawers (cash-picker-unreleased): registers the server would refuse to
- * open, shown busy in the picker with a way to their session. GET
- * /cash-registers reports `drawerHeld` per register (handoff 31) and is the
- * source of truth; the held-drawer sessions read runs only as a fallback while
- * a loaded register lacks that field (an older backend).
- */
-const registersReportHeld = computed(() =>
-  registers.registers.value.every((register) => typeof register.drawerHeld === 'boolean'),
-)
-const needsHeldFallback = computed(
-  () =>
-    !registers.isLoading.value &&
-    !registers.isError.value &&
-    registers.registers.value.length > 0 &&
-    !registersReportHeld.value,
-)
-const heldDrawers = useCashUnreleasedSessions(needsHeldFallback)
-const busyScope = computed<'branch' | 'own' | 'none'>(() => {
-  if (!heldDrawers.known.value) return 'none'
-  return heldDrawers.complete.value ? 'branch' : 'own'
-})
 /** The refused open (`CASH_REGISTER_UNRELEASED_SESSION`) behind the open error. */
 const openRefusal = ref<CashUnreleasedSessionRef | null>(null)
 
@@ -257,15 +234,15 @@ function errorFor(scope: string): string | null {
 }
 
 /**
- * The blocking session may be offered only when the user can read it: it is in
- * their own visible list, or the branch audit makes another person's reachable.
+ * The blocking session may be offered only when the user can read it: a
+ * register's `heldBy` names it (handoff 31), or the branch audit makes another
+ * person's reachable.
  */
 const openErrorSessionId = computed<string | null>(() => {
   const sessionId = openRefusal.value?.sessionId
   if (!sessionId || !errorFor('open')) return null
   const reachable =
     registers.registers.value.some((register) => register.heldBy?.sessionId === sessionId) ||
-    heldDrawers.isVisible(sessionId) ||
     (access.canReadSessions.value && access.canAuditSessions.value)
   return reachable ? sessionId : null
 })
@@ -607,10 +584,8 @@ function handleOpenSession(payload: { openingCents: number; openingHandoverId?: 
       const refusal = cashUnreleasedSessionRef(error)
       if (refusal) {
         openRefusal.value = { ...refusal, registerId: refusal.registerId ?? registerId }
-        // The picker learns the held drawer: the registers carry it (handoff
-        // 31); an older backend needs the held-drawer sessions read too.
+        // The picker learns the held drawer: the registers carry it (handoff 31).
         void registers.refetch()
-        if (needsHeldFallback.value && access.canReadSessions.value) void heldDrawers.refetch()
       }
       throw error
     }
@@ -1071,10 +1046,6 @@ function viewClosing() {
               :error-message="openErrorMessage"
               :error-session-id="openErrorSessionId"
               :registers-error-message="errorFor('registers')"
-              :held-sessions="heldDrawers.byRegister.value"
-              :busy-checking="heldDrawers.isLoading.value"
-              :busy-scope="busyScope"
-              :current-user-id="access.currentUserId.value"
               @select="selectRegister"
               @create="handleCreateRegister"
               @update="handleUpdateRegister"

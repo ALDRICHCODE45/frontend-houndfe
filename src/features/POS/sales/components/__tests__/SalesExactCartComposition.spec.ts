@@ -110,7 +110,7 @@ function mountPanel(options: {
         SalesTabsStrip: { template: '<div />' },
         SaleItemRow: {
           name: 'SaleItemRow',
-          props: ['mobileSheet', 'composition'],
+          props: ['mobileSheet'],
           template: '<div data-testid="row-stub" />',
         },
         SaleTotalsFooter: {
@@ -231,7 +231,7 @@ describe('Exact cart composition — root marker is exact-token only', () => {
     expect(wrapper.get('.sales-pos-cart-panel').classes()).toContain('sales-pos-cart-composition')
     expect(wrapper.find('[data-testid="cart-heading"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="cart-header"]').classes()).toContain('sales-pos-price-list-band')
-    expect(wrapper.findComponent({ name: 'SaleItemRow' }).props('composition')).toBe(true)
+    expect(wrapper.findComponent({ name: 'SaleItemRow' }).exists()).toBe(true)
   })
 
   it('marks the mobile sheet instance too, with its own modifier', () => {
@@ -266,10 +266,11 @@ describe('Exact cart composition — bands, bands order and forwarded props', ()
     expect(wrapper.find('[data-testid="cart-type-toggle"]').exists()).toBe(true)
   })
 
-  it('forwards the composition to the row; the totals footer always renders it', () => {
+  it('renders the row and the totals footer without composition opt-ins (their only markup)', () => {
     const wrapper = mountPanel({ portalClass: ENTRY, items: [makeItem()] })
 
-    expect(wrapper.findComponent({ name: 'SaleItemRow' }).props('composition')).toBe(true)
+    // SaleItemRow no longer takes a `composition` opt-in (small-pending S4).
+    expect(wrapper.findComponent({ name: 'SaleItemRow' }).attributes()).not.toHaveProperty('composition')
     // SaleTotalsFooter no longer takes `themed` / `composition` opt-ins (style-cleanup U3).
     const footerAttrs = wrapper.findComponent({ name: 'SaleTotalsFooter' }).attributes()
     expect(footerAttrs).not.toHaveProperty('themed')
@@ -357,19 +358,9 @@ function menuLabels(wrapper: ReturnType<typeof mountRow>): string[] {
 }
 
 describe('Exact cart composition — row hierarchy', () => {
-  it('keeps a plain divider row (no nested card) when the composition is omitted', () => {
-    const wrapper = mountRow()
-
-    const card = wrapper.get('[data-testid="sale-item-card"]')
-    expect(card.classes()).toContain('sales-pos-cart-row')
-    expect(card.classes()).toContain('border-b')
-    expect(card.classes()).not.toContain('rounded-xl')
-    expect(card.classes()).not.toContain('sales-pos-cart-row-composition')
-  })
-
   it('turns the row into a divider line with a clean name + menu and a unit-price line', () => {
     const wrapper = mountRow(
-      { composition: true },
+      {},
       makeItem({
         variantName: '500mg',
         priceSource: 'price_list',
@@ -400,7 +391,7 @@ describe('Exact cart composition — row hierarchy', () => {
 
   it('keeps quantity controls and the actual line total on the quantity row', () => {
     const wrapper = mountRow(
-      { composition: true },
+      {},
       makeItem({ quantity: 2, unitPriceCents: 5000, subtotalCents: 9500 }),
     )
 
@@ -410,18 +401,11 @@ describe('Exact cart composition — row hierarchy', () => {
     // Line total reads the backend subtotal, not a local recompute.
     expect(qtyRow.get('[data-testid="sale-item-line-net"]').text()).toContain('$95.00')
   })
-
-  it('does not move the line total into the quantity row when the composition is omitted', () => {
-    const wrapper = mountRow({}, makeItem({ subtotalCents: 9500 }))
-
-    expect(wrapper.get('[data-testid="sale-item-line-net"]').text()).toContain('$95.00')
-    expect(wrapper.get('[data-testid="sale-item-qty-row"]').text()).not.toContain('$95.00')
-  })
 })
 
 describe('Exact cart composition — row behavior is preserved', () => {
   it('emits update-qty from the public quantity control', async () => {
-    const wrapper = mountRow({ composition: true })
+    const wrapper = mountRow()
 
     const input = wrapper.get('input[role="spinbutton"]')
     await input.setValue('5')
@@ -431,7 +415,7 @@ describe('Exact cart composition — row behavior is preserved', () => {
   })
 
   it('keeps the remove, details, price and discount menu actions', () => {
-    const wrapper = mountRow({ composition: true })
+    const wrapper = mountRow()
 
     const labels = menuLabels(wrapper)
     expect(labels).toContain('Ver detalles')
@@ -442,7 +426,7 @@ describe('Exact cart composition — row behavior is preserved', () => {
 
   it('calls the real remove callback from the row control', async () => {
     const onRemoveItem = vi.fn(async () => undefined)
-    const wrapper = mountRow({ composition: true, onRemoveItem })
+    const wrapper = mountRow({ onRemoveItem })
 
     await wrapper.get('[data-testid="sale-item-remove"]').trigger('click')
     expect(onRemoveItem).toHaveBeenCalledWith('item-1')
@@ -450,7 +434,7 @@ describe('Exact cart composition — row behavior is preserved', () => {
 
   it('keeps promotion controls and emits the public remove-promo event', async () => {
     const wrapper = mountRow(
-      { composition: true },
+      {},
       makeItem({ promotionId: 'promo-1', discountTitle: 'Descuento local' }),
     )
 
