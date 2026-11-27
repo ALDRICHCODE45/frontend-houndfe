@@ -158,6 +158,11 @@ describe('useCustomersListing', () => {
     return { result, scope, filters }
   }
 
+  it('leaves the URL to the filters adapter: no table URL sync, as in Ventas (T8, L14)', () => {
+    run()
+    expect(capturedConfig?.urlSync).toBe(false)
+  })
+
   it('reads GET /customers/listing with the mapped params and returns the page with its summary', async () => {
     const page: CustomerListingPage = {
       data: [],
