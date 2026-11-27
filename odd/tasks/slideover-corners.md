@@ -7,9 +7,10 @@
 
 ## Tasks
 - [x] T1 S2-S3 Root fix + per-slideover scroll audit + guard — worker
-- [ ] T2 Full suite, preview, owner check, merge — parent
+- [x] T2 Full suite, preview, owner check, merge — parent
 
 ## Log
 - L1 Owner S1 (2026-11-27); diagnosis S2. Owner chose a separate branch after the ideas merge.
 - L2 T1 (worker mwzlzoho-v-yi7i): `vite.config.ts` Nuxt UI `slideover.slots.content: 'overflow-hidden'` (merges with `:ui.content`, so mobile rounded-t-2xl sheets too). Audit of 40 slideovers: none scrolls on the panel; Nuxt overlays portal (no `:portal="false"`); inline menus only in CategorySelect/SatKeySelect inside an already-scrolling body. DataTableToolbar mobile Filtros sheet capped (`max-h-[calc(100svh-2rem)] min-h-0`) so the footer is not clipped. Guards: hf-slideover-corners.spec.ts (config, inset mount, mobile sheet mount, source scan) + DataTableFilters.corners.spec.ts. RED 4 + toolbar → GREEN; core/shared 1528; all slideover families 9877; related 2119; type-check clean. Needs browser check (jsdom does not paint).
 - L3 Full suite 1165 files / 19225 tests green (9414661f); build OK; preview :4173. Waiting for owner check.
+- L4 Owner (2026-11-27): «merge.» Merged to local main.
