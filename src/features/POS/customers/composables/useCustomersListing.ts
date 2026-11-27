@@ -162,10 +162,10 @@ export function useCustomersListing(options: {
     defaultSorting: CUSTOMERS_DEFAULT_SORTING,
     defaultColumnVisibility: CUSTOMERS_DEFAULT_COLUMN_VISIBILITY,
     defaultPinning: { left: [], right: [] },
-    // customers-module T8 (L14), as in Ventas: the filters URL adapter is the only URL writer. The
-    // table's own URL sync (page, sort, search) rebuilt the query from a route that did not carry a
-    // just-applied view's filters yet, and the adapter then read that URL back and dropped them.
-    urlSync: false,
+    // owner-ideas-batch S6: page, sort, search and page size live in the URL next to the filters.
+    // Safe since the filters adapter reacts only to its own params (style-cleanup U7), so the
+    // table's write can no longer drop a just-applied view's filters (customers-module L15).
+    urlSync: true,
   })
 
   return {
