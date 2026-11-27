@@ -382,6 +382,13 @@ describe('DataTableToolbar — filters collapse to bottom-sheet on mobile', () =
     expect(scrollClasses).toContain('overflow-y-auto')
     expect(scrollClasses.some(c => c.startsWith('h-[85vh]'))).toBe(true)
     expect(scrollClasses.some(c => c.startsWith('max-h-[85vh]'))).toBe(true)
+    expect(scrollClasses).toContain('min-h-0')
+    // slideover-corners S3: the panel clips, so header + body + footer must never outgrow the
+    // inset sheet (max 100% - 2rem); the body shrinks and scrolls, the Cerrar footer stays inside.
+    const layout = wrapper.get('[data-testid="toolbar-filters-layout"]').classes()
+    expect(layout).toContain('flex-col')
+    expect(layout).toContain('min-h-0')
+    expect(layout).toContain('max-h-[calc(100svh-2rem)]')
   })
 
   it('opens the sheet when the Filtros button is clicked', async () => {

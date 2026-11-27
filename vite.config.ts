@@ -205,6 +205,14 @@ export default defineConfig({
             root: 'rounded-lg overflow-hidden shadow-sm bg-default',
           },
         },
+        // The content is the rounded panel (`rounded-lg` when inset, `rounded-t-2xl` mobile
+        // sheets); it clips its square header/footer bars so the corners stay whole. Every
+        // slideover scrolls on an inner element and overlays teleport, so nothing is cut.
+        slideover: {
+          slots: {
+            content: 'overflow-hidden',
+          },
+        },
         dashboardPanel: {
           slots: {
             body: 'flex flex-col gap-4 sm:gap-6 flex-1 overflow-y-auto p-4 sm:p-6 bg-[var(--hf-page)]',
