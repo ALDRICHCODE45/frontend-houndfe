@@ -103,7 +103,6 @@ function mountView() {
         DataTableToolbar: { template: '<div data-testid="toolbar" />' },
         DataTablePagination: { template: '<div data-testid="pagination" />' },
         CustomerUpsertSlideover: true,
-        CustomerSalesHistorySlideover: true,
         ConfirmModal: true,
       },
     },

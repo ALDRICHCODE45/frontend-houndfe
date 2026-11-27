@@ -529,12 +529,6 @@ describe('CustomersView — sales history entry (S4)', () => {
     expect((card.props('actions') as RowActionItem[]).map((a) => a.label)).toEqual(['Ver historial de ventas'])
   })
 
-  it('no history slideover is mounted: the history lives on the customer page', async () => {
-    const wrapper = mount(CustomersView)
-    await flushPromises()
-    expect(wrapper.findComponent({ name: 'CustomerSalesHistorySlideover' }).exists()).toBe(false)
-  })
-
   it('table history action opens the customer page on the «Ventas» tab', async () => {
     customerAuthMock.userCan.mockImplementation(
       (action: string, subject: string) => action === 'read' && subject === 'Sale',
@@ -585,7 +579,6 @@ describe('Customers main workspace visual boundary', () => {
     expect(workspace.find('.hf-page-subtitle').exists()).toBe(false)
     expect(workspace.get('h1').element.closest('.hf-table-surface')).toBeNull()
     expect(workspace.findComponent({ name: 'CustomerUpsertSlideover' }).exists()).toBe(false)
-    expect(workspace.findComponent({ name: 'CustomerSalesHistorySlideover' }).exists()).toBe(false)
     expect(workspace.findComponent({ name: 'ConfirmModal' }).exists()).toBe(false)
     expect(workspace.get('[data-testid="app-data-table"]').classes()).toContain('hf-data-table')
   })

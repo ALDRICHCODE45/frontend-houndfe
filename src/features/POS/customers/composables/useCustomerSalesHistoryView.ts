@@ -1,8 +1,8 @@
 /**
  * The customer's sales history as one controller (customers-module T4): filters, the history and
- * monthly queries, the derived labels and the «Cobrar» of one row. The history slideover and the
- * «Ventas» tab of the customer page both call it once and hand it to `CustomerSalesHistoryBody` and
- * `CustomerSalesHistoryPager`, so the history is written once.
+ * monthly queries, the derived labels and the «Cobrar» of one row. The «Ventas» tab of the
+ * customer page calls it once and hands it to `CustomerSalesHistoryBody` and
+ * `CustomerSalesHistoryPager`.
  *
  * `active` gates every request (the slideover's `open`, the page's open «Ventas» tab). A 403 shows
  * the «Sin permiso» toast once and calls `onForbidden` (the slideover closes itself).
@@ -172,8 +172,6 @@ export function useCustomerSalesHistoryView(options: UseCustomerSalesHistoryView
     listLayout.value === 'cards' && (hasDebt.value || !!overdueLabel.value || collectionUnresolved.value),
   )
   const showMonthlyChart = computed(() => monthlyCanRead.value && !customerHasNoSales.value)
-  // Handoff 29: the statement PDF needs read:Sale, the same check as the monthly chart.
-  const showStatementDownload = computed(() => monthlyCanRead.value && !!customerId.value)
   // «Cobrar todo» (handoff 30 §1): collecting needs update:Sale, and only a customer with open debt.
   const canCollect = computed(
     () => typeof authStore.userCan === 'function' && authStore.userCan('update', 'Sale'),
@@ -291,7 +289,6 @@ export function useCustomerSalesHistoryView(options: UseCustomerSalesHistoryView
     collectActionLabel,
     showDebtBanner,
     showMonthlyChart,
-    showStatementDownload,
     showCollectAction,
     pendingPaymentsLabel,
     rangeLabel,

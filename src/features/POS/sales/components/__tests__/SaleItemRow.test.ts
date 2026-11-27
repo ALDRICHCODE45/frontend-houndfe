@@ -855,15 +855,15 @@ describe('SaleItemRow', () => {
       expect(desktopClasses).not.toContain('shrink-0')
     })
 
-    it('mobile sheet: roomier card, larger thumbnail, readable name, 44px action targets', () => {
+    it('mobile sheet: roomier row, larger thumbnail, readable name, 44px action targets', () => {
       const wrapper = mount(SaleItemRow, {
         props: baseMobileProps,
         global: { stubs },
       })
 
-      // Roomier card (vs compact rounded-xl/py-2 desktop card).
+      // Roomier row (vs compact py-2 desktop row); a divider, not a nested card (style-cleanup U4).
       const card = wrapper.get('[data-testid="sale-item-card"]')
-      expect(card.classes()).toContain('rounded-2xl')
+      expect(card.classes()).toContain('border-b')
       expect(card.classes()).toContain('py-3')
 
       // Comfortably sized thumbnail.
@@ -880,14 +880,14 @@ describe('SaleItemRow', () => {
       expect(oversized.length).toBeLessThanOrEqual(3)
     })
 
-    it('desktop defaults preserved: compact card, 48px thumbnail, small name, no 44px overrides', () => {
+    it('desktop defaults preserved: compact row, 48px thumbnail, small name, no 44px overrides', () => {
       const wrapper = mount(SaleItemRow, {
         props: baseDesktopProps,
         global: { stubs },
       })
 
       const card = wrapper.get('[data-testid="sale-item-card"]')
-      expect(card.classes()).toContain('rounded-xl')
+      expect(card.classes()).toContain('border-b')
       expect(card.classes()).toContain('py-2')
 
       expect(wrapper.get('[data-testid="sale-item-thumbnail"]').classes()).toContain('h-12')

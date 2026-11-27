@@ -3,7 +3,7 @@
  * The body of the customer's sales history (customers-module T4): loading, error, debt banner,
  * metrics, overdue warning, monthly chart, folio search, status and pet filters, the list with
  * its row detail and the «Cobrar» of one row. State comes from `useCustomerSalesHistoryView`;
- * the history slideover and the «Ventas» tab of the customer page render the same body.
+ * the «Ventas» tab of the customer page renders it.
  * «Cobrar todo» is the parent's (`collect`), which also owns the collection sheet.
  */
 import DebtPaymentModal from '@/features/POS/sales/components/DebtPaymentModal.vue'

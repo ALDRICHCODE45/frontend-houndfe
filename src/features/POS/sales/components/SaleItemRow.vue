@@ -78,16 +78,16 @@ function handleSelectPet(petId: string | null) {
   void props.onSetPet?.(props.item.id, petId)
 }
 
-// T11 (unit B): the exact v0 cart composition drops the nested rounded card in
-// favour of a divider-separated row. Omitting the opt-in reproduces the prior
-// class string exactly, so no other consumer's paint moves.
+// T11 (unit B): the exact v0 cart composition is a divider-separated row.
+// style-cleanup U4: without the opt-in the row is a divider line too (no
+// nested bordered card inside the cart surface); only the spacing differs.
 const cardClass = computed(() => {
   if (props.composition) {
     return 'sales-pos-cart-row sales-pos-cart-row-composition transition-all duration-150'
   }
   return props.mobileSheet
-    ? 'mx-3 border border-default transition-all duration-150 sales-pos-cart-row mb-3 rounded-2xl px-3.5 py-3'
-    : 'mx-3 border border-default transition-all duration-150 sales-pos-cart-row mb-2 rounded-xl hover:bg-elevated/40 hover:border-default px-3 py-2'
+    ? 'border-b border-default transition-all duration-150 sales-pos-cart-row px-3.5 py-3'
+    : 'border-b border-default transition-all duration-150 sales-pos-cart-row hover:bg-elevated/40 px-3 py-2'
 })
 
 // ── Emits ─────────────────────────────────────────────────────────────────────

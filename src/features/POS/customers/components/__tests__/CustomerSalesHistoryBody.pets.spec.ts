@@ -15,7 +15,7 @@ import type {
   ConfirmedSaleRow,
   ConfirmedSalesListResponse,
 } from '@/features/POS/sales/interfaces/sale.types'
-import CustomerSalesHistorySlideover from '../CustomerSalesHistorySlideover.vue'
+import CustomerSalesHistoryHarness from './CustomerSalesHistoryHarness'
 
 vi.mock('vue-router', async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -125,22 +125,13 @@ function response(overrides: Partial<ConfirmedSalesListResponse> = {}): Confirme
   }
 }
 
-const stubs = {
-  EntityAvatar: { template: '<span />' },
-  AppResponsiveDrawer: {
-    props: ['open'],
-    template:
-      '<section v-if="open" role="dialog"><slot name="body" /><slot name="footer" /></section>',
-  },
-}
-
 let wrapper: VueWrapper | undefined
-function mountSlideover() {
+function mountHistory() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
-  wrapper = mountWithUApp(CustomerSalesHistorySlideover, {
+  wrapper = mountWithUApp(CustomerSalesHistoryHarness, {
     props: { open: true, customer: customer() },
     attachTo: document.body,
-    global: { plugins: [[VueQueryPlugin, { queryClient }]], components: stubs },
+    global: { plugins: [[VueQueryPlugin, { queryClient }]] },
   })
   return wrapper
 }
@@ -155,7 +146,7 @@ const chip = (label: string) => {
   return found
 }
 
-describe('CustomerSalesHistorySlideover — pet filter', () => {
+describe('CustomerSalesHistoryBody — pet filter', () => {
   beforeEach(() => {
     history.response.value = response()
     wide.value = response()
@@ -183,7 +174,7 @@ describe('CustomerSalesHistorySlideover — pet filter', () => {
   })
 
   it('loads ACTIVE and ARCHIVED pets of the customer', async () => {
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     const [customerId, status] = petsArgs[0] as [() => string, unknown]
     expect(
@@ -194,13 +185,13 @@ describe('CustomerSalesHistorySlideover — pet filter', () => {
 
   it('hides the filter when the customer has no pets', async () => {
     pets.value = []
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     expect(q('[data-testid="history-pet-filter"]')).toBeNull()
   })
 
   it('offers «Todas» plus every pet, archived ones labeled, «Todas» selected by default', async () => {
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     expect(chips().map((button) => button.textContent?.replace(/\s+/g, ' ').trim())).toEqual([
       'Todas',
@@ -212,7 +203,7 @@ describe('CustomerSalesHistorySlideover — pet filter', () => {
   })
 
   it('selecting a pet (archived too) sends its id and goes back to page 1', async () => {
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     options!.page.value = 3
 
@@ -228,7 +219,7 @@ describe('CustomerSalesHistorySlideover — pet filter', () => {
   })
 
   it('keeps the KPI cards customer-wide when a pet is selected', async () => {
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     chip('Bruno').click()
     await nextTick()
@@ -247,7 +238,7 @@ describe('CustomerSalesHistorySlideover — pet filter', () => {
   })
 
   it('shows the empty state for a pet with no sales', async () => {
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     chip('Bruno').click()
     await nextTick()
@@ -263,7 +254,7 @@ describe('CustomerSalesHistorySlideover — pet filter', () => {
   })
 
   it('on 404 PET_NOT_FOUND shows a message, resets to «Todas» and reloads the pets', async () => {
-    mountSlideover()
+    mountHistory()
     await flushPromises()
     chip('Bruno').click()
     await nextTick()
@@ -286,7 +277,7 @@ describe('CustomerSalesHistorySlideover — pet filter', () => {
   })
 
   it('resets the pet filter when the customer changes', async () => {
-    const mounted = mountSlideover()
+    const mounted = mountHistory()
     await flushPromises()
     chip('Bruno').click()
     await nextTick()

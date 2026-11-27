@@ -549,8 +549,8 @@
 /* ── Chrome controls: icon buttons, branch switcher, menus ──────────────── */
 
 /* The shell root declares only `--shell-*` variables, so Nuxt's ghost buttons
- * inside it still resolve `hover:bg-elevated` from the legacy Coco palette.
- * These hooks state the complete shell paint. Size stays owned by the accepted
+ * inside it would resolve `hover:bg-elevated` from Nuxt's surface role instead
+ * of the shell tokens. These hooks state the complete shell paint. Size stays owned by the accepted
  * 32px navbar rule (and the 44px native mobile trigger); this only paints and
  * animates. Unlayered, so it wins over Tailwind's layered utilities. */
 .hf-shell-icon-button {

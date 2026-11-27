@@ -13,14 +13,6 @@ body.hf-app {
 }
 
 .hf-ui {
-  /* Rebind the root brand compatibility vocabulary where HF tokens actually
-   * live. Do not remap shade scales: their foreground/background compositions
-   * and status uses require individual migration. Feature-owned aliases below
-   * this boundary (for example sales detail's blue action pair) still win. */
-  --brand-primary: var(--hf-action);
-  --brand-action: var(--hf-gold);
-  --brand-accent: var(--hf-active);
-
   /* Nuxt UI semantic aliases. */
   --ui-primary: var(--hf-action);
   /* One red. Nuxt's `error` role (text-error, color="error", bg-error/..,

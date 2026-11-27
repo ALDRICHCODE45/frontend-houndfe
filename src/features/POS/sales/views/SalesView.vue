@@ -995,7 +995,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       <div
         class="sales-pos-catalog-pane lg:w-[60%] xl:w-[75%] flex flex-col min-w-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4"
       >
-        <div class="h-full rounded-2xl border border-default/50 overflow-hidden sales-entry-panel sales-pos-catalog-shell">
+        <div class="h-full sales-entry-panel sales-pos-catalog-shell">
           <div class="h-full flex flex-col">
             <div class="px-3 sm:px-5 py-4 space-y-3.5 sales-pos-catalog-controls">
               <USkeleton class="h-10 w-full rounded-lg" />
@@ -1037,14 +1037,14 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         class="sales-pos-cart-pane hidden lg:block lg:w-[40%] xl:w-[25%] shrink-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4"
       >
         <div
-          class="h-full w-full rounded-2xl border border-default/50 overflow-hidden sales-entry-panel sales-pos-cart-shell"
+          class="h-full w-full sales-entry-panel sales-pos-cart-shell"
         >
           <div class="h-full flex flex-col p-4 space-y-3 sales-pos-cart-panel">
             <USkeleton class="h-10 w-48" />
             <USkeleton class="h-10 w-full" />
             <div class="flex-1 flex items-center justify-center">
               <div class="text-center space-y-3">
-                <USkeleton class="h-16 w-16 rounded-2xl mx-auto" />
+                <USkeleton class="h-10 w-10 rounded-full mx-auto" />
                 <USkeleton class="h-3.5 w-32 mx-auto" />
                 <USkeleton class="h-3 w-48 mx-auto" />
               </div>
@@ -1114,7 +1114,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         <div
           class="sales-pos-catalog-pane lg:w-[60%] xl:w-[75%] flex flex-col min-w-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4"
         >
-          <div class="h-full rounded-2xl border border-default/50 overflow-hidden sales-entry-panel sales-pos-catalog-shell">
+          <div class="h-full sales-entry-panel sales-pos-catalog-shell">
             <ProductSearchPanel
               ref="productSearchPanelRef"
               class="sales-entry-product-search sales-pos-catalog"
@@ -1129,7 +1129,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         <div
           class="sales-pos-cart-pane hidden lg:block lg:w-[40%] xl:w-[25%] shrink-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4"
         >
-          <div class="h-full w-full rounded-2xl border border-default/50 overflow-hidden sales-entry-panel sales-pos-cart-shell">
+          <div class="h-full w-full sales-entry-panel sales-pos-cart-shell">
             <ActiveSalePanel
               :drafts="drafts"
               :active-draft="activeDraft"

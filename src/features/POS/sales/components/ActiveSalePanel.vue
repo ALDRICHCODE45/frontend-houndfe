@@ -346,9 +346,7 @@ function handleConfirmPriceListChange() {
         v-if="!activeDraft || activeDraft.items.length === 0"
         class="flex flex-col items-center justify-center h-full px-4 sales-pos-cart-empty"
       >
-        <div class="rounded-2xl bg-primary/8 border border-primary/15 p-5 mb-4">
-          <UIcon name="i-lucide-shopping-bag" class="h-10 w-10 text-primary/50" />
-        </div>
+        <UIcon name="i-lucide-shopping-bag" class="h-10 w-10 mb-4 text-muted" />
         <p class="text-sm font-semibold text-highlighted mb-1">
           Tu venta está vacía
         </p>
