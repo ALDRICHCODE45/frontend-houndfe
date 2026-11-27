@@ -366,7 +366,6 @@ function handleConfirmPriceListChange() {
           :image-url="itemImageMap?.[item.variantId ? `${item.productId}:${item.variantId}` : item.productId] ?? null"
           :is-updating="isMutating"
           :mobile-sheet="mobileSheet"
-          :composition="true"
           :portal-class="portalClass"
           :on-submit-price-override="onSubmitPriceOverride"
           :on-apply-discount="onApplyDiscount"

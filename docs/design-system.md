@@ -11,14 +11,22 @@ coverage are recorded in [`hf-ui-complete-audit.md`](../odd/tasks/hf-ui-complete
 
 The Coco shade scales in `src/assets/main.css` stay only because Nuxt UI resolves
 its `primary`, `secondary`, `neutral` and `action` colors through them
-(`vite.config.ts`); screens never paint with them. The legacy `--brand-*` names
-survive only as compatibility aliases rebound to HF at `.hf-ui`.
+(`vite.config.ts`); screens never paint with them. No legacy brand vocabulary
+remains: `--brand-*` and `--light-*` are not defined anywhere. The Nuxt semantic
+aliases are app-wide too: `.hf-ui` binds `--ui-primary` to `--hf-action`,
+`--ui-warning` to `--hf-warning` and `--ui-error` to `--hf-danger`
+(`houndfe-ui.css`), so `color="primary"`, `color="warning"` and `color="error"`
+follow the HF roles on every screen without a feature marker. Likewise
+`rounded-xl`/`2xl`/`3xl` draw the 12px card radius everywhere (`main.css`,
+`houndfe-ui.css`); features never re-define the radius scale
+(`radius-guard.spec.ts`).
 
 Guards keep it that way: native controls (`native-controls-guard.spec.ts`, no
 native `<select>` or date/time inputs), field borders (`hf-field-border-guard.spec.ts`,
 `hf-soft-field-borders.spec.ts`, rest on `--hf-border`) and legacy palette
 (`legacy-palette-guard.spec.ts`, no `coco-*`, `--brand-*`/`--light-*` or raw Tailwind
-palette utilities outside `main.css` and the always-light catalog). «Selección sin
+palette utilities outside `main.css` and the always-light catalog, and no
+`--brand-*`/`--light-*` definition anywhere). «Selección sin
 checkboxes» is done: switch rows, radio cards, selectable rows, toggle chips,
 segmented controls and round row marks replace checkboxes everywhere (board
 `design/system.html`, «Selección y formularios»).
@@ -579,7 +587,7 @@ When a screen migrates, replace the legacy pieces as follows, then delete what i
 | Card grid + `ViewToggle` + `use*ViewMode` | Table on desktop and cards on mobile (List screens) |
 | Inline row buttons, older dropdown row menus | `RowActionsMenu` (Row actions menu) |
 | `text-error`, `color="error"`, `border-error`, `text-red-*`, `--ui-error` | `--hf-danger` (Danger color); Nuxt `color="error"` buttons only for destructive confirms |
-| `coco-gold`, `coco-neutral-*`, `coco-*` shade classes, `--brand-*`, `--light-*` | `--hf-action`, `--hf-surface*`, `--hf-border`, `--hf-heading`, `--hf-text`, `--hf-muted` |
+| `coco-gold`, `coco-neutral-*`, `coco-*` shade classes; `--brand-*`, `--light-*` (deleted, no longer defined) | `--hf-action`, `--hf-surface*`, `--hf-border`, `--hf-heading`, `--hf-text`, `--hf-muted` |
 | `font-bold` on names, titles and money | `font-semibold` (600); 700 is not used for names or titles (Typography) |
 | Hard-coded hex or Tailwind palette colors (`bg-green-100`, `text-amber-600`) | Status tones or the `--hf-*` roles |
 | Long dates, raw ISO strings | `formatShortDateTime` in lists, full date in the detail |
@@ -655,7 +663,7 @@ The [accepted v0 reference](https://v0.app/bdps-projects/chat/houndfe-pos-design
 | One shared edge | Heading, draft strip, catalog controls and product grid start and end on the same edge; panes and the results grid add no inward inset. Declare the shared padding for all edge owners together, before their media blocks: a later equal-specificity base rule silently defeats a breakpoint and produces a stepped ("escalonada") layout. |
 | Cart divider rhythm | Inside the cart, rules are either the full-bleed heading/price-list bands or inset to the 20px content edge — never alternating. Keep sale options (`···`) in the heading and the single `Vaciar` action in the summary; do not add a separate full-bleed toolbar row between customer and totals. |
 | Row interaction paint | Divider rows have no horizontal padding, so a hover background hugs the content and looks broken. Do not paint row hover backgrounds in the Venta cart; interaction feedback belongs to the row's own controls. |
-| Checkout paint | The Venta checkout maps Nuxt `--ui-warning`/`--ui-primary` to `--hf-warning`/`--hf-action` on its owned `.sales-pos-checkout` marker, so alerts, badges and links never fall back to the legacy gold or the bright yellow that is unreadable on white. Method tiles follow v0: one horizontal line (muted icon · label · count), blue selection, neutral total panel, plain received/remaining rows. Shared consumers (sale detail) keep their tested defaults because they never receive the marker. Since 2026-11-06 `.hf-ui` binds `--ui-warning` to `--hf-warning` app-wide, so the marker's warning line is redundant but harmless. |
+| Checkout paint | Nuxt `--ui-primary`/`--ui-warning` follow `--hf-action`/`--hf-warning` app-wide through `.hf-ui`, so alerts, badges and links never fall back to the legacy gold or the bright yellow that is unreadable on white; no marker remaps them. The total panel, method tiles (one horizontal line: muted icon · label · count, blue selection), payment entries and plain received/remaining rows are the shared marker-free payment sheet (`src/core/shared/components/payments/payment-sheet.css`, `hf-pay-*`), the same look in the counter checkout, the sale debt payment and «Cobrar todo» (`design/system.md`, Component rules, Payment sheet). The `.sales-pos-checkout` marker (`sales-pos-checkout.css`) only composes the counter checkout's layout (session pagination, due date and delivery groups, scrollable body, reachable footer); do not use it to paint payment pieces. |
 | Catalog card actions | In Venta the card follows v0: media and name are buttons that open the product detail, and the visible full-width action (`Agregar`, or `Ver variantes` in the action color) is the only add path. The whole card is not a click target. Show identity (`MARCA · SKU`), a detail line only from a real description or the variant count (`N presentaciones`), the price or `Desde` lowest variant price, and stock only under the existing `useStock` gate (low stock in warning ink). Keep the media at the v0 1.42 ratio without a height ceiling. Other consumers (quotations) keep the whole-card select. |
 | Product detail | The Venta detail uses a v0 hero (image, `MARCA · CATEGORÍA` eyebrow, name with the selected variant, description, dominant price and `Precio lista · <lista>`), a neutral fact sheet (SKU, Código de barras, Stock, Ubicación, Marca) and variants as 64px selectable choices. Opened from a catalog card, the first variant is preselected instead of an empty product price. Missing facts read `No registrado`, `Sin ubicación` or `Sin marca`; never invent them. Keep the existing footer actions. |
 | Exact opt-in token | Detect the Venta opt-in only through `hasSalesEntryToken()` (`src/features/POS/sales/utils/salesEntryPortal.ts`), which matches the whole `sales-entry-portal` class token. Never test it with a substring `includes`: a class such as `not-sales-entry-portal` would receive the Venta paint. |

@@ -47,7 +47,7 @@ describe('U4 guard — no nested decorative cards in the Venta workspace', () =>
   it.each([
     ['desktop', {}],
     ['mobile sheet', { mobileSheet: true }],
-  ])('SaleItemRow (%s, no composition) is a divider row, not a bordered rounded card', (_, extra) => {
+  ])('SaleItemRow (%s) is a divider row, not a bordered rounded card', (_, extra) => {
     const item: SaleItem = {
       id: 'item-1',
       productId: 'prod-1',
@@ -89,6 +89,7 @@ describe('U4 guard — no nested decorative cards in the Venta workspace', () =>
     expect(classes.some((name) => name.startsWith('rounded'))).toBe(false)
     expect(classes).not.toContain('border')
     expect(classes).not.toContain('mx-3')
-    expect(classes).toEqual(expect.arrayContaining(['sales-pos-cart-row', 'border-b']))
+    // The divider itself comes from sales-pos-cart.css (`.sales-pos-cart-composition .sales-pos-cart-row`).
+    expect(classes).toEqual(expect.arrayContaining(['sales-pos-cart-row', 'sales-pos-cart-row-composition']))
   })
 })

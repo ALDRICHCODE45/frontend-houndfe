@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import {
-  cashRegisterBusyLabel,
   cashRegisterHeldLabel,
   cashRegisterHold,
   cashSessionPeriod,
@@ -61,45 +60,11 @@ describe('custodyOrigin', () => {
   })
 })
 
-describe('cashRegisterBusyLabel', () => {
-  const held = {
-    status: 'OPEN' as const,
-    cashierUserId: 'cashier-1',
-    cashierDisplayName: 'Cajero Centro',
-    openedAt: OPENED,
-  }
-  const since = formatShortDateTime(OPENED)
-
-  it('names the state, who holds the drawer and since when', () => {
-    expect(cashRegisterBusyLabel(held, 'me')).toBe(
-      `Ocupada: sesión abierta de Cajero Centro desde ${since}`,
-    )
-    expect(cashRegisterBusyLabel({ ...held, status: 'COUNTING' }, 'me')).toBe(
-      `Ocupada: conteo en curso de Cajero Centro desde ${since}`,
-    )
-    expect(cashRegisterBusyLabel({ ...held, status: 'SUBMITTED' }, 'me')).toBe(
-      `Ocupada: conteo por verificar de Cajero Centro desde ${since}`,
-    )
-    expect(cashRegisterBusyLabel({ ...held, status: 'CLOSED' }, 'me')).toBe(
-      `Ocupada: cajón sin liberar de Cajero Centro desde ${since}`,
-    )
-  })
-
-  it('says «tu» for the current user and drops what it does not know, never an id', () => {
-    expect(cashRegisterBusyLabel({ ...held, cashierUserId: 'me' }, 'me')).toBe(
-      `Ocupada: tu sesión abierta desde ${since}`,
-    )
-    expect(
-      cashRegisterBusyLabel({ ...held, cashierDisplayName: null, openedAt: undefined }, 'me'),
-    ).toBe('Ocupada: sesión abierta')
-  })
-})
-
 describe('cashRegisterHold (GET /cash-registers drawerHeld, handoff 31)', () => {
   const BASE = { id: 'r-1', name: 'Caja A', isActive: true, createdAt: OPENED }
 
-  it('is unknown when an older backend does not send drawerHeld', () => {
-    expect(cashRegisterHold(BASE)).toEqual({ state: 'unknown' })
+  it('is free without drawerHeld: the server refusal on open is the safety net', () => {
+    expect(cashRegisterHold(BASE)).toEqual({ state: 'free' })
   })
 
   it('is free when drawerHeld is false', () => {

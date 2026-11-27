@@ -73,9 +73,9 @@ export interface CashRegister extends CashRegisterSummary {
   /**
    * Held-drawer snapshot (handoff 31, GET /cash-registers): `true` while any
    * session of the register has the drawer unreleased — the same rule that
-   * refuses an open with `CASH_REGISTER_UNRELEASED_SESSION`. Optional only so
-   * an older backend (and the POST/PATCH documents) still read: absent means
-   * unknown, never free.
+   * refuses an open with `CASH_REGISTER_UNRELEASED_SESSION`. Optional only
+   * because the POST/PATCH documents omit it; absent is read as free and the
+   * server's refusal on open remains the safety net.
    */
   drawerHeld?: boolean
   /** Non-null whenever `drawerHeld` is true; never carries a name. */

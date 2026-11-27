@@ -35,42 +35,15 @@ export function custodyOrigin(
   return [sender ? `de ${sender}` : '', register ?? ''].filter(Boolean).join(' · ')
 }
 
-/** What holds the drawer, by lifecycle state («Ocupada: … desde …»). */
-const BUSY_STATE: Record<CashSession['status'], string> = {
-  OPEN: 'sesión abierta',
-  COUNTING: 'conteo en curso',
-  SUBMITTED: 'conteo por verificar',
-  CLOSED: 'cajón sin liberar',
-}
-
-/**
- * Why a register cannot be opened: a session of it still holds the drawer
- * (`drawerReleasedAt: null`). "Ocupada: sesión abierta de Cajero Centro desde
- * 5 nov, 09:02"; «tu» for the current user; a missing name or time is dropped,
- * never replaced by an id.
- */
-export function cashRegisterBusyLabel(
-  session: Pick<CashSession, 'status' | 'cashierUserId' | 'cashierDisplayName' | 'openedAt'>,
-  currentUserId: string | null,
-): string {
-  const state = BUSY_STATE[session.status]
-  const mine = Boolean(currentUserId) && session.cashierUserId === currentUserId
-  const name = session.cashierDisplayName?.trim()
-  const who = mine ? `tu ${state}` : name ? `${state} de ${name}` : state
-  const since = session.openedAt ? formatShortDateTime(session.openedAt) : ''
-  return `Ocupada: ${who}${since ? ` desde ${since}` : ''}`
-}
-
 // ─── Held drawer from GET /cash-registers (handoff 31) ──────────────────────
 
 /**
- * What GET /cash-registers says about a register's drawer: `unknown` when an
- * older backend does not send `drawerHeld` (the caller falls back to reading
- * the held-drawer sessions), `free`, or `held` with the state, since when and —
- * only when the caller may see it — who.
+ * What GET /cash-registers says about a register's drawer: `free`, or `held`
+ * with the state, since when and — only when the caller may see it — who. A
+ * register without `drawerHeld` is free here; the server's refusal on open
+ * (`CASH_REGISTER_UNRELEASED_SESSION`) remains the safety net.
  */
 export type CashRegisterHold =
-  | { state: 'unknown' }
   | { state: 'free' }
   | {
       state: 'held'
@@ -80,8 +53,7 @@ export type CashRegisterHold =
     }
 
 export function cashRegisterHold(register: CashRegister): CashRegisterHold {
-  if (typeof register.drawerHeld !== 'boolean') return { state: 'unknown' }
-  if (!register.drawerHeld) return { state: 'free' }
+  if (register.drawerHeld !== true) return { state: 'free' }
   return {
     state: 'held',
     status: register.drawerHeldStatus ?? null,

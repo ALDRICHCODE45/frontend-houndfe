@@ -461,7 +461,7 @@ describe('SaleItemRow', () => {
      const netLine = wrapper.find('[data-testid="sale-item-line-net"]')
      expect(netLine.exists()).toBe(true)
      expect(netLine.text()).toContain('$200.00')
-     expect(netLine.classes()).toContain('font-semibold')
+     expect(netLine.classes()).toContain('sales-pos-cart-row-line')
 
      const grossLine = wrapper.find('[data-testid="sale-item-line-gross-strike"]')
      expect(grossLine.exists()).toBe(true)
@@ -746,7 +746,7 @@ describe('SaleItemRow', () => {
     expect(wrapper.html()).toContain('trash')
   })
 
-  it('renders unit price, discount info, and subtotal in the right pricing column', () => {
+  it('renders unit price, discount info, and the line total in the row', () => {
     const wrapper = mount(SaleItemRow, {
       props: {
         item: {
@@ -768,7 +768,9 @@ describe('SaleItemRow', () => {
 
     const netLine = wrapper.find('[data-testid="sale-item-line-net"]')
     expect(netLine.exists()).toBe(true)
-    expect(netLine.classes()).toContain('font-semibold')
+    expect(netLine.classes()).toContain('sales-pos-cart-row-line')
+    // The line total sits in the quantity row (T11), not a separate price column.
+    expect(wrapper.get('[data-testid="sale-item-qty-row"]').find('[data-testid="sale-item-line-net"]').exists()).toBe(true)
   })
 
   it('renders sale-item-unit-strike-original in the specs line', () => {
@@ -855,16 +857,15 @@ describe('SaleItemRow', () => {
       expect(desktopClasses).not.toContain('shrink-0')
     })
 
-    it('mobile sheet: roomier row, larger thumbnail, readable name, 44px action targets', () => {
+    it('mobile sheet: divider row, larger thumbnail, readable name, 44px action targets', () => {
       const wrapper = mount(SaleItemRow, {
         props: baseMobileProps,
         global: { stubs },
       })
 
-      // Roomier row (vs compact py-2 desktop row); a divider, not a nested card (style-cleanup U4).
+      // A divider row, not a nested card (style-cleanup U4; spacing lives in sales-pos-cart.css).
       const card = wrapper.get('[data-testid="sale-item-card"]')
-      expect(card.classes()).toContain('border-b')
-      expect(card.classes()).toContain('py-3')
+      expect(card.classes()).toContain('sales-pos-cart-row-composition')
 
       // Comfortably sized thumbnail.
       expect(wrapper.get('[data-testid="sale-item-thumbnail"]').classes()).toContain('h-14')
@@ -880,15 +881,14 @@ describe('SaleItemRow', () => {
       expect(oversized.length).toBeLessThanOrEqual(3)
     })
 
-    it('desktop defaults preserved: compact row, 48px thumbnail, small name, no 44px overrides', () => {
+    it('desktop defaults preserved: divider row, 48px thumbnail, small name, no 44px overrides', () => {
       const wrapper = mount(SaleItemRow, {
         props: baseDesktopProps,
         global: { stubs },
       })
 
       const card = wrapper.get('[data-testid="sale-item-card"]')
-      expect(card.classes()).toContain('border-b')
-      expect(card.classes()).toContain('py-2')
+      expect(card.classes()).toContain('sales-pos-cart-row-composition')
 
       expect(wrapper.get('[data-testid="sale-item-thumbnail"]').classes()).toContain('h-12')
       expect(wrapper.get('[data-testid="sale-item-name"]').classes()).toContain('text-sm')

@@ -260,15 +260,7 @@ beforeEach(() => {
   auth.permissionsLoaded = true
   grant(GRANTS)
   api.listRegisters.mockResolvedValue([REGISTER])
-  // The held-drawer read (`drawerOpen=true`, no status) finds no busy register by
-  // default, so the opening stays reachable; the busy-register specs override it.
-  api.listSessions.mockImplementation((params: Record<string, unknown> | undefined) =>
-    Promise.resolve(
-      params?.drawerOpen === true && !params.status
-        ? { items: [], page: 1, limit: 100, total: 0 }
-        : { items: [SESSION], page: 1, limit: 25, total: 1 },
-    ),
-  )
+  api.listSessions.mockResolvedValue({ items: [SESSION], page: 1, limit: 25, total: 1 })
   api.getCustody.mockResolvedValue({
     pendingHandovers: { items: [], page: 1, limit: 25, total: 0 },
     eligibleFloat: { items: [], page: 1, limit: 25, total: 0 },
@@ -1729,123 +1721,19 @@ describe('CashRegisterView · supervisor without opening permission (D2)', () =>
   })
 })
 
-describe('CashRegisterView · a register with an unreleased session is busy, not available', () => {
+describe('CashRegisterView · a refused open (CASH_REGISTER_UNRELEASED_SESSION) is the safety net', () => {
+  // Registers without `drawerHeld` are offered as free; the server's 422 still
+  // refuses a held one and the error names the register.
   const FREE = { ...REGISTER, id: 'r-2', name: 'Caja libre' }
-  const HELD = {
-    ...SESSION,
-    id: 's-held',
-    registerId: 'r-1',
-    status: 'OPEN',
-    cashierUserId: 'cashier-centro',
-    cashierDisplayName: 'Cajero Centro',
-    openedAt: '2026-11-05T15:02:00.000Z',
-    frozenAt: null,
-    drawerReleasedAt: null,
-  }
-  const BUSY_PARAMS = { drawerOpen: true, limit: 100 }
 
-  function isBusyRead(params: Record<string, unknown> | undefined) {
-    return params?.drawerOpen === true && !params.status
-  }
-
-  function mountWithHeld(held: Record<string, unknown>[] = [HELD]) {
+  function mountRegisters() {
     api.listRegisters.mockResolvedValue([REGISTER, FREE])
-    api.listSessions.mockImplementation((params: Record<string, unknown>) =>
-      Promise.resolve(
-        isBusyRead(params)
-          ? { items: held, page: 1, limit: 100, total: held.length }
-          : { items: [], page: 1, limit: 25, total: 0 },
-      ),
-    )
+    api.listSessions.mockResolvedValue({ items: [], page: 1, limit: 25, total: 0 })
     api.getSession.mockImplementation((id: string) =>
-      Promise.resolve(detailFor(id === HELD.id ? HELD : SESSION)),
+      Promise.resolve(detailFor({ ...SESSION, id })),
     )
     return mountView()
   }
-
-  function card(wrapper: ReturnType<typeof mountView>['wrapper'], registerId: string) {
-    return wrapper.get(
-      `[data-testid="cash-opening-registers"] [role="radio"][data-value="${registerId}"]`,
-    )
-  }
-
-  it('reads the unreleased sessions of the branch and offers only the free register', async () => {
-    const { wrapper } = mountWithHeld()
-    await flush()
-    await flush()
-
-    expect(api.listSessions).toHaveBeenCalledWith(BUSY_PARAMS)
-    const held = card(wrapper, 'r-1')
-    expect(held.text()).toContain('Ocupada: sesión abierta de Cajero Centro desde 5 nov')
-    expect(held.text()).not.toContain('Disponible para abrir')
-    expect(held.attributes('aria-disabled') === 'true' || held.attributes('disabled') !== undefined).toBe(true)
-    expect(card(wrapper, 'r-2').text()).toContain('Disponible para abrir')
-
-    // A disabled card never reaches the opening form.
-    await held.trigger('click')
-    await flush()
-    expect(wrapper.find('[data-testid="cash-open-session"]').exists()).toBe(false)
-  })
-
-  it('names each blocking state in Spanish (en conteo, por verificar)', async () => {
-    const counting = { ...HELD, id: 's-c', status: 'COUNTING' }
-    const submitted = { ...HELD, id: 's-s', registerId: 'r-2', status: 'SUBMITTED' }
-    const { wrapper } = mountWithHeld([counting, submitted])
-    await flush()
-    await flush()
-
-    expect(card(wrapper, 'r-1').text()).toContain('Ocupada: conteo en curso de Cajero Centro')
-    expect(card(wrapper, 'r-2').text()).toContain('Ocupada: conteo por verificar de Cajero Centro')
-  })
-
-  it('«Ver la sesión» focuses the blocking session in the sessions list', async () => {
-    const { wrapper } = mountWithHeld()
-    await flush()
-    await flush()
-
-    await wrapper.get('[data-testid="cash-opening-busy-view-r-1"]').trigger('click')
-    await flush()
-    await flush()
-
-    expect(api.getSession).toHaveBeenLastCalledWith('s-held')
-    expect(api.openSession).not.toHaveBeenCalled()
-  })
-
-  it('without the branch audit it shows the user’s own held drawer and says the rest is unknown', async () => {
-    grant(GRANTS.filter((code) => code !== 'read:CashSessionAudit'))
-    const { wrapper } = mountWithHeld([{ ...HELD, cashierUserId: 'user-1' }])
-    await flush()
-    await flush()
-
-    expect(card(wrapper, 'r-1').text()).toContain('Ocupada: tu sesión abierta desde 5 nov')
-    expect(card(wrapper, 'r-2').text()).toContain('Disponible para abrir')
-    expect(wrapper.get('[data-testid="cash-opening-notice"]').text()).toContain(
-      'Solo ves tus propias sesiones',
-    )
-  })
-
-  it('with the branch audit and every held drawer read, it does not hedge', async () => {
-    const { wrapper } = mountWithHeld()
-    await flush()
-    await flush()
-
-    const notice = wrapper.get('[data-testid="cash-opening-notice"]').text()
-    expect(notice).toContain('Las cajas inactivas u ocupadas no se pueden abrir.')
-    expect(notice).not.toContain('servidor')
-  })
-
-  it('without the busy read it keeps the server as the judge and says so', async () => {
-    grant(GRANTS.filter((code) => code !== 'read:CashSession'))
-    const { wrapper } = mountWithHeld()
-    await flush()
-    await flush()
-
-    expect(api.listSessions).not.toHaveBeenCalledWith(BUSY_PARAMS)
-    expect(card(wrapper, 'r-1').text()).toContain('Disponible para abrir')
-    expect(wrapper.get('[data-testid="cash-opening-panel"]').text()).toContain(
-      'El servidor confirma si la caja está libre',
-    )
-  })
 
   describe('after a refused open (CASH_REGISTER_UNRELEASED_SESSION)', () => {
     function refusal(sessionId: string | null) {
@@ -1868,7 +1756,6 @@ describe('CashRegisterView · a register with an unreleased session is busy, not
       wrapper: ReturnType<typeof mountView>['wrapper'],
       sessionId: string | null,
     ) {
-      // The held-drawer read settles first: until then no card is offered.
       await flush()
       await chooseRegister(wrapper, 'r-2')
       await wrapper.get('[data-testid="cash-opening-cents"]').setValue('500.00')
@@ -1880,7 +1767,7 @@ describe('CashRegisterView · a register with an unreleased session is busy, not
     }
 
     it('names the register and offers «Ver la sesión» that focuses the blocking session', async () => {
-      const { wrapper } = mountWithHeld([])
+      const { wrapper } = mountRegisters()
       await flush()
       await flush()
       await refuseOpen(wrapper, 's-held')
@@ -1897,9 +1784,9 @@ describe('CashRegisterView · a register with an unreleased session is busy, not
       expect(api.getSession).toHaveBeenLastCalledWith('s-held')
     })
 
-    it('never offers a session the user cannot read (no audit, not in their own list)', async () => {
+    it('never offers a session the user cannot read (no audit, no heldBy)', async () => {
       grant(GRANTS.filter((code) => code !== 'read:CashSessionAudit'))
-      const { wrapper } = mountWithHeld([])
+      const { wrapper } = mountRegisters()
       await flush()
       await flush()
       await refuseOpen(wrapper, 's-other')
@@ -1911,7 +1798,7 @@ describe('CashRegisterView · a register with an unreleased session is busy, not
     })
 
     it('without a session id in the body it still names the register, with no dead link', async () => {
-      const { wrapper } = mountWithHeld([])
+      const { wrapper } = mountRegisters()
       await flush()
       await flush()
       await refuseOpen(wrapper, null)
@@ -2037,37 +1924,14 @@ describe('CashRegisterView · GET /cash-registers reports the held drawer (hando
     expect(isDisabled(held)).toBe(true)
   })
 
-  it('an older backend without drawerHeld falls back to the held-drawer sessions read', async () => {
-    api.listRegisters.mockResolvedValue([REGISTER, { ...REGISTER, id: 'r-2', name: 'Caja libre' }])
-    api.listSessions.mockImplementation((params: Record<string, unknown>) =>
-      Promise.resolve(
-        params?.drawerOpen === true && !params.status
-          ? {
-              items: [
-                {
-                  ...SESSION,
-                  id: 's-old',
-                  registerId: 'r-1',
-                  status: 'OPEN',
-                  cashierUserId: 'cashier-centro',
-                  cashierDisplayName: 'Cajero Centro',
-                  openedAt: '2026-11-05T15:02:00.000Z',
-                  drawerReleasedAt: null,
-                },
-              ],
-              page: 1,
-              limit: 100,
-              total: 1,
-            }
-          : { items: [], page: 1, limit: 25, total: 0 },
-      ),
-    )
-    const { wrapper } = mountView()
+  it('a register without drawerHeld is offered as free, with no held-drawer sessions read', async () => {
+    const { wrapper } = mountWith([REGISTER, FREE])
     await settle()
 
-    expect(api.listSessions).toHaveBeenCalledWith(BUSY_PARAMS)
-    expect(card(wrapper, 'r-1').text()).toContain('Ocupada: sesión abierta de Cajero Centro')
-    expect(card(wrapper, 'r-2').text()).toContain('Disponible para abrir')
+    expect(card(wrapper, 'r-1').text()).toContain('Disponible para abrir')
+    expect(isDisabled(card(wrapper, 'r-1'))).toBe(false)
+    expect(api.listSessions).not.toHaveBeenCalledWith(BUSY_PARAMS)
+    expect(wrapper.get('[data-testid="cash-opening-notice"]').text()).not.toContain('servidor')
   })
 
   it('a refused open refetches the registers, names the register and reaches the own session', async () => {
