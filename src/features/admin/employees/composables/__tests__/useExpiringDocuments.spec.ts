@@ -14,7 +14,7 @@
  *  - `mapExpiringDocumentsPaginated` reads `{ data, meta: { total, page, limit,
  *    totalPages } }` → `PaginatedResponse` (REQ-6)
  *  - `useExpiringDocuments` composes `useServerTable` with defaultSorting
- *    vencimiento asc, defaultPageSize 10, pageSizeOptions [10,20,50],
+ *    vencimiento asc, defaultPageSize 10, the shared page-size options,
  *    persistKey 'admin-expiring-documents', urlSync false; `selectedThreshold`
  *    closes queryKey/queryFn; threshold watch resets pageIndex to 0 (REQ-1/7)
  *  - `documents` mapper adds fullName/employeeNumber to each row (REQ-8)
@@ -288,11 +288,12 @@ describe('useExpiringDocuments — useServerTable options (REQ-1)', () => {
     useExpiringDocuments = mod.useExpiringDocuments
   })
 
-  it('composes useServerTable with defaultSorting vencimiento asc, defaultPageSize 10, pageSizeOptions [10,20,50], persistKey, urlSync false', () => {
+  it('composes useServerTable with defaultSorting vencimiento asc, defaultPageSize 10, the shared page-size options, persistKey, urlSync false', () => {
     useExpiringDocuments?.()
     expect(capturedConfig?.defaultSorting).toEqual([{ id: 'vencimiento', desc: false }])
     expect(capturedConfig?.defaultPageSize).toBe(10)
-    expect(capturedConfig?.pageSizeOptions).toEqual([10, 20, 50])
+    // No list of its own: useServerTable's shared 5..50 options apply.
+    expect(capturedConfig?.pageSizeOptions).toBeUndefined()
     expect(capturedConfig?.persistKey).toBe('admin-expiring-documents')
     expect(capturedConfig?.urlSync).toBe(false)
   })

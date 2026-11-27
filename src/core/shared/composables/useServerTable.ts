@@ -5,6 +5,8 @@ import { useTablePreferences } from './useTablePreferences'
 import type { ColumnOrderState, ColumnSizingState } from '@tanstack/vue-table'
 import { DEFAULT_TABLE_DENSITY, type TableDensity } from '../components/DataTable/tableLayout'
 import { useTableUrlSync } from './useTableUrlSync'
+import { readStoredPageSize, writeStoredPageSize } from './useTablePageSize'
+import { TABLE_PAGE_SIZE_OPTIONS, nearestPageSize } from '../constants/table-page-size'
 import type {
   ServerTableConfig,
   ServerTableParams,
@@ -65,8 +67,7 @@ export interface UseServerTableReturn<T> {
 
 export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableReturn<T> {
   const {
-    defaultPageSize = 10,
-    pageSizeOptions = [5, 10, 20, 50],
+    pageSizeOptions = [...TABLE_PAGE_SIZE_OPTIONS],
     defaultSorting = [],
     defaultPinning = { left: [], right: [] },
     defaultColumnVisibility = {},
@@ -75,11 +76,15 @@ export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableR
     persistKey,
     urlSync = true,
   } = config
+  // The default is always one of the options (a size that is not one is rounded to the nearest).
+  const defaultPageSize = nearestPageSize(config.defaultPageSize ?? 10, pageSizeOptions)
 
   // --- Core State ---
+  // With a persistKey the table starts at its remembered size (an invalid one falls back to the
+  // default), so the very first request already asks for it.
   const pagination = ref<PaginationState>({
     pageIndex: 0,
-    pageSize: defaultPageSize,
+    pageSize: (persistKey && readStoredPageSize(persistKey, pageSizeOptions)) || defaultPageSize,
   })
 
   const sorting = ref<SortingState>([...defaultSorting])
@@ -113,6 +118,16 @@ export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableR
       globalFilter,
       defaultPageSize,
     })
+  }
+
+  // --- Page size memory ---
+  // Watched only after the URL is read, so a size from the URL wins for this visit without
+  // replacing the remembered one; a size the user picks is remembered.
+  if (persistKey) {
+    watch(
+      () => pagination.value.pageSize,
+      (size) => writeStoredPageSize(persistKey, size, pageSizeOptions),
+    )
   }
 
   // --- Smart Page Resets ---
@@ -219,7 +234,8 @@ export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableR
   function resetFilters() {
     globalFilter.value = ''
     sorting.value = [...defaultSorting]
-    pagination.value = { pageIndex: 0, pageSize: defaultPageSize }
+    // The page size is a preference, not a filter: it stays as chosen.
+    pagination.value = { ...pagination.value, pageIndex: 0 }
   }
 
   function resetLayout() {

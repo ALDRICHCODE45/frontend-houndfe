@@ -157,7 +157,6 @@ export function useExpiringDocuments(options: UseExpiringDocumentsOptions = {}) 
     defaultSorting: [{ id: 'vencimiento', desc: false }],
     defaultPageSize,
     debounceMs,
-    pageSizeOptions: [10, 20, 50],
     persistKey: 'admin-expiring-documents',
     urlSync: false,
   })

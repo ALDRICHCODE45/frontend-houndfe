@@ -59,15 +59,14 @@ describe('DataTablePagination — page size without a checkbox (Selección sin c
     await wrapper.get('.hf-pagination-size').trigger('keydown', { key: 'Enter' })
     await new Promise((resolve) => setTimeout(resolve, 50))
     const items = Array.from(document.querySelectorAll<HTMLElement>('[role="menuitemcheckbox"]'))
-    expect(items.map((item) => item.textContent?.trim())).toEqual([
-      '5 por página',
-      '10 por página',
-      '20 por página',
-      '50 por página',
-    ])
-    expect(items.map((item) => item.getAttribute('aria-checked'))).toEqual(['false', 'false', 'true', 'false'])
+    expect(items.map((item) => item.textContent?.trim())).toEqual(
+      [5, 10, 15, 20, 25, 30, 35, 40, 45, 50].map((size) => `${size} por página`),
+    )
+    expect(items.map((item) => item.getAttribute('aria-checked'))).toEqual(
+      ['false', 'false', 'false', 'true', 'false', 'false', 'false', 'false', 'false', 'false'],
+    )
     // One trailing check on the current size; no box, no checkbox role or input.
-    expect(items[2]!.querySelector('[data-slot="itemTrailing"] [data-slot="itemTrailingIcon"]')).not.toBeNull()
+    expect(items[3]!.querySelector('[data-slot="itemTrailing"] [data-slot="itemTrailingIcon"]')).not.toBeNull()
     expect(items[0]!.querySelector('[data-slot="itemTrailingIcon"]')).toBeNull()
     expect(document.querySelector('[role="checkbox"], input[type="checkbox"]')).toBeNull()
     wrapper.unmount()

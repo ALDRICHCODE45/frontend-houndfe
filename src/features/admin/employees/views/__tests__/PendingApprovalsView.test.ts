@@ -95,10 +95,12 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
         :data-error-message="errorMessage"
         :data-show-toolbar="String(showToolbar)"
         :data-page-size-options="String(pageSizeOptions)"
+        :data-page-size="String(pagination.pageSize)"
         :data-empty="empty"
         :data-data-length="(Array.isArray(data) ? data : []).length"
         :data-show-add-button="String(showAddButton)"
       >
+        <button data-testid="choose-page-size-35" type="button" @click="$emit('update:pagination', { pageIndex: 0, pageSize: 35 })" />
         <slot name="actions" />
         <slot name="above-table" />
         <slot name="filters" />
@@ -282,12 +284,32 @@ describe('PendingApprovalsView — column visibility + pinning (REQ-3)', () => {
 // ── REQ-1: client-side pagination + show-toolbar ─────────────────────────────
 
 describe('PendingApprovalsView — client-side pagination + toolbar (REQ-1, REQ-4)', () => {
-  it('passes :page-size-options="[10, 20, 50]" to AppDataTable', async () => {
+  it('passes no page-size list of its own, so the shared 5..50 options apply', async () => {
     const wrapper = mount(getView().default)
     await flushPromises()
-    chaiExpect(
-      wrapper.find('[data-testid="app-data-table"]').attributes('data-page-size-options'),
-    ).toBe('10,20,50')
+    const props = wrapper.findComponent({ name: 'AppDataTable' }).vm.$.vnode.props ?? {}
+    chaiExpect(Object.keys(props)).toContain('pagination')
+    chaiExpect(Object.keys(props).some((key) => /^page-?size-?options$/i.test(key))).toBe(false)
+  })
+
+  it('remembers the chosen page size across a remount (persistKey admin-pending-approvals)', async () => {
+    const first = mount(getView().default)
+    await flushPromises()
+    chaiExpect(first.get('[data-testid="app-data-table"]').attributes('data-page-size')).toBe('10')
+    await first.get('[data-testid="choose-page-size-35"]').trigger('click')
+    chaiExpect(first.get('[data-testid="app-data-table"]').attributes('data-page-size')).toBe('35')
+    first.unmount()
+
+    const second = mount(getView().default)
+    await flushPromises()
+    chaiExpect(second.get('[data-testid="app-data-table"]').attributes('data-page-size')).toBe('35')
+  })
+
+  it('falls back to the default page size for an invalid stored value', async () => {
+    localStorage.setItem('table-page-size-admin-pending-approvals', '7')
+    const wrapper = mount(getView().default)
+    await flushPromises()
+    chaiExpect(wrapper.get('[data-testid="app-data-table"]').attributes('data-page-size')).toBe('10')
   })
 
   it('shows the toolbar when the queue is non-empty', async () => {

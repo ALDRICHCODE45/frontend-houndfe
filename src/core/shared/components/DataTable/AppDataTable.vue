@@ -78,6 +78,7 @@ import {
 } from './columnArrange.utils'
 import { useColumnDrag, type ColumnDropTarget } from './useColumnDrag'
 import { DATA_TABLE_HEADER } from './headerContext'
+import { TABLE_PAGE_SIZE_OPTIONS } from '../../constants/table-page-size'
 import {
   DEFAULT_TABLE_DENSITY,
   isLockedColumn,
@@ -137,6 +138,7 @@ const props = withDefaults(
     // Pagination
     pageCount?: number
     totalCount?: number
+    /** Defaults to the shared 5..50 options (`TABLE_PAGE_SIZE_OPTIONS`). */
     pageSizeOptions?: number[]
     showingFrom?: number
     showingTo?: number
@@ -243,7 +245,7 @@ const props = withDefaults(
     noMatchTitle: 'Ningún resultado',
     pageCount: 0,
     totalCount: 0,
-    pageSizeOptions: () => [5, 10, 20, 50],
+    pageSizeOptions: () => [...TABLE_PAGE_SIZE_OPTIONS],
     showingFrom: 0,
     showingTo: 0,
     enableColumnVisibility: true,
