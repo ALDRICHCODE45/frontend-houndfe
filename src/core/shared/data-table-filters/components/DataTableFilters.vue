@@ -138,15 +138,17 @@ defineExpose({ open, close })
   -->
   <div
     v-if="embedded"
-    class="space-y-3"
+    class="w-full min-w-0 space-y-3"
     data-testid="data-table-filters-embedded"
   >
+    <!-- The sheet is the surface: groups are titled sections split by a hairline,
+         never bordered cards inside it (design/system.md «No nested decorative cards»). -->
     <div class="space-y-4">
       <section
         v-for="group in groupsWithActivity"
         :key="group.key"
         :data-testid="`section-group-${group.key}`"
-        class="rounded-lg border border-default bg-elevated/30 px-4 py-4"
+        class="w-full min-w-0 border-t border-default pt-4 first:border-t-0 first:pt-0"
       >
         <p
           v-if="group.section"

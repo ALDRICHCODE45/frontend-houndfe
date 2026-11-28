@@ -416,8 +416,11 @@ function openColumnsSheet() {
                  USelect's Reka UI popover) keep their parentage and open
                  correctly. Card sections are owned by the consuming views via
                  FilterSectionCard, not captured/re-rendered here. -->
+            <!-- `hf-filters-sheet__body` (houndfe-ui.css) stacks the views' desktop row
+                 (filters region · divider · sort) so each region gets the sheet width;
+                 a `flex-1 min-w-0 overflow-hidden` region otherwise collapses to a sliver. -->
             <div
-              class="h-[85vh] max-h-[85vh] min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
+              class="hf-filters-sheet__body h-[85vh] max-h-[85vh] min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
               data-testid="toolbar-filters-body"
             >
               <slot name="filters" />
@@ -425,7 +428,7 @@ function openColumnsSheet() {
 
             <!-- Sticky footer (Cerrar button) -->
             <div
-              class="sticky bottom-0 z-10 flex justify-end border-t border-default bg-default px-4 py-4"
+              class="sticky bottom-0 z-10 flex shrink-0 justify-end border-t border-default bg-default px-4 py-4"
               data-testid="toolbar-filters-footer"
             >
               <UButton

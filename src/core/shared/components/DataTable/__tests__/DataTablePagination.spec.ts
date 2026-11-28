@@ -121,15 +121,19 @@ describe('DataTablePagination — unchanged value bridge and content', () => {
 })
 
 describe('DataTablePagination — mobile containment (S1)', () => {
-  it('stacks on mobile, returns to the row at sm, and keeps the historical root classes', () => {
+  // mobile-tables T1 (S2b): below sm the range and the page size share a wrapping row (the
+  // controls box dissolves) instead of a stacked column with a full-width size button; the
+  // sm+ row keeps its historical classes.
+  it('wraps on mobile, returns to the row at sm, and keeps the historical root classes', () => {
     const classes = mountPagination().element.className.split(/\s+/)
-    expect(classes).toEqual(expect.arrayContaining(['flex-col', 'sm:flex-row', 'border-t']))
+    expect(classes).toEqual(expect.arrayContaining(['flex-wrap', 'sm:flex-nowrap', 'sm:flex-row', 'sm:items-center', 'sm:justify-between', 'border-t']))
+    expect(classes).not.toContain('flex-col')
     expectShrinkContainment(classes)
   })
 
-  it('stacks the controls in a w-full min-w-0 column that rows at sm', () => {
+  it('dissolves the controls box on mobile and rows it at sm', () => {
     const classes = mountPagination().get('[data-testid="pagination-controls"]').classes()
-    expect(classes).toEqual(expect.arrayContaining(['w-full', 'min-w-0', 'flex-col', 'sm:flex-row']))
+    expect(classes).toEqual(expect.arrayContaining(['contents', 'min-w-0', 'sm:flex', 'sm:flex-row', 'sm:gap-4']))
   })
 
   it('keeps a max-width-safe list with no horizontal-scroll workaround', () => {

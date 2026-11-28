@@ -1536,6 +1536,50 @@ body.hf-app {
   color: var(--hf-ink);
 }
 
+/* Phones (mobile-tables T1): a side form slideover is a full-height edge-to-edge
+ * sheet below sm (vite.config.ts `slideover.compoundVariants`). Its footer stays
+ * above the home indicator, and a buttons-only footer becomes equal full-width
+ * 44px columns (Sticky mobile bar rule), whatever the feature's `justify-end` row. */
+@media (max-width: 639px) {
+  .hf-ui.hf-form-overlay:is([data-side='right'], [data-side='left']) > [data-slot='footer'] {
+    flex-shrink: 0;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .hf-ui.hf-form-overlay:is([data-side='right'], [data-side='left']) > [data-slot='footer'] > div:only-child:not(.hf-save-bar, :has(> :not(button, a))) {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 8px;
+    width: 100%;
+  }
+
+  .hf-ui.hf-form-overlay:is([data-side='right'], [data-side='left']) > [data-slot='footer'] > div:only-child > :is(button, a) {
+    justify-content: center;
+    min-height: 44px;
+  }
+}
+
+/* ── Filtros bottom sheet (DataTableToolbar, mobile) ──────────────────────── */
+
+/* The views hand the sheet their desktop toolbar row: `flex flex-wrap` with the
+ * filters in a `flex-1 min-w-0 overflow-hidden` region and the sort beside it.
+ * In the sheet that region's 0 basis left a ~20px sliver that clipped every
+ * filter section to an empty bordered box (mobile-tables S2a). Inside the sheet
+ * the row stacks and each region takes the full width, unclipped. */
+.hf-filters-sheet__body > :where(.flex) {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+}
+
+.hf-filters-sheet__body > :where(.flex) > * {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+
 /* ── Empty, no-match, error and forbidden states ─────────────────────────── */
 
 /* One centered column: 24px icon, title, one line, at most one button. The

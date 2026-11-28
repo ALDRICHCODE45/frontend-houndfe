@@ -602,6 +602,25 @@
   }
 }
 
+/* Phones (mobile-tables T1): a form overlay is already the full-height sheet, so
+ * its groups are titled sections split by one hairline, never cards inside the
+ * sheet (design/system.md «No nested decorative cards»). md+ keeps the cards. */
+@media (max-width: 639px) {
+  .hf-ui.hf-form-overlay .hf-section-card,
+  .hf-ui .hf-form-overlay .hf-section-card {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background-color: transparent;
+  }
+
+  .hf-ui.hf-form-overlay .hf-section-card + .hf-section-card,
+  .hf-ui .hf-form-overlay .hf-section-card + .hf-section-card {
+    border-top: 1px solid var(--hf-border);
+    padding-top: 20px;
+  }
+}
+
 .hf-ui .hf-section-card__head {
   display: flex;
   align-items: center;

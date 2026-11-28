@@ -31,6 +31,16 @@ const currentPage = computed({
   set: (value: number) => emit('update:pageIndex', value - 1),
 })
 
+// Compact navigation below sm (mobile-tables T1): «Página 3 de 9» between first/prev and
+// next/last, so the pager never overflows a 360px row. sm+ keeps the numbered UPagination.
+const lastPage = computed(() => Math.max(props.pageCount, 1))
+const atFirst = computed(() => currentPage.value <= 1)
+const atLast = computed(() => currentPage.value >= lastPage.value)
+function goTo(page: number) {
+  const target = Math.min(Math.max(page, 1), lastPage.value)
+  if (target !== currentPage.value) currentPage.value = target
+}
+
 const pageSizeItems = computed(() =>
   props.pageSizeOptions.map((size) => [
     {
@@ -45,8 +55,10 @@ const pageSizeItems = computed(() =>
 
 <template>
   <div
-    class="hf-pagination flex w-full min-w-0 max-w-full flex-col gap-3 border-default pt-4 sm:flex-row sm:items-center sm:justify-between border-t"
+    class="hf-pagination flex w-full min-w-0 max-w-full flex-row flex-wrap items-center justify-between gap-3 border-default pt-4 sm:flex-row sm:flex-nowrap sm:items-center sm:justify-between border-t"
   >
+    <!-- Below sm: one row with the range and an auto-width page size (wraps if it must),
+         then the compact navigation. From sm the historical row is unchanged. -->
     <!-- Showing info -->
     <div class="hf-pagination-summary shrink-0 whitespace-nowrap text-sm text-muted">
       <template v-if="totalCount > 0">
@@ -55,8 +67,9 @@ const pageSizeItems = computed(() =>
       <template v-else> Sin resultados </template>
     </div>
 
+    <!-- `contents` below sm: the size control joins the range row; a box again from sm. -->
     <div
-      class="flex w-full min-w-0 flex-col gap-3 sm:w-auto sm:flex-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+      class="contents min-w-0 sm:flex sm:w-auto sm:flex-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
       data-testid="pagination-controls"
     >
       <!-- Page Size Selector -->
@@ -75,7 +88,7 @@ const pageSizeItems = computed(() =>
         />
       </UDropdownMenu>
 
-      <!-- Pagination -->
+      <!-- Pagination (sm+) -->
       <UPagination
         v-model:page="currentPage"
         :items-per-page="pageSize"
@@ -83,8 +96,58 @@ const pageSizeItems = computed(() =>
         :disabled="fetching"
         show-edges
         :sibling-count="1"
-        class="hf-pagination-navigation min-w-0 max-w-full"
+        class="hf-pagination-navigation min-w-0 max-w-full max-sm:hidden"
       />
     </div>
+
+    <!-- Compact pagination (below sm) -->
+    <nav
+      v-if="lastPage > 1"
+      class="hf-pagination-compact flex w-full items-center justify-between gap-2 sm:hidden"
+      aria-label="Paginación"
+      data-testid="pagination-compact"
+    >
+      <div class="flex items-center gap-1">
+        <UButton
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-chevrons-left"
+          aria-label="Primera página"
+          class="size-11 justify-center"
+          :disabled="fetching || atFirst"
+          @click="goTo(1)"
+        />
+        <UButton
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-chevron-left"
+          aria-label="Página anterior"
+          class="size-11 justify-center"
+          :disabled="fetching || atFirst"
+          @click="goTo(currentPage - 1)"
+        />
+      </div>
+      <span class="text-sm whitespace-nowrap text-default" aria-live="polite" data-testid="pagination-compact-status">Página {{ currentPage }} de {{ lastPage }}</span>
+      <div class="flex items-center gap-1">
+        <UButton
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-chevron-right"
+          aria-label="Página siguiente"
+          class="size-11 justify-center"
+          :disabled="fetching || atLast"
+          @click="goTo(currentPage + 1)"
+        />
+        <UButton
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-chevrons-right"
+          aria-label="Última página"
+          class="size-11 justify-center"
+          :disabled="fetching || atLast"
+          @click="goTo(lastPage)"
+        />
+      </div>
+    </nav>
   </div>
 </template>
