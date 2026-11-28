@@ -255,13 +255,35 @@ describe('SalesListView states — data', () => {
     expect(wrapper.find('[data-testid="table-skeleton"]').exists()).toBe(false)
   })
 
-  it('renders sale cards on mobile', async () => {
+  // mobile-tables T3 (S4, B · Tarjetas ricas): folio, customer · date, the status badges and the
+  // Total · Pagado · Saldo grid together, built by the shared card from the columns' meta.
+  it('renders one rich card per sale on mobile with Total, Pagado and Saldo together', async () => {
     isMobile.value = true
     const wrapper = mountList()
     await flushPromises()
 
-    expect(wrapper.findAll('[data-testid="sale-card"]')).toHaveLength(1)
+    const cards = wrapper.findAll('[data-testid="mobile-list-card"]')
+    expect(cards).toHaveLength(1)
     expect(wrapper.find('table').exists()).toBe(false)
+    const card = cards[0]!
+    expect(card.get('[data-testid="mobile-card-primary"]').text()).toBe('#12')
+    expect(card.get('[data-testid="mobile-card-secondary"]').text()).toContain('Ada Lovelace')
+    expect(card.get('[data-testid="mobile-card-status"] [data-testid="sale-payment-status"]').attributes('data-tone')).toBe('warning')
+    expect(card.find('[data-testid="mobile-card-status"] [data-testid="sale-delivery-status"]').exists()).toBe(true)
+    const stats = card.findAll('.hf-mcard__stat')
+    expect(stats.map((stat) => stat.get('dt').text())).toEqual(['Total', 'Pagado', 'Saldo'])
+    expect(stats.map((stat) => stat.get('dd').text())).toEqual(['$1,270.00', '$1,220.00', '$50.00'])
+    expect(stats[2]!.get('dd').attributes('data-tone')).toBe('warning')
+    // No ⋮ on the card.
+    expect(card.find(ROW_MENU).exists()).toBe(false)
+  })
+
+  it('opens the sale from the card', async () => {
+    isMobile.value = true
+    const wrapper = mountList()
+    await flushPromises()
+    await wrapper.get('[data-testid="mobile-card-primary"]').trigger('click')
+    expect(push).toHaveBeenCalledWith('/pos/ventas/sale-1')
   })
 
   it('labels the payment-method chips on mobile cards instead of icon-only', async () => {
@@ -270,9 +292,18 @@ describe('SalesListView states — data', () => {
     const wrapper = mountList()
     await flushPromises()
 
-    const label = wrapper.get('[data-testid="sale-card"] [data-testid="pill-label"]')
+    const label = wrapper.get('[data-testid="mobile-list-card"] [data-testid="pill-label"]')
     expect(label.text()).toBe('Efectivo')
     expect(label.classes()).not.toContain('hidden')
+  })
+
+  it('shows a canceled sale with «—» for Pagado and Saldo', async () => {
+    isMobile.value = true
+    state.data.value = [{ ...row, status: 'CANCELED' } as ConfirmedSaleRow]
+    const wrapper = mountList()
+    await flushPromises()
+    const stats = wrapper.findAll('[data-testid="mobile-list-card"] .hf-mcard__stat dd')
+    expect(stats.map((stat) => stat.text())).toEqual(['$1,270.00', '—', '—'])
   })
 
   it('writes the generic customer and channel in sentence case', async () => {

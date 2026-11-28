@@ -7,7 +7,6 @@ import { resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { ref } from 'vue'
-import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { columnLabel } from '@/core/shared/components/DataTable/columnLayout.utils'
 import ProductList from '../ProductList.vue'
 import type { Product } from '../../interfaces/product.types'
@@ -184,21 +183,23 @@ describe('ProductList — data', () => {
       }
     })
 
-    it('shows the same figures on the mobile card', () => {
+    it('shows the same figures on the phone row', () => {
       isMobile.value = true
       const wrapper = mountList({ items: [{ ...product, ...reserved }] })
-      const card = wrapper.get('[data-testid="product-card"]')
-      expect(card.get('[data-testid="reserved-stock"]').text()).toContain('Apartado 2')
+      const row = wrapper.get('[data-testid="mobile-list-row"]')
+      expect(row.get('[data-testid="reserved-stock"]').text()).toContain('Apartado 2')
       isMobile.value = false
       wrapper.unmount()
     })
 
-    it('keeps the low-stock badge on the mobile card next to the label (owner S13)', () => {
+    it('keeps the low stock as a warning note on the phone row next to the reserved label (owner S13)', () => {
       isMobile.value = true
       const wrapper = mountList({ items: [{ ...product, ...reserved, minQuantity: 5 }] })
-      const card = wrapper.get('[data-testid="product-card"]')
-      expect(card.get('[aria-label^="Stock:"]').text()).toContain('1 unidad')
-      expect(card.get('[data-testid="reserved-stock"]').text()).toContain('Disponible 1')
+      const row = wrapper.get('[data-testid="mobile-list-row"]')
+      const note = row.get('[data-testid="mobile-row-note"]')
+      expect(note.text()).toBe('Quedan 1 unidad')
+      expect(note.attributes('data-tone')).toBe('warning')
+      expect(row.get('[data-testid="reserved-stock"]').text()).toContain('Disponible 1')
       isMobile.value = false
       wrapper.unmount()
     })
@@ -271,20 +272,55 @@ describe('ProductList — data', () => {
     wrapper.unmount()
   })
 
-  it('renders each product as a card on mobile with the same data and actions', async () => {
+  // mobile-tables T3 (S4, A · Lista densa): type icon · full name · SKU and category · price with
+  // the stock under it. No ⋮: the product's actions live in its detail.
+  it('renders each product as a dense row on mobile: name, SKU · category, price and stock, no ⋮', async () => {
     isMobile.value = true
     const wrapper = mountList()
-    const card = wrapper.get('[data-testid="product-card"]')
-    expect(card.get('.hf-row-primary').text()).toBe('Collar ajustable')
-    expect(card.get('.hf-status-badge').text()).toBe('Activo')
-    expect(card.text()).toContain('$1,299.00')
-    expect(card.text()).toContain('25 unidades')
-    expect(card.text()).toContain(formatShortDateTime(product.updatedAt))
-    expect(card.get(ROW_MENU).attributes('aria-label')).toBe(
-      'Acciones de Collar ajustable',
-    )
-    await card.trigger('click')
+    const row = wrapper.get('[data-testid="mobile-list-row"]')
+    expect(row.get('[data-testid="mobile-row-primary"]').text()).toBe('Collar ajustable')
+    expect(row.find('[data-testid="mobile-row-lead"] .hf-mrow__thumb').exists()).toBe(true)
+    expect(row.get('[data-testid="mobile-row-secondary"]').text()).toBe('COL-001·Accesorios')
+    expect(row.get('[data-testid="mobile-row-figure"]').text()).toBe('$1,299.00')
+    expect(row.get('[data-testid="mobile-row-note"]').text()).toBe('25 unidades')
+    expect(row.get('[data-testid="mobile-row-note"]').attributes('data-tone')).toBeUndefined()
+    // An active product needs no badge on the phone row.
+    expect(row.find('.hf-status-badge').exists()).toBe(false)
+    expect(row.find(ROW_MENU).exists()).toBe(false)
+    expect(row.findAll('button')).toHaveLength(1)
+    await row.get('[data-testid="mobile-row-primary"]').trigger('click')
     expect(wrapper.emitted('open')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('shows the status badge on the phone row only when the product is not active', () => {
+    isMobile.value = true
+    const wrapper = mountList({ items: [{ ...product, status: 'inactive' }] })
+    expect(wrapper.get('[data-testid="mobile-list-row"] .hf-status-badge').text()).toBe('Inactivo')
+    wrapper.unmount()
+  })
+
+  it('wraps a long name in full on the phone row (never cut)', () => {
+    isMobile.value = true
+    const name = 'Croquetas Nupec Adulto Raza Mediana Sabor Pollo y Arroz 15 kg'
+    const wrapper = mountList({ items: [{ ...product, name }] })
+    expect(wrapper.get('[data-testid="mobile-row-primary"]').text()).toBe(name)
+    wrapper.unmount()
+  })
+
+  it('hands the sort options of its sortable columns to the phone «Ordenar» menu', () => {
+    const wrapper = mountList()
+    const table = wrapper.getComponent({ name: 'AppDataTable' })
+    expect(table.props('mobileRender')).toBe('rows')
+    expect((table.props('sortOptions') as Array<{ value: string }>).map((option) => option.value)).toEqual([
+      'name:asc',
+      'name:desc',
+      'priceCents:asc',
+      'priceCents:desc',
+      'quantity:asc',
+      'quantity:desc',
+    ])
+    expect(table.props('itemLabel')).toEqual({ one: 'producto', other: 'productos' })
     wrapper.unmount()
   })
 })
@@ -352,10 +388,10 @@ describe('ProductList — loading', () => {
     wrapper.unmount()
   })
 
-  it('shows card skeletons on mobile', () => {
+  it('shows row skeletons on mobile (the final shape)', () => {
     isMobile.value = true
     const wrapper = mountList({ items: [], totalCount: 0, pageCount: 0, loading: true })
-    expect(wrapper.findAll('[data-testid="mobile-card-skeleton"]')).toHaveLength(3)
+    expect(wrapper.findAll('[data-testid="mobile-row-skeleton"]').length).toBeGreaterThan(0)
     wrapper.unmount()
   })
 })
@@ -388,19 +424,18 @@ describe('ProductList — review round 1', () => {
     variantCount: 2,
   }
 
-  it('keeps the mobile footer to one short line: price and units, no variant count', () => {
+  it('keeps the phone stock note short: units only, no variant count', () => {
     isMobile.value = true
     const wrapper = mountList({ items: [variantsProduct] })
-    const footer = wrapper.get('.product-card-footer .hf-figure')
-    expect(footer.text()).toBe('$1,299.00 · 24 unidades')
-    expect(footer.text()).not.toContain('variantes')
+    const note = wrapper.get('[data-testid="mobile-row-note"]')
+    expect(note.text()).toBe('24 unidades')
+    expect(note.text()).not.toContain('variantes')
     wrapper.unmount()
   })
 
-  it('clamps the mobile card name to two lines instead of one', () => {
+  it('never clamps the phone name (mobile-tables S3: full names)', () => {
     const source = readFileSync(resolve(__dirname, '../ProductList.vue'), 'utf8')
-    expect(source).toMatch(/\.product-card-title \.hf-row-primary[^}]*-webkit-line-clamp: 2/s)
-    expect(source).not.toMatch(/\.product-card-title \.hf-row-primary[^}]*white-space: nowrap/s)
+    expect(source).not.toMatch(/line-clamp/)
   })
 
   it('shows the table stock as a short total and variant count that fits the column', () => {

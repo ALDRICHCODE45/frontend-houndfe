@@ -26,7 +26,49 @@ declare module '@tanstack/vue-table' {
      * that declares it is; `sum` and `custom` show in their own column and leave with it when hidden.
      */
     total?: TableColumnTotal<TData>
+    /**
+     * What this column shows in the phone list of `AppDataTable` (`mobile-render="rows"` and the
+     * meta-driven `"cards"`), odd/tasks/mobile-tables.md S4. One field or several (a Total column
+     * can be the row's figure and a card stat).
+     */
+    mobile?: TableMobileField<TData> | TableMobileField<TData>[]
   }
+}
+
+/**
+ * The place a column takes in the phone list:
+ * - `lead`: the 44px start of a row (initials avatar of the value, or `icon`); the selection mark
+ *   takes its place in selection mode.
+ * - `primary`: the record's name, full and wrapping (never cut). One per list.
+ * - `secondary`: 13px line(s) under the name, joined with «·».
+ * - `figure` / `figureNote`: the key number at the right of a row and its 12px note.
+ * - `status`: a status badge (under the figure in a row, its own line in a card).
+ * - `stat`: one cell of a card's mini grid (caption + value + note), up to three.
+ * Rows show lead, primary, secondary, figure, figureNote and status; cards show primary,
+ * secondary, status and stat.
+ */
+export type TableMobileRole = 'lead' | 'primary' | 'secondary' | 'figure' | 'figureNote' | 'status' | 'stat'
+
+/** Ink of a mobile value (figure, note, stat) or the tone of its badge (status). */
+export type TableMobileTone = 'neutral' | 'muted' | 'success' | 'warning' | 'danger' | 'info'
+
+export interface TableMobileField<TData> {
+  role: TableMobileRole
+  /** The text. Default: the column's accessor value. `null`, `undefined` or `''` → not shown. */
+  value?: (row: TData) => string | number | null | undefined
+  tone?: (row: TData) => TableMobileTone | undefined
+  /** A 12px line under a `stat` value. */
+  note?: (row: TData) => string | null | undefined
+  /** Caption of a `stat`. Default: the column's label. */
+  label?: string
+  /** `lead`: an icon instead of the initials avatar. */
+  icon?: string | ((row: TData) => string | undefined)
+}
+
+/** One option of the phone «Ordenar» menu: `value` is `<column id>:asc|desc`. */
+export interface TableSortOption {
+  label: string
+  value: string
 }
 
 /** What a column contributes to the totals row of `AppDataTable`. */

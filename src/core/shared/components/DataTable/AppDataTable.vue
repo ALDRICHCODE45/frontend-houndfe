@@ -35,12 +35,16 @@ import type {
   VisibilityState,
   RowSelectionState,
 } from '../../types/table.types'
-import type { BulkAction, TableColumnTotal, TableTotals } from '../../types/table.types'
+import type { BulkAction, TableColumnTotal, TableSortOption, TableTotals } from '../../types/table.types'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import DataTableToolbar from './DataTableToolbar.vue'
 import DataTableHeaderCell from './DataTableHeaderCell.vue'
 import DataTablePagination from './DataTablePagination.vue'
 import DataTableBulkActions from './DataTableBulkActions.vue'
+import DataTableMobileBar from './DataTableMobileBar.vue'
+import DataTableMobileList from './DataTableMobileList.vue'
+import './mobile-list.css'
+import { findSortOption, sortingFromOption } from './mobileFields'
 import { useClickableRow } from '../../composables/useClickableRow'
 import EmptyState from '../EmptyState.vue'
 import HfRowMark from '../selection/HfRowMark.vue'
@@ -218,8 +222,21 @@ const props = withDefaults(
     rowOpen?: (row: T) => void
     // Mobile rendering
     displayMode?: 'auto' | 'table' | 'cards'
-    mobileRender?: 'table' | 'cards'
+    /**
+     * Below `mobileBreakpoint` (odd/tasks/mobile-tables.md S4): `rows` is the dense list (A · Lista
+     * densa) and `cards` without a `#mobile-card` / `#cards` slot the rich cards (B · Tarjetas ricas),
+     * both built from the columns' `meta.mobile`; `cards` with a `#mobile-card` slot keeps the
+     * screen's own card; `table` keeps the table.
+     */
+    mobileRender?: 'table' | 'cards' | 'rows'
     mobileBreakpoint?: 'sm' | 'md' | 'lg' | 'xl'
+    /**
+     * The phone «Ordenar» menu (sort only; filters stay in their sheet). `value` is
+     * `<column id>:asc|desc` and writes `v-model:sorting`. Desktop never shows it.
+     */
+    sortOptions?: TableSortOption[]
+    /** Noun of the records on phones: «86 clientes», «Ver 38 clientes». Default «resultado(s)». */
+    itemLabel?: { one: string; other: string }
     /**
      * Accessible name of each card's row mark in cards mode with `enableRowSelection`
      * (`Seleccionar a Laura Méndez`). Default: `Seleccionar fila N`.
@@ -272,6 +289,8 @@ const props = withDefaults(
     displayMode: 'auto',
     mobileRender: 'table',
     mobileBreakpoint: 'md',
+    sortOptions: () => [],
+    itemLabel: () => ({ one: 'resultado', other: 'resultados' }),
     rowMarkLabel: undefined,
     selectAllLabel: 'Seleccionar todos',
     onResetColumns: undefined,
@@ -336,15 +355,31 @@ const SLOTS_NOT_FORWARDED_TO_TABLE = new Set([
   'above-table',
   'cards',
   'mobile-card',
+  'mobile-lead',
+  'mobile-secondary',
+  'mobile-status',
   'bulk-summary',
 ])
+/** Zone slots of the phone rows / cards (`DataTableMobileList`). */
+const MOBILE_ZONE_SLOTS = ['mobile-lead', 'mobile-secondary', 'mobile-status'] as const
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobileViewport = breakpoints.smaller(() => props.mobileBreakpoint)
+const isRowsMode = computed(
+  () => props.displayMode === 'auto' && props.mobileRender === 'rows' && isMobileViewport.value,
+)
 const isCardsMode = computed(() => {
   if (props.displayMode === 'cards') return true
   if (props.displayMode === 'table') return false
   return props.mobileRender === 'cards' && isMobileViewport.value
+})
+/** No UTable: the phone rows or any cards. */
+const isListMode = computed(() => isRowsMode.value || isCardsMode.value)
+/** The shared phone renderer (rows, or cards the screen does not draw itself). */
+const mobileListVariant = computed<'rows' | 'cards' | null>(() => {
+  if (isRowsMode.value) return 'rows'
+  if (isCardsMode.value && !slots['mobile-card'] && !slots.cards) return 'cards'
+  return null
 })
 const isLoading = computed(() => props.loading || props.fetching)
 
@@ -714,7 +749,7 @@ const DENSITY_TEXT: Record<TableDensity, string> = {
   normal: 'Normal, filas de 48 px',
   comfortable: 'Cómoda, filas de 64 px',
 }
-const showDensity = computed(() => props.enableDensity && !isCardsMode.value && !isMobileViewport.value)
+const showDensity = computed(() => props.enableDensity && !isListMode.value && !isMobileViewport.value)
 function setDensity(next: TableDensity) {
   if (next === density.value) return
   density.value = next
@@ -1008,7 +1043,7 @@ function dropTargetAt(id: string, x: number): ColumnDropTarget | undefined {
 
 const columnDrag = useColumnDrag({
   surface: () => surfaceEl.value,
-  canDrag: id => !isLockedColumn(id) && !isCardsMode.value,
+  canDrag: id => !isLockedColumn(id) && !isListMode.value,
   labelOf,
   cellsOf: id => Array.from(surfaceEl.value?.querySelectorAll<HTMLElement>(`.${columnCellClass(id)}`) ?? []),
   targetAt: dropTargetAt,
@@ -1144,13 +1179,13 @@ const selectedRows = computed<T[]>(() => {
   // The rows of the page change under the same selection (refetch): read them again.
   void props.data
   if (selectedCount.value === 0) return []
-  if (isCardsMode.value) return selectedCardRows()
+  if (isListMode.value) return selectedCardRows()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (tableApi.value?.getSelectedRowModel().rows ?? []).map((row: any) => row.original as T)
 })
 
 // ── Row marks on the cards (cards mode + enableRowSelection) ───────────────
-const showCardMarks = computed(() => props.enableRowSelection && isCardsMode.value)
+const showCardMarks = computed(() => props.enableRowSelection && isCardsMode.value && !mobileListVariant.value)
 const cardsSelectAllState = computed<boolean | 'mixed'>(() => {
   const total = props.data.length
   const selected = selectedCardRows().length
@@ -1227,6 +1262,37 @@ function handleClearSelection() {
   emit('clear-selection')
 }
 
+// ── Phone list: result line, short sort menu and selection mode (mobile-tables S4) ─────────
+const showMobileBar = computed(
+  () => isMobileViewport.value && (mobileListVariant.value !== null || props.sortOptions.length > 0),
+)
+const mobileSelectable = computed(() => props.enableRowSelection && mobileListVariant.value !== null)
+const selecting = ref(false)
+watch(mobileSelectable, (selectable) => {
+  if (!selectable) selecting.value = false
+})
+function setSelecting(value: boolean) {
+  selecting.value = value
+  // «Listo»: the marks only show in selection mode, so leaving it clears them.
+  if (!value && (selectedCount.value > 0 || bulkCount.value > 0)) handleClearSelection()
+}
+function startSelection(index: number) {
+  selecting.value = true
+  toggleCard(index, true)
+}
+const mobileSortValue = computed(() => findSortOption(props.sortOptions, sorting.value)?.value)
+function setMobileSort(value: string) {
+  sorting.value = sortingFromOption(value)
+}
+const mobileListLabel = computed(() => {
+  const noun = props.itemLabel.other
+  const name = noun.charAt(0).toUpperCase() + noun.slice(1)
+  return props.pageCount > 1 ? `${name}, página ${pagination.value.pageIndex + 1} de ${props.pageCount}` : name
+})
+const mobileZoneSlots = computed(() => MOBILE_ZONE_SLOTS.filter(name => !!slots[name]))
+/** Phones dock the bulk bar at the bottom; the list keeps room for it. */
+const bulkDocked = computed(() => isMobileViewport.value)
+
 defineExpose({
   /** The TanStack table (undefined until the table renders). */
   get tableApi() {
@@ -1243,7 +1309,11 @@ defineExpose({
 </script>
 
 <template>
-  <div ref="root" class="relative flex w-full min-w-0 max-w-full flex-col gap-4">
+  <div
+    ref="root"
+    class="relative flex w-full min-w-0 max-w-full flex-col gap-4"
+    :class="{ 'hf-table--mobile-list': mobileListVariant, 'hf-table--docked-bar': bulkDocked && showBulkBar && bulkCount > 0 }"
+  >
     <!-- Toolbar -->
     <DataTableToolbar
       v-if="props.showToolbar"
@@ -1252,10 +1322,10 @@ defineExpose({
       :show-add-button="props.showAddButton"
       :add-button-text="props.addButtonText"
       :add-button-icon="props.addButtonIcon"
-      :show-column-visibility="props.enableColumnVisibility && hasArrangeableColumns"
+      :show-column-visibility="props.enableColumnVisibility && hasArrangeableColumns && !isRowsMode"
       :columns="columnsPanel"
-      :columns-disabled="!isCardsMode && (props.error || showTableSkeleton)"
-      :columns-sheet="isCardsMode"
+      :columns-disabled="!isListMode && (props.error || showTableSkeleton)"
+      :columns-sheet="isListMode"
       :show-density="showDensity"
       :density="density"
       :density-disabled="props.error"
@@ -1266,6 +1336,8 @@ defineExpose({
       :refresh-button-test-id="props.refreshButtonTestId"
       :add-button-test-id="props.addButtonTestId"
       :active-filter-count="props.activeFilterCount"
+      :result-count="props.totalCount"
+      :item-label="props.itemLabel"
       @update:global-filter="globalFilter = $event"
       @add="emit('add')"
       @refresh="emit('refresh')"
@@ -1286,6 +1358,24 @@ defineExpose({
       <template v-if="$slots.actions" #actions>
         <slot name="actions" />
       </template>
+      <template v-if="showMobileBar" #mobile-status>
+        <DataTableMobileBar
+          :total-count="props.totalCount"
+          :item-label="props.itemLabel"
+          :selected-label="props.selectedLabel"
+          :sort-options="props.sortOptions"
+          :sort-value="mobileSortValue"
+          :selectable="mobileSelectable"
+          :selecting="selecting"
+          :selected-count="bulkCount"
+          :page-state="cardsSelectAllState"
+          :select-all-label="props.selectAllLabel"
+          :portal-class="props.portalClass"
+          @update:sort-value="setMobileSort"
+          @update:selecting="setSelecting"
+          @toggle-page="toggleAllCards"
+        />
+      </template>
     </DataTableToolbar>
 
     <!-- Extra content above table -->
@@ -1296,7 +1386,7 @@ defineExpose({
          - Named column slots: #name-cell, #status-cell, #actions-header, etc.
          - Special slots:      #expanded, #empty, #loading, #caption
          This allows the parent to use Vue template syntax instead of h() in column defs -->
-    <template v-if="isCardsMode">
+    <template v-if="isListMode">
       <!-- Error state: wins over BOTH the custom #cards slot and the mobile
            fallback, so a failed request is never masked as an empty card grid.
            (W3 fix — previously the error block lived only in the v-else branch
@@ -1313,7 +1403,7 @@ defineExpose({
       />
 
       <slot
-        v-else-if="slots.cards"
+        v-else-if="slots.cards && !mobileListVariant"
         name="cards"
         :data="props.data"
         :loading="isLoading"
@@ -1323,8 +1413,32 @@ defineExpose({
       />
 
       <template v-else>
+        <!-- Row skeletons with the final shape (72px row: lead, two lines, figure) -->
         <div
-          v-if="isLoading"
+          v-if="isLoading && mobileListVariant === 'rows'"
+          class="hf-mrows hf-mrows--skeleton"
+          aria-busy="true"
+          data-testid="mobile-rows-loading"
+        >
+          <span class="sr-only" aria-live="polite">Cargando {{ props.itemLabel.other }}…</span>
+          <div
+            v-for="index in skeletonRowCount"
+            :key="`mobile-row-skeleton-${index}`"
+            class="hf-mrow hf-mrow--skeleton has-lead"
+            aria-hidden="true"
+            data-testid="mobile-row-skeleton"
+          >
+            <span class="hf-mrow__lead"><span class="hf-skeleton size-10 rounded-full" /></span>
+            <span class="hf-mrow__main">
+              <span class="hf-skeleton block h-4 w-4/5 rounded" />
+              <span class="hf-skeleton block h-3 w-1/2 rounded" />
+            </span>
+            <span class="hf-mrow__fig"><span class="hf-skeleton block h-4 w-16 rounded" /></span>
+          </div>
+        </div>
+
+        <div
+          v-else-if="isLoading"
           class="grid w-full min-w-0 max-w-full gap-3"
           aria-busy="true"
           data-testid="mobile-cards-loading"
@@ -1382,12 +1496,32 @@ defineExpose({
         />
 
         <div
-          v-else-if="props.data.length === 0 || !slots['mobile-card']"
+          v-else-if="props.data.length === 0 || (!mobileListVariant && !slots['mobile-card'])"
           class="flex min-h-32 w-full min-w-0 max-w-full items-center justify-center rounded-lg border border-dashed border-default px-4 py-8 text-sm text-muted"
           data-testid="mobile-empty-state"
         >
           {{ props.empty }}
         </div>
+
+        <DataTableMobileList
+          v-else-if="mobileListVariant"
+          :variant="mobileListVariant"
+          :data="props.data"
+          :columns="props.columns"
+          :column-visibility="columnVisibility"
+          :selectable="mobileSelectable"
+          :selecting="selecting"
+          :selected="rowSelection"
+          :row-open="props.rowOpen"
+          :mark-label="cardMarkLabel"
+          :label="mobileListLabel"
+          @toggle="toggleCard"
+          @start-selection="startSelection"
+        >
+          <template v-for="name in mobileZoneSlots" #[name]="zoneProps">
+            <slot :name="name" v-bind="zoneProps ?? {}" />
+          </template>
+        </DataTableMobileList>
 
         <div v-else class="grid w-full min-w-0 max-w-full gap-3" data-testid="mobile-cards-list">
           <!-- Row marks (cards mode + selection): «Seleccionar todos» above, a leading mark per
@@ -1736,6 +1870,7 @@ defineExpose({
       :selected-rows="selectedRows"
       :selected-label="props.selectedLabel"
       :anchor="bulkAnchor"
+      :docked="bulkDocked"
       @clear-selection="handleClearSelection"
     >
       <template v-if="slots['bulk-summary']" #summary>

@@ -17,6 +17,7 @@ import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
 import QuotationsListView from '../QuotationsListView.vue'
 import { columnLabel } from '@/core/shared/components/DataTable/columnLayout.utils'
+import { resolveMobileRow } from '@/core/shared/components/DataTable/mobileFields'
 import type {
   PaginatedQuotations,
   QuotationResponseDto,
@@ -240,6 +241,8 @@ const appDataTableStub = {
     'addButtonTestId',
     'showRefresh',
     'mobileRender',
+    'sortOptions',
+    'itemLabel',
     'displayMode',
     'enableColumnVisibility',
     'portalClass',
@@ -323,7 +326,6 @@ const appDataTableStub = {
           <slot name="expiresAt-cell" :row="{ original: row, index }" />
           <slot name="createdAt-cell" :row="{ original: row, index }" />
           <slot name="actions-cell" :row="{ original: row, index }" />
-          <slot name="mobile-card" :row="row" :index="index" />
         </div>
       <!-- Header slot passthrough so column header tests can render them. -->
       <template v-for="col in columns" :key="col.id">
@@ -756,40 +758,33 @@ describe('QuotationsListView — AppDataTable wiring (REQ-QAF-011)', () => {
   })
 })
 
-describe('QuotationsListView — mobile cards and row menu', () => {
-  it('renders one #mobile-card per row, named by the customer, with no id on screen', () => {
-    composableState.data.value = [
-      makeQuotation({ id: 'qtn-mobile-a' }),
-      makeQuotation({ id: 'qtn-mobile-b', customer: { id: 'c2', firstName: 'Luis', lastName: null, email: null } as never }),
-    ]
-    composableState.totalCount.value = 2
-
+describe('QuotationsListView — phone rows and row menu', () => {
+  // mobile-tables T3 (S4, A · Lista densa): the shared rows read the columns' meta.mobile.
+  it('declares the phone row: icon · customer · expiry · total and status, never the id', () => {
+    const quotation = makeQuotation({ id: 'qtn-mobile-a', totalCents: 12345 })
+    composableState.data.value = [quotation]
     const wrapper = mountView()
-    const cards = wrapper.findAll('[data-testid="quotation-card"]')
-    expect(cards).toHaveLength(2)
-    expect(cards[0]!.text()).toContain('María Pérez')
-    expect(cards[1]!.text()).toContain('Luis')
-    expect(cards[0]!.classes()).toContain('hf-clickable-row')
-    expect(wrapper.text()).not.toContain('qtn-mobile')
+    const table = wrapper.getComponent(appDataTableStub)
+    expect(table.props('mobileRender')).toBe('rows')
+    const fields = resolveMobileRow(table.props('columns') as never[], quotation, 0)
+    expect(fields.lead).toMatchObject({ icon: 'i-lucide-file-text' })
+    expect(fields.primary?.text).toBe('María Pérez')
+    expect(fields.secondary.map((field) => field.text)).toEqual([expect.stringMatching(/^Vence /)])
+    expect(fields.figure?.text).toBe('$123.45')
+    expect(fields.status).toEqual([expect.objectContaining({ text: 'Borrador', tone: 'neutral' })])
+    expect(JSON.stringify(fields)).not.toContain('qtn-mobile')
   })
 
-  it('shows the status badge and the total in the card footer', () => {
-    composableState.data.value = [makeQuotation({ id: 'qtn-card', totalCents: 12345 })]
-    const wrapper = mountView()
-    const card = wrapper.get('[data-testid="quotation-card"]')
-    expect(card.get('.hf-status-badge').text()).toBe('Borrador')
-    expect(card.get('.quotation-card-footer').text()).toContain('$123.45')
-  })
-
-  it('navigates to /pos/cotizaciones/:id when the whole card is clicked', async () => {
-    composableState.data.value = [makeQuotation({ id: 'qtn-card-click' })]
-
-    const wrapper = mountView()
-    await wrapper.get('[data-testid="quotation-card"]').trigger('click')
-
-    const arg = routerPush.mock.calls[routerPush.mock.calls.length - 1]?.[0]
-    const path = typeof arg === 'string' ? arg : (arg as { path?: string })?.path
-    expect(path).toBe('/pos/cotizaciones/qtn-card-click')
+  it('hands the backend orderings to the phone «Ordenar» menu', () => {
+    const table = mountView().getComponent(appDataTableStub)
+    expect((table.props('sortOptions') as Array<{ value: string }>).map((option) => option.value)).toEqual([
+      'createdAt:desc',
+      'createdAt:asc',
+      'totalCents:desc',
+      'totalCents:asc',
+      'expiresAt:asc',
+    ])
+    expect(table.props('itemLabel')).toEqual({ one: 'cotización', other: 'cotizaciones' })
   })
 
   it('opens the whole row through AppDataTable row-open', async () => {

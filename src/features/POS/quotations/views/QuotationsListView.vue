@@ -3,7 +3,8 @@
  * QuotationsListView — the quotations list on the shared table pattern.
  *
  * Desktop: AppDataTable (customer, status, total, expiry, created, ⋮) with a
- * whole-row open; mobile (< 768px): cards through `#mobile-card`. Status tabs,
+ * whole-row open; mobile (< 768px): the shared dense rows (mobile-tables S4) from the
+ * columns' `meta.mobile`, without ⋮. Status tabs,
  * the filters slideover and URL persistence keep their behavior. Empty, no
  * match, loading and error come from AppDataTable's shared states.
  *
@@ -19,11 +20,11 @@ import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
 import type { TableColumn } from '@nuxt/ui'
+import type { TableMobileTone, TableSortOption } from '@/core/shared/types/table.types'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import SortableHeader from '@/core/shared/components/DataTable/SortableHeader.vue'
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
-import { useClickableRow } from '@/core/shared/composables/useClickableRow'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import {
   DataTableFilters,
@@ -194,6 +195,10 @@ function rowStatus(quotation: QuotationResponseDto) {
 
 const rowLabel = (quotation: QuotationResponseDto) => `cotización de ${customerName(quotation)}`
 
+const MOBILE_TONE: Record<string, TableMobileTone> = { error: 'danger', success: 'success', warning: 'warning', neutral: 'neutral' }
+const mobileStatusTone = (quotation: QuotationResponseDto): TableMobileTone =>
+  MOBILE_TONE[rowStatus(quotation).tone] ?? 'neutral'
+
 // ─── Delete flow (REQ-QAF-013) ────────────────────────────────────────────────
 
 const queryClient = useQueryClient()
@@ -298,6 +303,8 @@ const columns: TableColumn<QuotationResponseDto>[] = [
     accessorFn: customerName,
     header: 'Cliente',
     enableSorting: false,
+    // Phones (mobile-tables S4, A · Lista densa): icon · customer · expiry · total + status.
+    meta: { mobile: [{ role: 'lead', icon: 'i-lucide-file-text' }, { role: 'primary' }] },
   },
   {
     id: 'status',
@@ -305,21 +312,30 @@ const columns: TableColumn<QuotationResponseDto>[] = [
     header: 'Estado',
     enableSorting: false,
     // w-44: «Convertida en venta» fits whole at 1440 (w-32 cut it — odd D4).
-    meta: { class: { th: 'w-44' } },
+    meta: {
+      class: { th: 'w-44' },
+      mobile: { role: 'status', value: (quotation) => rowStatus(quotation).label, tone: mobileStatusTone },
+    },
   },
   {
     id: 'totalCents',
     accessorKey: 'totalCents',
     header: 'Total',
     enableSorting: true,
-    meta: { class: { th: 'w-36 text-right', td: 'text-right' } },
+    meta: {
+      class: { th: 'w-36 text-right', td: 'text-right' },
+      mobile: { role: 'figure', value: (quotation) => formatCentsMXN(quotation.totalCents) },
+    },
   },
   {
     id: 'expiresAt',
     accessorKey: 'expiresAt',
     header: 'Expira',
     enableSorting: true,
-    meta: { class: { th: 'w-36' } },
+    meta: {
+      class: { th: 'w-36' },
+      mobile: { role: 'secondary', value: (quotation) => `Vence ${formatShortDateTime(quotation.expiresAt)}` },
+    },
   },
   {
     id: 'createdAt',
@@ -366,9 +382,17 @@ function onAction(key: string, quotation: QuotationResponseDto): void {
   else if (key === 'delete') handleDelete(quotation)
 }
 
-// The whole row opens the quotation: AppDataTable's `row-open` for table rows,
-// `rowProps` for cards. The customer button is the tab stop, so neither row is.
-const clickable = useClickableRow<QuotationResponseDto>(goToDetail, { focusable: false })
+// The whole row (table or phone) opens the quotation through AppDataTable's `row-open`. The
+// customer button is the tab stop, so the row itself is not focusable.
+
+// The phone «Ordenar» menu: the backend orderings (createdAt / totalCents / expiresAt).
+const SORT_OPTIONS: TableSortOption[] = [
+  { label: 'Más recientes', value: 'createdAt:desc' },
+  { label: 'Más antiguas', value: 'createdAt:asc' },
+  { label: 'Total · mayor a menor', value: 'totalCents:desc' },
+  { label: 'Total · menor a mayor', value: 'totalCents:asc' },
+  { label: 'Vencen antes', value: 'expiresAt:asc' },
+]
 
 // ─── States ──────────────────────────────────────────────────────────────────
 
@@ -455,8 +479,10 @@ const errorMessage = 'No se pudieron cargar las cotizaciones'
             :filtered="filtered"
             :no-match-title="noMatchTitle"
             :active-filter-count="filtersCtl.activeCount.value"
-            mobile-render="cards"
+            mobile-render="rows"
             display-mode="auto"
+            :sort-options="SORT_OPTIONS"
+            :item-label="{ one: 'cotización', other: 'cotizaciones' }"
             class="hf-data-table"
             portal-class="hf-theme hf-ui quotations-list-portal"
             pagination-portal-class="hf-theme hf-ui quotations-list-portal"
@@ -529,31 +555,6 @@ const errorMessage = 'No se pudieron cargar las cotizaciones'
               />
             </template>
 
-            <template #mobile-card="{ row }">
-              <article v-bind="clickable.rowProps(row)" class="quotation-card" data-testid="quotation-card">
-                <div class="quotation-card-head">
-                  <button
-                    type="button"
-                    class="hf-row-primary quotation-row-link"
-                    :data-testid="`quotation-link-${row.id}`"
-                    @click="goToDetail(row)"
-                  >{{ customerName(row) }}</button>
-                  <RowActionsMenu
-                    :actions="actionsFor(row)"
-                    :row-label="rowLabel(row)"
-                    portal-class="quotations-list-portal"
-                    @select="onAction($event, row)"
-                  />
-                </div>
-                <div class="quotation-card-meta">
-                  <StatusBadge v-bind="rowStatus(row)" />
-                </div>
-                <div class="quotation-card-footer">
-                  <span class="hf-figure quotations-total-value">{{ formatCentsMXN(row.totalCents) }}</span>
-                  <span>{{ formatShortDateTime(row.createdAt) }}</span>
-                </div>
-              </article>
-            </template>
           </AppDataTable>
         </div>
       </div>
@@ -595,11 +596,4 @@ const errorMessage = 'No se pudieron cargar las cotizaciones'
 .quotations-status-tab.is-active { border-color: var(--hf-border); background: var(--hf-surface-muted); color: var(--hf-heading); font-weight: 600; }
 .quotation-row-link { padding: 0; border: 0; background: none; text-align: left; font-size: 14px; cursor: pointer; }
 .quotation-when { color: var(--hf-muted); font-size: 13px; white-space: nowrap; }
-.quotation-card { position: relative; min-width: 0; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); padding: 16px; }
-.quotation-card-head { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
-.quotation-card-head .quotation-row-link { flex: 1; min-width: 0; padding-top: 2px; font-size: 15px; line-height: 1.4; white-space: normal; }
-.quotation-card-head > :last-child { margin: -8px -8px 0 0; flex: none; }
-.quotation-card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.quotation-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hf-border); color: var(--hf-muted); font-size: 13px; }
-.quotation-card-footer .quotations-total-value { color: var(--hf-ink); }
 </style>

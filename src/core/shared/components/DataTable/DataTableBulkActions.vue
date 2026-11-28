@@ -17,12 +17,18 @@ const props = withDefaults(
     label?: string
     /** Box of the table surface (viewport px); the fixed bar centres over it. Unset → the viewport. */
     anchor?: { left: number; width: number }
+    /**
+     * Phones (mobile-tables S4): docked at the bottom, full width, 16px top corners, above the home
+     * indicator, with the actions on their own row. Desktop keeps the floating bar.
+     */
+    docked?: boolean
   }>(),
   {
     selectedRows: undefined,
     selectedLabel: () => ({ one: 'seleccionado', other: 'seleccionados' }),
     label: 'Acciones para las filas seleccionadas',
     anchor: undefined,
+    docked: false,
   },
 )
 
@@ -41,7 +47,7 @@ const status = computed(() =>
 )
 // 16px of breathing room on each side of the surface.
 const anchorStyle = computed(() =>
-  props.anchor
+  props.anchor && !props.docked
     ? {
         '--hf-bulk-center': `${props.anchor.left + props.anchor.width / 2}px`,
         '--hf-bulk-max': `${Math.max(0, props.anchor.width - 32)}px`,
@@ -79,7 +85,44 @@ function resolveActionColor(variant: BulkAction<unknown>['variant']) {
 
 <template>
   <Transition name="hf-bulk-bar">
-    <div v-if="selectedCount > 0" class="hf-bulk-bar" role="region" :aria-label="props.label" :style="anchorStyle">
+    <div
+      v-if="selectedCount > 0 && docked"
+      class="hf-bulk-bar hf-bulk-bar--docked"
+      role="region"
+      :aria-label="props.label"
+    >
+      <div class="hf-bulk-bar__head" data-testid="bulk-docked-head">
+        <span class="hf-bulk-bar__count"
+          ><span class="hf-bulk-count" data-testid="bulk-selected-count">{{ selectedCount }}</span> {{ noun }}</span
+        >
+        <span class="sr-only" role="status">{{ status }}</span>
+        <span v-if="$slots.summary" class="hf-bulk-bar__summary"><slot name="summary" /></span>
+        <UButton
+          class="hf-bulk-bar__close"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-x"
+          aria-label="Quitar selección"
+          title="Quitar selección"
+          @click="emit('clearSelection')"
+        />
+      </div>
+      <div v-if="orderedActions.length > 0" class="hf-bulk-bar__acts" data-testid="bulk-docked-actions">
+        <UButton
+          v-for="action in orderedActions"
+          :key="action.id"
+          :label="action.label"
+          :icon="action.icon"
+          :color="resolveActionColor(action.variant)"
+          :disabled="action.disabled"
+          :class="['hf-bulk-bar__act', action.variant === 'destructive' ? 'hf-bulk-bar__danger' : undefined]"
+          variant="outline"
+          data-bulk-action
+          @click="action.onClick(props.selectedRows ?? [])"
+        />
+      </div>
+    </div>
+    <div v-else-if="selectedCount > 0" class="hf-bulk-bar" role="region" :aria-label="props.label" :style="anchorStyle">
       <span class="hf-bulk-bar__count"
         ><span class="hf-bulk-count" data-testid="bulk-selected-count">{{ selectedCount }}</span> {{ noun }}</span
       >

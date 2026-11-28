@@ -176,3 +176,294 @@ test.describe('mobile-tables T1 @mobile-tables', () => {
     expect(sections.every(width => width === '1px')).toBe(true)
   })
 })
+
+/**
+ * mobile-tables T3 (S4) — the chosen direction at 360 and 390px over mocked APIs:
+ * A · Lista densa for Clientes, Productos and Cotizaciones, B · Tarjetas ricas for Ventas; the sticky
+ * search + «Filtros (N)» + result line with the short «Ordenar» menu; the full-height Filtros sheet
+ * with «Ver N resultados»; selection mode with the docked bulk bar; the compact pager; the mobile
+ * default page size of 10. Screenshots land under /tmp/mobile-tables-t3/.
+ */
+const T3_SHOTS = '/tmp/mobile-tables-t3'
+const T3_TOTAL = 86
+const LONG_NAMES = [
+  'Clínica Veterinaria Huellitas del Valle S.A. de C.V.',
+  'María Fernanda Garza Lozano',
+  'Héctor Villarreal Elizondo',
+  'Estética Canina Patitas Felices',
+]
+
+function t3CustomerRow(index: number) {
+  const name = LONG_NAMES[index % LONG_NAMES.length]!
+  const [firstName, ...rest] = name.split(' ')
+  const debt = index % 3 === 0 ? 1248000 + index * 100 : 0
+  return {
+    ...listingRow(index),
+    id: `c-${index}`,
+    firstName,
+    lastName: rest.join(' '),
+    activePetsCount: index % 2,
+    petSpecies: index % 2 ? ['DOG'] : [],
+    metrics: {
+      openDebtCents: debt,
+      overdueDebtCents: debt,
+      overdueCount: debt ? 1 : 0,
+      oldestOverdueDueDate: debt ? '2026-08-12' : null,
+      salesCount: 4,
+      totalSoldCents: 900000,
+      averageTicketCents: 225000,
+      lastPurchaseAt: index % 4 === 1 ? null : '2026-11-18T12:00:00.000Z',
+    },
+  }
+}
+
+function t3SaleRow(index: number) {
+  return {
+    id: `s-${index}`,
+    folio: `A-202611-${String(10480 + index).padStart(6, '0')}`,
+    status: 'CONFIRMED',
+    paymentStatus: index % 2 ? 'PARTIAL' : 'PAID',
+    deliveryStatus: 'PENDING',
+    totalCents: 893000 + index * 100,
+    debtCents: index % 2 ? 493000 : 0,
+    confirmedAt: '2026-11-28T17:40:00.000Z',
+    dueDate: index % 2 ? '2026-12-05' : null,
+    customer: { id: `c-${index}`, name: LONG_NAMES[index % LONG_NAMES.length] },
+    cashier: { id: 'u-1', name: 'César' },
+    seller: null,
+    paymentMethods: ['CASH'],
+    channel: 'POS',
+  }
+}
+
+function t3ProductRow(index: number) {
+  return {
+    id: `p-${index}`,
+    name: index % 2 ? 'Croquetas Nupec Adulto Raza Mediana Sabor Pollo y Arroz 15 kg' : 'Arena aglutinante Fresh Step sin aroma 9 kg',
+    type: 'PRODUCT',
+    sku: `NUP-AD-${index}`,
+    categoryName: 'Alimento seco',
+    brandName: 'Nupec',
+    priceCents: 138900,
+    quantity: index % 3 === 0 ? 2 : 12,
+    minQuantity: 5,
+    useStock: true,
+    hasVariants: false,
+    status: 'active',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-11-01T00:00:00.000Z',
+  }
+}
+
+function t3QuotationRow(index: number) {
+  return {
+    id: `q-${index}`,
+    customerId: `c-${index}`,
+    customer: { id: `c-${index}`, firstName: 'Estética Canina', lastName: 'Patitas Felices del Norte', email: null },
+    status: index % 2 ? 'SENT' : 'DRAFT',
+    expiresAt: '2099-12-04T00:00:00.000Z',
+    totalCents: 1892000,
+    createdAt: '2026-11-20T00:00:00.000Z',
+  }
+}
+
+function paged<T>(url: URL, row: (index: number) => T) {
+  const limit = Number(url.searchParams.get('limit') ?? 10)
+  const page0 = Number(url.searchParams.get('page') ?? 1)
+  const data = Array.from({ length: Math.min(limit, T3_TOTAL - (page0 - 1) * limit) }, (_, i) => row((page0 - 1) * limit + i + 1))
+  return { data, pagination: { page: page0, limit, total: T3_TOTAL, totalPages: Math.ceil(T3_TOTAL / limit) } }
+}
+
+async function mockT3Api(page: Page, requests: URL[] = []) {
+  await page.route('**/*', (route: Route) => {
+    const url = new URL(route.request().url())
+    if (url.origin !== RESPONSIVE_ORIGIN) return route.abort()
+    return route.fallback()
+  })
+  await page.route('**/__e2e-api/**', (route: Route) => {
+    const url = new URL(route.request().url())
+    requests.push(url)
+    const path = url.pathname.replace('/__e2e-api', '')
+    const json = (body: unknown) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+    if (path === '/customers/listing') {
+      return json({ ...paged(url, t3CustomerRow), filterSummary: { count: T3_TOTAL, openDebtCents: 5400000 } })
+    }
+    if (path === '/customers/listing/options') return json({ field: url.searchParams.get('field'), data: [{ value: 'Monterrey', count: 40 }, { value: 'San Nicolás', count: 30 }] })
+    if (path === '/sales') {
+      return json({
+        ...paged(url, t3SaleRow),
+        counts: { all: T3_TOTAL, pendingPayments: 40, notDelivered: 20 },
+        summary: {},
+        filterSummary: { count: T3_TOTAL, totalCents: 76000000, debtCents: 20000000 },
+      })
+    }
+    if (path === '/products') return json(Array.from({ length: T3_TOTAL }, (_, i) => t3ProductRow(i + 1)))
+    if (path === '/quotations') return json(paged(url, t3QuotationRow))
+    return json([])
+  })
+}
+
+const T3_PERMISSIONS = [
+  'read:Customer', 'create:Customer', 'update:Customer', 'read:Sale', 'create:Sale',
+  'read:Product', 'create:Product', 'read:Quotation', 'create:Quotation',
+]
+
+async function openT3(page: Page, path: string, width: number, requests?: URL[]) {
+  await page.setViewportSize({ width, height: 844 })
+  await seedAuthSession(page, { permissions: T3_PERMISSIONS })
+  await mockT3Api(page, requests)
+  await page.goto(`${RESPONSIVE_ORIGIN}${path}`)
+  await page.locator('.hf-toolbar').first().waitFor()
+}
+
+async function expectNoHorizontalOverflow(page: Page) {
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  expect(overflow, 'document horizontal overflow').toBeLessThanOrEqual(0)
+}
+
+async function expectPagerFits(page: Page) {
+  const pager = page.locator('.hf-pagination').first()
+  await pager.scrollIntoViewIfNeeded()
+  const sticksOut = await pager.evaluate(el => {
+    const box = el.getBoundingClientRect()
+    return Array.from(el.querySelectorAll('*')).some(child => {
+      const c = child.getBoundingClientRect()
+      return c.width > 0 && (c.right > box.right + 0.5 || c.left < box.left - 0.5)
+    })
+  })
+  expect(sticksOut, 'a pager child sticks out').toBe(false)
+  await expect(pager.getByRole('button', { name: /siguiente/i }).first()).toBeInViewport()
+}
+
+const LISTS = [
+  { name: 'clientes', path: '/pos/customers', item: 'mobile-list-row' },
+  { name: 'productos', path: '/pos/products', item: 'mobile-list-row' },
+  { name: 'cotizaciones', path: '/pos/cotizaciones', item: 'mobile-list-row' },
+  { name: 'ventas', path: '/pos/ventas', item: 'mobile-list-card' },
+] as const
+
+test.describe('mobile-tables T3 @mobile-tables', () => {
+  for (const width of [360, 390]) {
+    for (const list of LISTS) {
+      test(`${list.name} renders ${list.item === 'mobile-list-row' ? 'dense rows' : 'rich cards'} at ${width}px without overflow`, async ({ page }) => {
+        await openT3(page, list.path, width)
+        const items = page.getByTestId(list.item)
+        await items.first().waitFor()
+        expect(await items.count()).toBeGreaterThan(0)
+        await expect(page.locator('table')).toHaveCount(0)
+        // The full name wraps instead of being cut, and every row target is at least 44px tall.
+        const name = items.first().locator('[data-testid$="-primary"]')
+        const nameBox = await name.evaluate(el => ({ scroll: el.scrollWidth, client: el.clientWidth, overflow: getComputedStyle(el).textOverflow }))
+        expect(nameBox.scroll, 'name not clipped').toBeLessThanOrEqual(nameBox.client + 1)
+        expect(nameBox.overflow).not.toBe('ellipsis')
+        const itemBox = (await items.first().boundingBox())!
+        expect(itemBox.height).toBeGreaterThanOrEqual(44)
+        // Result line with the sort menu, under the sticky search.
+        await expect(page.getByTestId('mobile-result-line')).toContainText(`${T3_TOTAL}`)
+        await expect(page.getByTestId('mobile-sort-button')).toBeVisible()
+        await page.waitForTimeout(200)
+        await page.screenshot({ path: `${T3_SHOTS}/${list.name}-${width}.png`, fullPage: true })
+        await expectNoHorizontalOverflow(page)
+        await expectPagerFits(page)
+      })
+    }
+
+    test(`clientes Filtros sheet at ${width}px: full height, sections with counts, «Ver N clientes»`, async ({ page }) => {
+      await openT3(page, '/pos/customers', width)
+      await page.getByTestId('mobile-list-row').first().waitFor()
+      await page.getByTestId('toolbar-filtros-button').click()
+      const layout = page.getByTestId('toolbar-filters-layout')
+      await layout.waitFor()
+      await page.waitForTimeout(400)
+      const viewport = page.viewportSize()!
+      const box = (await layout.boundingBox())!
+      expect(box.y, 'sheet starts near the top').toBeLessThanOrEqual(16)
+      expect(box.x).toBeLessThanOrEqual(0.5)
+      expect(box.width).toBeGreaterThanOrEqual(viewport.width - 0.5)
+      expect(box.y + box.height).toBeGreaterThanOrEqual(viewport.height - 0.5)
+      const sections = page.getByTestId('toolbar-filters-body').locator('[data-testid^="section-group-"]')
+      expect(await sections.count()).toBeGreaterThan(1)
+      await expect(sections.first()).toBeVisible()
+      // Sort is not in the sheet on phones.
+      await expect(page.getByTestId('customers-sort-select')).toHaveCount(0)
+      const apply = page.getByTestId('toolbar-filters-apply')
+      await expect(apply).toHaveText(`Ver ${T3_TOTAL} clientes`)
+      await expect(apply).toBeInViewport({ ratio: 1 })
+      await expect(page.getByTestId('toolbar-filters-clear-all')).toBeInViewport({ ratio: 1 })
+      await page.screenshot({ path: `${T3_SHOTS}/clientes-filtros-${width}.png` })
+      await apply.click()
+      await expect(layout).toBeHidden()
+    })
+  }
+
+  test('clientes selection mode at 390px: marks inside the rows and the docked bulk bar', async ({ page }) => {
+    await openT3(page, '/pos/customers', 390)
+    const rows = page.getByTestId('mobile-list-row')
+    await rows.first().waitFor()
+    await page.getByTestId('mobile-select-toggle').click()
+    await rows.nth(0).click()
+    await rows.nth(1).click()
+    await expect(rows.nth(0).locator('.hf-row-mark')).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByTestId('mobile-select-head')).toContainText('2 seleccionados')
+    const dock = page.locator('.hf-bulk-bar--docked')
+    await expect(dock).toBeVisible()
+    const viewport = page.viewportSize()!
+    const box = (await dock.boundingBox())!
+    expect(box.x).toBeLessThanOrEqual(0.5)
+    expect(box.width).toBeGreaterThanOrEqual(viewport.width - 0.5)
+    expect(box.y + box.height).toBeGreaterThanOrEqual(viewport.height - 0.5)
+    await page.waitForTimeout(250)
+    await page.screenshot({ path: `${T3_SHOTS}/clientes-seleccion-390.png` })
+    await expectNoHorizontalOverflow(page)
+    await page.getByTestId('mobile-select-done').click()
+    await expect(dock).toHaveCount(0)
+  })
+
+  test('clientes sort menu at 360px lists only the orderings', async ({ page }) => {
+    await openT3(page, '/pos/customers', 360)
+    await page.getByTestId('mobile-list-row').first().waitFor()
+    await page.getByTestId('mobile-sort-button').click()
+    const items = page.getByRole('menuitemcheckbox')
+    await expect(items.first()).toBeVisible()
+    await expect(page.getByRole('menuitemcheckbox', { name: 'Nombre · A–Z' })).toBeVisible()
+    await page.screenshot({ path: `${T3_SHOTS}/clientes-ordenar-360.png` })
+    await page.getByRole('menuitemcheckbox', { name: 'Deuda · mayor a menor' }).click()
+    await expect(page.getByTestId('mobile-sort-button')).toContainText('Deuda')
+  })
+
+  test('the search block stays stuck under the app bar while the list scrolls (390px)', async ({ page }) => {
+    await openT3(page, '/pos/customers', 390)
+    await page.getByTestId('mobile-list-row').first().waitFor()
+    const sticky = page.getByTestId('toolbar-mobile-sticky')
+    const before = (await sticky.boundingBox())!
+    await page.getByTestId('mobile-list-row').nth(6).scrollIntoViewIfNeeded()
+    await page.mouse.wheel(0, 600)
+    await page.waitForTimeout(300)
+    const after = (await sticky.boundingBox())!
+    await expect(sticky).toBeInViewport()
+    expect(after.y, 'stuck near the top of the scroll area').toBeLessThan(before.y)
+    await page.screenshot({ path: `${T3_SHOTS}/clientes-scroll-390.png` })
+  })
+
+  test('a phone with nothing remembered asks for 10 rows', async ({ page }) => {
+    const requests: URL[] = []
+    await openT3(page, '/pos/customers', 390, requests)
+    await page.getByTestId('mobile-list-row').first().waitFor()
+    const listing = requests.filter(url => url.pathname.endsWith('/customers/listing'))
+    expect(listing.length).toBeGreaterThan(0)
+    expect(listing[0]!.searchParams.get('limit')).toBe('10')
+  })
+
+  test('desktop (1280px) keeps the table: no phone rows, no result line', async ({ page }) => {
+    const requests: URL[] = []
+    await openT3(page, '/pos/customers', 1280, requests)
+    await page.locator('table tbody tr').first().waitFor()
+    await expect(page.getByTestId('mobile-list-row')).toHaveCount(0)
+    await expect(page.getByTestId('mobile-result-line')).toHaveCount(0)
+    await expect(page.getByTestId('customers-sort-select')).toBeVisible()
+    // Desktop keeps the table's own default (50 for customers).
+    const listing = requests.filter(url => url.pathname.endsWith('/customers/listing'))
+    expect(listing[0]!.searchParams.get('limit')).toBe('50')
+    await page.screenshot({ path: `${T3_SHOTS}/clientes-desktop-1280.png` })
+  })
+})

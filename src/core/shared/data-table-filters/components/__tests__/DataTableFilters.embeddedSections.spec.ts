@@ -37,3 +37,24 @@ describe('DataTableFilters embedded — sections, not nested cards', () => {
     expect(wrapper.get('[data-testid="section-group-Mascotas"]').find('[data-testid="filter-chips-species"]').exists()).toBe(true)
   })
 })
+
+// mobile-tables T3 (board 03): each section says how many of its filters are active and what they
+// are set to, so the sheet reads at a glance.
+describe('DataTableFilters embedded — section value and count', () => {
+  it('shows the active count and the summarized value beside a section title', () => {
+    const state = { ...schema.defaults(), species: ['DOG'] }
+    const wrapper = mount(DataTableFilters, { props: { schema, state, embedded: true }, global: { stubs } })
+    const header = wrapper.get('[data-testid="section-header-Mascotas"]')
+    expect(header.text()).toContain('Mascotas')
+    expect(header.get('[data-testid="section-count-Mascotas"]').text()).toBe('1')
+    expect(header.get('[data-testid="section-count-Mascotas"]').attributes('aria-label')).toBe('1 activo')
+    expect(header.get('[data-testid="section-value-Mascotas"]').text()).toBe('Perro')
+  })
+
+  it('shows neither count nor value for a section without active filters', () => {
+    const wrapper = mount(DataTableFilters, { props: { schema, state: schema.defaults(), embedded: true }, global: { stubs } })
+    const header = wrapper.get('[data-testid="section-header-Deuda"]')
+    expect(header.find('[data-testid="section-count-Deuda"]').exists()).toBe(false)
+    expect(header.find('[data-testid="section-value-Deuda"]').exists()).toBe(false)
+  })
+})

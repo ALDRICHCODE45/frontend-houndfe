@@ -28,7 +28,8 @@ const stubs = {
   Badge: { props: ['label'], template: '<span />' },
 }
 
-const ui = readFileSync('src/core/shared/design-system/houndfe-ui.css', 'utf8')
+// mobile-tables T3: the sheet rules moved to the DataTable phone stylesheet (teleported, unscoped).
+const mobileCss = readFileSync('src/core/shared/components/DataTable/mobile-list.css', 'utf8')
 
 /** The declarations of the first rule whose selector list contains `selector`. */
 function rule(source: string, selector: string) {
@@ -60,11 +61,11 @@ describe('Filtros sheet — the #filters row stacks inside the sheet (S2a)', () 
   })
 
   it('stacks a flex row passed to the sheet and gives every region the full width, unclipped', () => {
-    const row = rule(ui, '.hf-filters-sheet__body > :where(.flex)')
+    const row = rule(mobileCss, '.hf-filters-sheet__body > :where(.flex)')
     expect(row).toMatch(/flex-direction: column/)
     expect(row).toMatch(/flex-wrap: nowrap/)
     expect(row).toMatch(/align-items: stretch/)
-    const region = rule(ui, '.hf-filters-sheet__body > :where(.flex) > *')
+    const region = rule(mobileCss, '.hf-filters-sheet__body > :where(.flex) > *')
     expect(region).toMatch(/flex: 0 0 auto/)
     expect(region).toMatch(/width: 100%/)
     expect(region).toMatch(/overflow: visible/)

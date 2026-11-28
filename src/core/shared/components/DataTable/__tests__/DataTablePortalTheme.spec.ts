@@ -61,8 +61,10 @@ describe('DataTable opt-in portal presentation', () => {
       const themed = portals.filter(portal => portal.find('[data-testid="columns-panel"], [data-testid="columns-sheet"]').exists() && !portal.find('[data-testid="toolbar-filters-body"]').exists())
       expect(themed.length).toBeGreaterThanOrEqual(1)
       for (const portal of portals) {
-        if (themed.includes(portal)) expect(portal.props('ui')?.content).toBe('hf-theme hf-ui')
-        else expect(portal.props('ui')?.content).toBeUndefined()
+        // mobile-tables T3: the Filtros sheet always carries its own layout class (full height, 16px corners).
+        const sheet = portal.find('[data-testid="toolbar-filters-body"]').exists()
+        const expected = themed.includes(portal) ? 'hf-theme hf-ui' : sheet ? 'hf-filters-sheet' : undefined
+        expect(portal.props('ui')?.content).toBe(expected)
       }
       wrapper.unmount()
     })
@@ -73,7 +75,8 @@ describe('DataTable opt-in portal presentation', () => {
       const portals = wrapper.findAllComponents(PortalStub)
       expect(portals.length).toBeGreaterThanOrEqual(2)
       for (const portal of portals) {
-        expect(portal.props('ui')?.content).toBe('hf-theme hf-ui')
+        const sheet = portal.find('[data-testid="toolbar-filters-body"]').exists()
+        expect(portal.props('ui')?.content).toBe(sheet ? 'hf-theme hf-ui hf-filters-sheet' : 'hf-theme hf-ui')
       }
       expect(portals.some(portal => portal.find('[data-testid="columns-panel"], [data-testid="columns-sheet"]').exists())).toBe(true)
       expect(wrapper.props('globalFilter')).toBe('')

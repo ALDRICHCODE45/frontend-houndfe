@@ -80,10 +80,17 @@ const groupedFields = computed(() => {
   return groups.sort((a, b) => (!a.section && b.section ? -1 : a.section && !b.section ? 1 : 0))
 })
 
-const groupsWithActivity = computed(() => groupedFields.value.map(group => ({
-  ...group,
-  hasActive: group.fields.some(field => props.schema.isActive(field.id, state.value)),
-})))
+const groupsWithActivity = computed(() => groupedFields.value.map((group) => {
+  const ids = new Set(group.fields.map(field => field.id))
+  const chips = activeChips.value.filter(chip => ids.has(chip.filterId))
+  return {
+    ...group,
+    hasActive: group.fields.some(field => props.schema.isActive(field.id, state.value)),
+    // Board 03: how many of the section's filters are on and what they are set to.
+    activeCount: chips.length,
+    activeValue: chips.map(chip => chip.displayValue).join(' · '),
+  }
+}))
 
 function showsChips(field: FilterDefinition): boolean {
   return usesToggleChips(field, props.chipsMaxOptions)
@@ -152,10 +159,21 @@ defineExpose({ open, close })
       >
         <p
           v-if="group.section"
-          class="mb-4 text-sm font-semibold text-highlighted"
+          class="mb-4 flex min-w-0 items-center gap-2 text-sm font-semibold text-highlighted"
           :data-testid="`section-header-${group.key}`"
         >
-          {{ group.section }}
+          <span>{{ group.section }}</span>
+          <span
+            v-if="group.activeCount > 0"
+            class="hf-filter-section__count"
+            :aria-label="`${group.activeCount} ${group.activeCount === 1 ? 'activo' : 'activos'}`"
+            :data-testid="`section-count-${group.key}`"
+          >{{ group.activeCount }}</span>
+          <span
+            v-if="group.activeValue"
+            class="hf-filter-section__value"
+            :data-testid="`section-value-${group.key}`"
+          >{{ group.activeValue }}</span>
         </p>
         <div class="space-y-4">
           <template v-for="field in group.fields" :key="field.id">

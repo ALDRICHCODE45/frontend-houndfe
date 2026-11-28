@@ -9,14 +9,14 @@ import {
 import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import ReservedStockLabel from '@/core/shared/components/ReservedStockLabel.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
-import { useClickableRow } from '@/core/shared/composables/useClickableRow'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
-import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { ColumnOrderState, ColumnSizingState } from '@tanstack/vue-table'
 import type {
   ColumnPinningState,
   PaginationState,
   SortingState,
+  TableMobileField,
+  TableSortOption,
   VisibilityState,
 } from '@/core/shared/types/table.types'
 import { useProductColumns } from '../composables/useProductColumns'
@@ -25,6 +25,7 @@ import {
   getProductReservedStock,
   getProductStockCompactLabel,
   getProductStockDisplay,
+  getProductStockTone,
   getProductTypeBadge,
   productStatusConfig,
   stockNeedsAttention,
@@ -79,7 +80,42 @@ const columnOrder = defineModel<ColumnOrderState>('columnOrder', { default: () =
 const columnSizing = defineModel<ColumnSizingState>('columnSizing', { default: () => ({}) })
 const density = defineModel<TableDensity>('density', { default: DEFAULT_TABLE_DENSITY })
 
-const { columns } = useProductColumns()
+// Phones (mobile-tables S4, A · Lista densa): type icon · full name · SKU and category · the price
+// with the stock under it (a warning when it runs low). Desktop ignores `meta.mobile`.
+const PRODUCT_MOBILE: Record<string, TableMobileField<Product>[]> = {
+  name: [
+    { role: 'lead', icon: (product) => getProductTypeBadge(product.type).icon },
+    { role: 'primary', value: (product) => product.name },
+    { role: 'secondary', value: (product) => product.sku },
+  ],
+  categoryName: [{ role: 'secondary', value: (product) => product.categoryName }],
+  priceCents: [{ role: 'figure', value: (product) => formatCentsMXN(product.priceCents) }],
+  quantity: [{ role: 'figureNote', value: (product) => stockNote(product), tone: (product) => stockNoteTone(product) }],
+}
+function stockNote(product: Product): string {
+  const label = getProductStockCompactLabel(product)
+  return getProductStockTone(product) === 'warning' ? `Quedan ${label}` : label
+}
+function stockNoteTone(product: Product) {
+  const tone = getProductStockTone(product)
+  if (tone === 'error') return 'danger' as const
+  return tone === 'warning' ? ('warning' as const) : undefined
+}
+const columns = useProductColumns().columns.map((column) => {
+  const id = column.id ?? ('accessorKey' in column ? String(column.accessorKey) : '')
+  const mobile = PRODUCT_MOBILE[id]
+  return mobile ? { ...column, meta: { ...column.meta, mobile } } : column
+})
+
+// The phone «Ordenar» menu: the orderings of the sortable columns.
+const SORT_OPTIONS: TableSortOption[] = [
+  { label: 'Nombre · A–Z', value: 'name:asc' },
+  { label: 'Nombre · Z–A', value: 'name:desc' },
+  { label: 'Precio · menor a mayor', value: 'priceCents:asc' },
+  { label: 'Precio · mayor a menor', value: 'priceCents:desc' },
+  { label: 'Stock · menor a mayor', value: 'quantity:asc' },
+  { label: 'Stock · mayor a menor', value: 'quantity:desc' },
+]
 
 function statusOf(product: Product) {
   return productStatusConfig[product.status]
@@ -112,12 +148,11 @@ function onAction(key: string, product: Product) {
   else if (key === 'delete') emit('delete', product)
 }
 
-// The whole row opens the details: AppDataTable's `row-open` for table rows,
-// `rowProps` for cards. The name button is the tab stop, so neither is focusable.
+// The whole row (table or phone) opens the details through AppDataTable's `row-open`. The name
+// button is the tab stop, so the row itself is not focusable.
 function open(product: Product) {
   if (props.canRead) emit('open', product)
 }
-const clickable = useClickableRow<Product>(open, { focusable: false })
 const rowOpen = computed(() => (props.canRead ? open : undefined))
 </script>
 
@@ -150,7 +185,9 @@ const rowOpen = computed(() => (props.canRead ? open : undefined))
     :show-add-button="canCreate"
     :row-open="rowOpen"
     display-mode="auto"
-    mobile-render="cards"
+    mobile-render="rows"
+    :sort-options="SORT_OPTIONS"
+    :item-label="{ one: 'producto', other: 'productos' }"
     search-placeholder="Buscar productos..."
     add-button-text="Nuevo producto"
     add-button-icon="i-lucide-package-plus"
@@ -244,108 +281,15 @@ const rowOpen = computed(() => (props.canRead ? open : undefined))
       />
     </template>
 
-    <template #mobile-card="{ row }">
-      <article v-bind="clickable.rowProps(row)" class="product-card" data-testid="product-card">
-        <div class="product-card-heading">
-          <div class="product-card-title">
-            <button
-              v-if="canRead"
-              type="button"
-              class="hf-row-primary text-left"
-              @click="open(row)"
-            >
-              {{ row.name }}
-            </button>
-            <span v-else class="hf-row-primary">{{ row.name }}</span>
-            <span v-if="row.sku" class="hf-row-secondary">{{ row.sku }}</span>
-          </div>
-          <RowActionsMenu
-            class="product-card-menu"
-            :actions="actionsFor()"
-            :row-label="row.name"
-            portal-class="hf-shell-products-portal"
-            @select="onAction($event, row)"
-          />
-        </div>
-        <div class="product-card-badges">
-          <StatusBadge
-            :label="statusOf(row).label"
-            :tone="statusOf(row).tone"
-          />
-          <StatusBadge
-            v-if="stockNeedsAttention(row)"
-            :label="getProductStockCompactLabel(row)"
-            :tone="getProductStockDisplay(row).tone"
-            aria-prefix="Stock:"
-          />
-        </div>
-        <div class="product-card-footer">
-          <span class="hf-figure">
-            <span class="font-semibold">{{ formatCentsMXN(row.priceCents) }}</span>
-            <template v-if="getProductReservedStock(row)">
-              · <ReservedStockLabel v-bind="getProductReservedStock(row)!" />
-            </template>
-            <template v-else-if="!stockNeedsAttention(row)">
-              · {{ getProductStockCompactLabel(row) }}
-            </template>
-          </span>
-          <span class="product-card-date">{{ formatShortDateTime(row.updatedAt) }}</span>
-        </div>
-      </article>
+    <!-- Phone row (A): only what the price column cannot say — an inactive or out-of-stock status
+         and the reserved split. No ⋮: the product's actions live in its detail. -->
+    <template #mobile-status="{ row }">
+      <StatusBadge
+        v-if="row.status !== 'active'"
+        :label="statusOf(row).label"
+        :tone="statusOf(row).tone"
+      />
+      <ReservedStockLabel v-if="getProductReservedStock(row)" v-bind="getProductReservedStock(row)!" />
     </template>
   </AppDataTable>
 </template>
-
-<style scoped>
-.product-card {
-  min-width: 0;
-  border: 1px solid var(--hf-border);
-  border-radius: 12px;
-  background: var(--hf-surface);
-  padding: 16px;
-}
-.product-card-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-.product-card-title {
-  min-width: 0;
-}
-/* The name wraps to two lines instead of cutting after one. */
-.product-card-title .hf-row-primary {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow-wrap: anywhere;
-  white-space: normal;
-}
-.product-card-menu {
-  margin: -8px -8px 0 0;
-  flex-shrink: 0;
-}
-.product-card-badges {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-}
-.product-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-top: 1px solid var(--hf-border);
-  margin-top: 12px;
-  padding-top: 12px;
-  color: var(--hf-text);
-  font-size: 13px;
-}
-.product-card-date {
-  color: var(--hf-muted);
-  white-space: nowrap;
-}
-</style>
