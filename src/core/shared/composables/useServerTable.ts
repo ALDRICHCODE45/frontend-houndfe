@@ -5,7 +5,7 @@ import { useTablePreferences } from './useTablePreferences'
 import type { ColumnOrderState, ColumnSizingState } from '@tanstack/vue-table'
 import { DEFAULT_TABLE_DENSITY, type TableDensity } from '../components/DataTable/tableLayout'
 import { useTableUrlSync } from './useTableUrlSync'
-import { readStoredPageSize, writeStoredPageSize } from './useTablePageSize'
+import { defaultPageSizeForViewport, readStoredPageSize, writeStoredPageSize } from './useTablePageSize'
 import { TABLE_PAGE_SIZE_OPTIONS, nearestPageSize } from '../constants/table-page-size'
 import type {
   ServerTableConfig,
@@ -79,7 +79,11 @@ export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableR
     urlSync = true,
   } = config
   // The default is always one of the options (a size that is not one is rounded to the nearest).
-  const defaultPageSize = nearestPageSize(config.defaultPageSize ?? 10, pageSizeOptions)
+  // On a phone the default is 10 (mobile-tables S4); the URL omits whichever default applies.
+  const defaultPageSize = defaultPageSizeForViewport(
+    nearestPageSize(config.defaultPageSize ?? 10, pageSizeOptions),
+    pageSizeOptions,
+  )
 
   // --- Core State ---
   // With a persistKey the table starts at its remembered size (an invalid one falls back to the

@@ -41,3 +41,8 @@ Commits: 08795da8 contrato · 1ab4920b ZIP · bafb6c29 selección + CSV + CORS �
 - No hay tabla de auditoría (pendiente para hablar después); sí queda un log estructurado por pedido.
 
 Verificación: suite completa 17884 ✓. Integraciones de export y de estados 23 + 36 ✓. Review nativa APPROVED en T1, T3 y los arreglos; verificador independiente PASS en T1 y T3.
+
+## Update (backend 9ad65e9a, 2026-11-28, verbatim summary)
+1) CORS ahora expone Retry-After además de Content-Disposition (Access-Control-Expose-Headers: Content-Disposition,Retry-After). En un 429 BULK_EXPORT_BUSY podés leer el header directo; details.retryAfterSeconds sigue viniendo.
+2) Las keys __proto__, constructor y prototype dan 400 en cualquier parte del body de POST /customers/bulk/export y /statements: raíz, selection y objetos anidados hasta 4 niveles (los arrays no se recorren). Antes solo pasaba dentro de selection.filter. El body del error es idéntico al de una propiedad desconocida en esa ruta (si la key está dentro de selection, viene anidada en selection.children). Si selection.filter tiene una, se informa solo ese error.
+Frontend note: no change needed — the client reads details.retryAfterSeconds and `buildBulkSelectionFilter` already strips the reserved keys.

@@ -42,9 +42,13 @@ describe('AppDataTable toolbar slots on mobile', () => {
     expect(wrapper.find('[data-testid="toolbar-mobile-filters-row"]').exists()).toBe(false)
   })
 
-  it('shows no empty controls row when there are neither filters, actions nor «Columnas»', () => {
+  // mobile-tables T3: the controls row is the sticky search row; with neither filters, actions nor
+  // «Columnas» it holds the search alone (no empty Filtros / actions boxes).
+  it('shows no empty controls when there are neither filters, actions nor «Columnas»', () => {
     const wrapper = mountTable({}, { enableColumnVisibility: false })
-    expect(wrapper.find('[data-testid="toolbar-mobile-controls-row"]').exists()).toBe(false)
+    const row = wrapper.get('[data-testid="toolbar-mobile-controls-row"]')
+    expect(row.findAll(':scope > *').map(node => node.attributes('data-testid'))).toEqual(['toolbar-mobile-search-row'])
+    expect(wrapper.find('[data-testid="toolbar-mobile-actions-row"]').exists()).toBe(false)
   })
 
   it('keeps the controls row for «Columnas» alone, which is shown by default', () => {

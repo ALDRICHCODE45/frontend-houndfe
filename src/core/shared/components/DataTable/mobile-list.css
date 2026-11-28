@@ -1,0 +1,616 @@
+/* DataTable phone layer (odd/tasks/mobile-tables.md, design/mobile-tables 01–04). Imported by
+ * AppDataTable and DataTableToolbar, so it applies wherever they render (the Filtros sheet is
+ * teleported, so these rules are not scoped under `.hf-ui`). Tokens only from design/system.md. */
+
+/* ── Filtros bottom sheet (DataTableToolbar, mobile) ──────────────────────── */
+
+/* The views hand the sheet their desktop toolbar row: `flex flex-wrap` with the
+ * filters in a `flex-1 min-w-0 overflow-hidden` region and the sort beside it.
+ * In the sheet that region's 0 basis left a ~20px sliver that clipped every
+ * filter section to an empty bordered box (mobile-tables S2a). Inside the sheet
+ * the row stacks and each region takes the full width, unclipped. */
+.hf-filters-sheet__body > :where(.flex) {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+}
+
+.hf-filters-sheet__body > :where(.flex) > * {
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+}
+
+/* ── Phone lists (mobile-tables S4, design/mobile-tables 01–04) ───────────────
+ * AppDataTable below md: the toolbar root dissolves (`display: contents`) so the
+ * search + «Filtros (N)» + result line block can stick under the app bar while the
+ * actions row scrolls away. Rows (A) and rich cards (B) are built by
+ * DataTableMobileList from the columns' `meta.mobile`. Every target ≥ 44px. */
+.hf-toolbar.hf-toolbar--mobile {
+  display: contents;
+}
+
+/* The table surfaces hide their overflow for the rounded corners; on phones they clip instead, which
+ * keeps the corners but is not a scroll container, so the toolbar block can stick to the page. */
+@media (max-width: 767.98px) {
+  .hf-ui .hf-table-surface:has(.hf-mtool) {
+    overflow: clip;
+  }
+}
+
+/* The dashboard's scroll panel has 16px of padding on phones: the block sticks 16px higher and pads
+ * that much on top, so no scrolled row shows between it and the app bar. */
+.hf-mtool {
+  position: sticky;
+  top: -16px;
+  z-index: 20;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  margin: -16px -12px 0;
+  padding: 16px 12px 0;
+  background-color: var(--hf-surface);
+  border-bottom: 1px solid var(--hf-border);
+}
+
+.hf-mtool__r1 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding-bottom: 4px;
+}
+
+.hf-mtool__search {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.hf-mtool__r1 :is(.hf-mtool__filtros, .hf-mtool__columns) {
+  flex-shrink: 0;
+  min-height: 44px;
+}
+
+.hf-mtool__columns {
+  justify-content: center;
+  min-width: 44px;
+}
+
+.hf-mtool__filtros.has-filters {
+  border-color: var(--hf-active);
+  background-color: var(--hf-active-soft);
+  color: var(--hf-active);
+}
+
+.hf-mtool__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background-color: var(--hf-active);
+  color: var(--hf-on-action);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.hf-mtool-actions {
+  min-height: 44px;
+}
+
+/* Result line: «86 clientes» · Ordenar · Seleccionar; the select header replaces it */
+.hf-mbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 44px;
+}
+
+.hf-mbar__total {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--hf-muted);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hf-mbar__total b {
+  color: var(--hf-ink);
+  font-weight: 600;
+}
+
+.hf-mbar__tbtn {
+  display: inline-flex;
+  flex-shrink: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--hf-radius-control);
+  background: transparent;
+  color: var(--hf-ink);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.hf-mbar__tbtn:hover {
+  background-color: var(--hf-surface-muted);
+}
+
+.hf-mbar__tbtn:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: -2px;
+}
+
+.hf-mbar__icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--hf-muted);
+}
+
+.hf-mbar__sort-label {
+  min-width: 0;
+  max-width: 9.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hf-mbar__count {
+  flex: 1 1 auto;
+  display: grid;
+  min-width: 0;
+  margin: 0;
+  color: var(--hf-heading);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.hf-mbar__count small {
+  color: var(--hf-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* A · Lista densa: rows of 72px+, hairline from the text to the edge, edge to edge of the surface */
+.hf-mrows {
+  margin: 0 -12px;
+  padding: 0;
+  list-style: none;
+  border-bottom: 1px solid var(--hf-border);
+}
+
+.hf-mrow {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  min-height: 72px;
+  padding: 10px 16px;
+  -webkit-touch-callout: none;
+}
+
+.hf-mrow.has-lead {
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  padding-left: 12px;
+}
+
+.hf-mrow:not(.has-lead) > .hf-mrow__main:first-child {
+  grid-column: 1;
+}
+
+.hf-mrow + .hf-mrow::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 16px;
+  height: 1px;
+  background-color: var(--hf-border);
+}
+
+.hf-mrow.has-lead + .hf-mrow::before,
+.hf-mrow + .hf-mrow.has-lead::before {
+  left: 68px;
+}
+
+.hf-mrow.is-openable {
+  cursor: pointer;
+}
+
+.hf-mrow.is-openable:hover {
+  background-color: var(--hf-surface-muted);
+}
+
+.hf-mrow.is-selected {
+  background-color: var(--hf-active-soft);
+}
+
+.hf-mrow.is-selected::before,
+.hf-mrow.is-selected + .hf-mrow::before {
+  left: 0;
+}
+
+.hf-mrow__lead {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+}
+
+.hf-mrow__avatar,
+.hf-mrow__thumb {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background-color: var(--hf-surface-muted);
+  color: var(--hf-heading);
+}
+
+.hf-mrow__avatar {
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px var(--hf-border);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.hf-mrow__thumb {
+  border-radius: 8px;
+  color: var(--hf-muted);
+}
+
+.hf-mrow__main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* The full name, in as many lines as it needs (never cut) */
+.hf-mrow__name {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--hf-heading);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: left;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+/* The name is the row's link: its hit area stretches over the whole row */
+.hf-mrow__name--link {
+  cursor: pointer;
+}
+
+.hf-mrow__name--link::after,
+.hf-mcard__name--link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.hf-mrow__name--link:focus-visible,
+.hf-mcard__name--link:focus-visible {
+  outline: 0;
+}
+
+.hf-mrow__name--link:focus-visible::after {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: -2px;
+}
+
+.hf-mrow__sec,
+.hf-mcard__sec {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  min-width: 0;
+  margin: 0;
+  color: var(--hf-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.hf-mrow__fig {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  max-width: 9rem;
+  text-align: right;
+}
+
+.hf-mrow__figure {
+  color: var(--hf-heading);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hf-mrow__note {
+  color: var(--hf-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+:is(.hf-mrow__figure, .hf-mrow__note, .hf-mcard__stat dd)[data-tone='warning'] {
+  color: var(--hf-warning);
+  font-weight: 600;
+}
+
+:is(.hf-mrow__figure, .hf-mrow__note, .hf-mcard__stat dd)[data-tone='danger'] {
+  color: var(--hf-danger);
+  font-weight: 600;
+}
+
+:is(.hf-mrow__figure, .hf-mrow__note, .hf-mcard__stat dd)[data-tone='success'] {
+  color: var(--hf-success);
+}
+
+:is(.hf-mrow__figure, .hf-mcard__stat dd)[data-tone='muted'] {
+  color: var(--hf-muted);
+  font-weight: 500;
+}
+
+/* B · Tarjetas ricas: 12px radius, 16px padding, mini grid of up to 3 stats */
+.hf-mcards {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hf-mcard {
+  position: relative;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-surface);
+  -webkit-touch-callout: none;
+}
+
+.hf-mcard.is-openable {
+  cursor: pointer;
+}
+
+.hf-mcard.is-selected {
+  border-color: var(--hf-active);
+  background-color: var(--hf-active-soft);
+}
+
+.hf-mcard__top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0 8px;
+}
+
+.hf-mcard__who {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.hf-mcard__name {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--hf-heading);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: left;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.hf-mcard__name--link {
+  cursor: pointer;
+}
+
+.hf-mcard__name--link::after {
+  border-radius: var(--hf-radius-card);
+}
+
+.hf-mcard__name--link:focus-visible::after {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+.hf-mcard__corner {
+  position: relative;
+  z-index: 2;
+  margin: -12px -12px 0 0;
+}
+
+.hf-mcard__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.hf-mcard__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--hf-border);
+}
+
+.hf-mcard__stat {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.hf-mcard__stat + .hf-mcard__stat {
+  padding-left: 8px;
+  border-left: 1px solid var(--hf-border);
+}
+
+.hf-mcard__stat dt {
+  color: var(--hf-muted);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.hf-mcard__stat dd {
+  margin: 0;
+  color: var(--hf-heading);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.hf-mcard__stat dd small {
+  display: block;
+  color: var(--hf-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.hf-mcard.is-selected :is(.hf-mcard__stats, .hf-mcard__stat + .hf-mcard__stat) {
+  border-color: color-mix(in srgb, var(--hf-active) 25%, var(--hf-border));
+}
+
+/* Filtros sheet (board 03): full height (12px free on top), 16px top corners */
+.hf-filters-sheet {
+  top: 12px;
+  height: calc(100dvh - 12px);
+  max-height: none;
+  border-radius: var(--hf-radius-sheet) var(--hf-radius-sheet) 0 0;
+  overflow: hidden;
+}
+
+.hf-filters-sheet__layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background-color: var(--hf-surface);
+}
+
+.hf-filters-sheet__handle {
+  flex-shrink: 0;
+  width: 36px;
+  height: 4px;
+  margin: 8px auto 0;
+  border-radius: 999px;
+  background-color: var(--hf-border);
+}
+
+.hf-filters-sheet__head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 8px 16px;
+  border-bottom: 1px solid var(--hf-border);
+}
+
+.hf-filters-sheet__title {
+  flex: 1 1 auto;
+  display: grid;
+  min-width: 0;
+  margin: 0;
+  color: var(--hf-heading);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.hf-filters-sheet__title small {
+  color: var(--hf-muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.hf-filters-sheet__close {
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+}
+
+.hf-filters-sheet__foot {
+  display: grid;
+  flex-shrink: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+  gap: 8px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--hf-border);
+  background-color: var(--hf-surface);
+}
+
+.hf-filters-sheet__foot > * {
+  justify-content: center;
+  min-height: 44px;
+}
+
+/* Room under the list for the docked bar */
+.hf-table--docked-bar {
+  padding-bottom: 9rem;
+}
+
+/* Filtros sheet sections (board 03): the active count and the current value beside the title */
+.hf-filter-section__count {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background-color: var(--hf-active-soft);
+  color: var(--hf-active);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.hf-filter-section__value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--hf-muted);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

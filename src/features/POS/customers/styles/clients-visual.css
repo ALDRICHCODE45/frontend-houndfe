@@ -190,3 +190,11 @@
   margin-left: 0.5rem;
   color: var(--hf-muted);
 }
+
+/* Phone row (mobile-tables S4): pets as species icons with their count, and the matched pet */
+.clients-visual .clients-mobile-pets {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}

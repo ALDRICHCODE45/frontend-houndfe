@@ -145,7 +145,7 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
             <div data-testid="name-cell"><slot name="name-cell" :row="{ original: row }" /></div>
             <div data-testid="price-list-cell"><slot name="priceList-cell" :row="{ original: row }" /></div>
             <slot name="actions-cell" :row="{ original: row }" />
-            <div data-testid="mobile-card-slot"><slot name="mobile-card" :row="row" /></div>
+            <div data-testid="mobile-secondary-slot"><slot name="mobile-secondary" :row="row" /></div>
           </div>
         </div>
       </div>
@@ -155,6 +155,8 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
       data: { default: () => [] },
       displayMode: { default: 'auto' },
       mobileRender: { default: 'table' },
+      sortOptions: { default: () => [] },
+      itemLabel: { default: undefined },
       rowOpen: { default: undefined },
       emptyState: { default: undefined },
       filtered: { default: false },
@@ -285,15 +287,20 @@ describe('CustomersView — mobile density containment (S3)', () => {
     expect(bodyClasses).not.toContain('px-6')
   })
 
-  it('uses one list layout: table on desktop and cards on mobile, with the shared filters and no view toggle', () => {
+  it('uses one list layout: table on desktop and dense rows on mobile, with the shared filters and no view toggle', () => {
     const wrapper = mount(CustomersView)
     const table = wrapper.get('[data-testid="app-data-table"]')
 
     expect(table.attributes('data-display-mode')).toBe('auto')
-    expect(table.attributes('data-mobile-render')).toBe('cards')
+    // mobile-tables T3 (S4): A · Lista densa, the sort in the phone «Ordenar» menu.
+    expect(table.attributes('data-mobile-render')).toBe('rows')
+    const props = wrapper.getComponent({ name: 'AppDataTable' }).props() as Record<string, unknown>
+    expect((props.sortOptions as Array<{ value: string }>).map((option) => option.value)).toContain('name:asc')
+    expect(props.itemLabel).toEqual({ one: 'cliente', other: 'clientes' })
     const slots = (table.attributes('data-slots') ?? '').split(',')
     // customers-module T6: the filters sheet and the sort select live in the toolbar, as in Ventas.
-    expect(slots).toEqual(expect.arrayContaining(['mobile-card', 'name-cell', 'actions-cell', 'filters']))
+    expect(slots).toEqual(expect.arrayContaining(['mobile-secondary', 'name-cell', 'actions-cell', 'filters']))
+    expect(slots).not.toContain('mobile-card')
     expect(slots).not.toContain('cards')
     expect(slots).not.toContain('actions')
     expect(wrapper.find('[data-testid="view-toggle"]').exists()).toBe(false)
@@ -414,14 +421,13 @@ describe('CustomersView — row identity and mobile card', () => {
     expect(routerPush).toHaveBeenCalledWith({ name: 'pos-customer-detail', params: { id: 'cust-1' } })
   })
 
-  it('the mobile card opens the customer page', async () => {
+  it('the phone row opens the customer page through the shared row-open', async () => {
     customerAuthMock.userCan.mockReturnValue(false)
     mockState.data.value = [makeCustomer()]
     const wrapper = mount(CustomersView)
     await flushPromises()
-    const card = wrapper.getComponent({ name: 'CustomerMobileCard' })
-    expect(card.props('openable')).toBe(true)
-    card.vm.$emit('open', makeCustomer({ id: 'cust-7' }))
+    const rowOpen = wrapper.getComponent({ name: 'AppDataTable' }).props('rowOpen') as (row: unknown) => void
+    rowOpen(makeCustomer({ id: 'cust-7' }))
     await flushPromises()
     expect(routerPush).toHaveBeenCalledWith({ name: 'pos-customer-detail', params: { id: 'cust-7' } })
   })
@@ -436,16 +442,14 @@ describe('CustomersView — row identity and mobile card', () => {
     expect(wrapper.find('.clients-badge').exists()).toBe(false)
   })
 
-  it('renders each customer as a mobile card with the same actions as the table row', async () => {
+  it('gives the phone row no ⋮ (actions live on the customer page and the selection bar)', async () => {
     mockState.data.value = [makeCustomer()]
     const wrapper = mount(CustomersView)
     await flushPromises()
-    const card = wrapper.getComponent({ name: 'CustomerMobileCard' })
-    expect(card.props('customer')).toEqual(makeCustomer())
-    expect(card.props('openable')).toBe(true)
     const row = wrapper.get('[data-testid="table-row"]')
-    const [tableMenu, cardMenu] = row.findAllComponents({ name: 'RowActionsMenu' })
-    expect(cardMenu!.props('actions')).toEqual(tableMenu!.props('actions'))
+    // Only the desktop table's ⋮; the phone secondary line has none.
+    expect(row.findAllComponents({ name: 'RowActionsMenu' })).toHaveLength(1)
+    expect(row.get('[data-testid="mobile-secondary-slot"]').findComponent({ name: 'RowActionsMenu' }).exists()).toBe(false)
   })
 })
 
@@ -518,15 +522,14 @@ describe('CustomersView — permission gating', () => {
 
 // ── S4: sales history entry ──────────────────────────────────────────────────
 describe('CustomersView — sales history entry (S4)', () => {
-  it('exposes the history action on the mobile card when the role can read sales', async () => {
+  it('exposes the history action on the table row when the role can read sales', async () => {
     customerAuthMock.userCan.mockImplementation(
       (action: string, subject: string) => action === 'read' && subject === 'Sale',
     )
     mockState.data.value = [makeCustomer()]
     const wrapper = mount(CustomersView)
     await flushPromises()
-    const card = wrapper.getComponent({ name: 'CustomerMobileCard' })
-    expect((card.props('actions') as RowActionItem[]).map((a) => a.label)).toEqual(['Ver historial de ventas'])
+    expect(rowActions(wrapper).map((a) => a.label)).toEqual(['Ver historial de ventas'])
   })
 
   it('table history action opens the customer page on the «Ventas» tab', async () => {
@@ -550,7 +553,7 @@ describe('CustomersView — sales history entry (S4)', () => {
     expect(createSlideover!.props('open')).toBe(false)
   })
 
-  it('the mobile card history action forwards the card identity unchanged', async () => {
+  it('the history action forwards the row identity unchanged', async () => {
     customerAuthMock.userCan.mockImplementation(
       (action: string, subject: string) => action === 'read' && subject === 'Sale',
     )
@@ -558,7 +561,7 @@ describe('CustomersView — sales history entry (S4)', () => {
     mockState.data.value = [customerB]
     const wrapper = mount(CustomersView)
     await flushPromises()
-    wrapper.getComponent({ name: 'CustomerMobileCard' }).vm.$emit('action', 'history', customerB)
+    selectRowAction(wrapper, 'history')
     await flushPromises()
     expect(routerPush).toHaveBeenCalledWith({
       name: 'pos-customer-detail',
@@ -591,7 +594,6 @@ describe('Customers main workspace visual boundary', () => {
     expect(wrapper.getComponent({ name: 'AppDataTable' }).props('paginationPortalClass')).toBe(portalClass)
     const [tableMenu] = wrapper.findAllComponents({ name: 'RowActionsMenu' })
     expect(tableMenu!.props('portalClass')).toBe('clients-list-portal')
-    expect(wrapper.getComponent({ name: 'CustomerMobileCard' }).props('portalClass')).toBe('clients-list-portal')
   })
 
   it('hands the empty, no-match and error states to the shared table without masking errors', async () => {

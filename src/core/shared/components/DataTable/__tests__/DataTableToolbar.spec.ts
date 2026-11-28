@@ -157,24 +157,27 @@ describe('DataTableToolbar — mobile two-row layout', () => {
       },
     )
 
+    // mobile-tables T3 (board 01): the actions row scrolls away like a page header's primary; the
+    // sticky block holds ONE row with the search, «Filtros (N)» and «Columnas».
     const regions = wrapper.findAll('[data-testid^="toolbar-mobile-"]')
     expect(regions.map(r => r.attributes('data-testid'))).toEqual([
-      'toolbar-mobile-search-row',
-      'toolbar-mobile-controls-row',
-      'toolbar-mobile-filters-row',
       'toolbar-mobile-actions-row',
+      'toolbar-mobile-sticky',
+      'toolbar-mobile-controls-row',
+      'toolbar-mobile-search-row',
+      'toolbar-mobile-filters-row',
       // No table api in this unit mount: the control stays, disabled (stable toolbar).
       'toolbar-mobile-columns-button',
     ])
+    expect(wrapper.element.classList.contains('hf-toolbar--mobile')).toBe(true)
     const controls = wrapper.get('[data-testid="toolbar-mobile-controls-row"]')
-    expect(controls.element.parentElement).toBe(wrapper.element)
-    // Filtros and the actions are the two children of ONE row.
+    expect(controls.element.parentElement).toBe(wrapper.get('[data-testid="toolbar-mobile-sticky"]').element)
     expect(Array.from(controls.element.children).map(c => c.getAttribute('data-testid'))).toEqual([
+      'toolbar-mobile-search-row',
       'toolbar-mobile-filters-row',
-      'toolbar-mobile-actions-row',
+      'toolbar-mobile-columns-button',
     ])
-    expect(controls.classes()).toEqual(expect.arrayContaining(['flex', 'items-center', 'justify-between']))
-    expect(controls.classes()).not.toContain('flex-wrap')
+    expect(controls.classes()).toContain('hf-mtool__r1')
     expect(wrapper.get('[data-testid="toolbar-mobile-filters-row"]').find('[data-testid="toolbar-filtros-button"]').exists()).toBe(true)
   })
 
@@ -190,11 +193,10 @@ describe('DataTableToolbar — mobile two-row layout', () => {
     expect(wrapper.get('[data-testid="toolbar-mobile-actions-row"]').text()).toContain('Nuevo producto')
   })
 
-  it('keeps the primary on the right when there are no filters, in the same single row', () => {
+  it('keeps the primary on the right of its own row when there are no filters', () => {
     const wrapper = mountToolbar({ showAddButton: true, addButtonText: 'Nueva cotización' })
-    const controls = wrapper.get('[data-testid="toolbar-mobile-controls-row"]')
     expect(wrapper.find('[data-testid="toolbar-mobile-filters-row"]').exists()).toBe(false)
-    expect(controls.get('[data-testid="toolbar-mobile-actions-row"]').classes()).toContain('ml-auto')
+    expect(wrapper.get('[data-testid="toolbar-mobile-actions-row"]').classes()).toContain('justify-end')
   })
 
   it('renders only the Filtros button when there is no primary action', () => {
@@ -207,7 +209,10 @@ describe('DataTableToolbar — mobile two-row layout', () => {
     const wrapper = mountToolbar({})
 
     expect(wrapper.find('[data-testid="toolbar-mobile-search-row"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="toolbar-mobile-controls-row"]').exists()).toBe(false)
+    // The controls row is the sticky search row; it holds the search alone.
+    expect(
+      wrapper.findAll('[data-testid="toolbar-mobile-controls-row"] > *').map(node => node.attributes('data-testid')),
+    ).toEqual(['toolbar-mobile-search-row'])
     expect(wrapper.find('[data-testid="toolbar-mobile-actions-row"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="toolbar-mobile-filters-row"]').exists()).toBe(false)
   })
@@ -289,16 +294,19 @@ describe('DataTableToolbar — mobile containment and breakpoint alignment (S1)'
     // The old sm:flex-row row-ified the still-mobile 640–767 px markup.
     expect(classes).not.toContain('sm:flex-row')
     // Canonical mobile regions, ordered and contained.
+    // mobile-tables T3: canonical phone regions, ordered; the actions row is contained full width
+    // and the sticky block's search grows while Filtros never shrinks.
     const regions = wrapper.findAll('[data-testid^="toolbar-mobile-"]')
     expect(regions.map(r => r.attributes('data-testid'))).toEqual([
-      'toolbar-mobile-search-row',
-      'toolbar-mobile-controls-row',
-      'toolbar-mobile-filters-row',
       'toolbar-mobile-actions-row',
+      'toolbar-mobile-sticky',
+      'toolbar-mobile-controls-row',
+      'toolbar-mobile-search-row',
+      'toolbar-mobile-filters-row',
     ])
-    for (const region of regions) {
-      expectRegionContainment(region.classes(), !/filters-row|actions-row/.test(region.attributes('data-testid') ?? ''))
-    }
+    expectRegionContainment(wrapper.get('[data-testid="toolbar-mobile-actions-row"]').classes())
+    expect(wrapper.get('[data-testid="toolbar-mobile-search-row"]').classes()).toContain('hf-mtool__search')
+    expect(wrapper.get('[data-testid="toolbar-mobile-filters-row"]').classes()).toContain('shrink-0')
   })
 
   it('constrains the regions that exist when filters are absent', () => {
@@ -306,13 +314,12 @@ describe('DataTableToolbar — mobile containment and breakpoint alignment (S1)'
       '[data-testid^="toolbar-mobile-"]',
     )
     expect(regions.map(r => r.attributes('data-testid'))).toEqual([
-      'toolbar-mobile-search-row',
-      'toolbar-mobile-controls-row',
       'toolbar-mobile-actions-row',
+      'toolbar-mobile-sticky',
+      'toolbar-mobile-controls-row',
+      'toolbar-mobile-search-row',
     ])
-    for (const region of regions) {
-      expectRegionContainment(region.classes(), !/filters-row|actions-row/.test(region.attributes('data-testid') ?? ''))
-    }
+    expectRegionContainment(regions[0]!.classes())
   })
 
   it('retains the fixed refresh → actions-slot → add order on the actions region', () => {
@@ -380,15 +387,15 @@ describe('DataTableToolbar — filters collapse to bottom-sheet on mobile', () =
     expect(scrollRegion.exists()).toBe(true)
     const scrollClasses = (scrollRegion.element.getAttribute('class') ?? '').split(/\s+/)
     expect(scrollClasses).toContain('overflow-y-auto')
-    expect(scrollClasses.some(c => c.startsWith('h-[85vh]'))).toBe(true)
-    expect(scrollClasses.some(c => c.startsWith('max-h-[85vh]'))).toBe(true)
+    // mobile-tables T3 (board 03): the sheet is full height; the body takes the rest and scrolls.
+    expect(scrollClasses).toContain('flex-1')
     expect(scrollClasses).toContain('min-h-0')
-    // slideover-corners S3: the panel clips, so header + body + footer must never outgrow the
-    // inset sheet (max 100% - 2rem); the body shrinks and scrolls, the Cerrar footer stays inside.
+    // The panel clips, so header + body + footer fill the full-height sheet exactly; the body
+    // shrinks and scrolls, the footer stays inside.
     const layout = wrapper.get('[data-testid="toolbar-filters-layout"]').classes()
     expect(layout).toContain('flex-col')
     expect(layout).toContain('min-h-0')
-    expect(layout).toContain('max-h-[calc(100svh-2rem)]')
+    expect(layout).toContain('h-full')
   })
 
   it('opens the sheet when the Filtros button is clicked', async () => {
@@ -432,22 +439,20 @@ describe('DataTableToolbar — mobile filters bottom-sheet polish (REQ-2..4 / WU
     isBelowBreakpoint.value = true
   })
 
-  it('renders a sticky header with title "Filtros", badge, and "Limpiar todo" when activeFilterCount > 0', async () => {
+  // mobile-tables T3 (board 03): the header names the active filters and the total; «Limpiar (N)»
+  // moved to the footer beside «Ver N resultados».
+  it('renders a header with title "Filtros", the active count and ✕; «Limpiar (N)» in the footer', async () => {
     const wrapper = mountToolbar(
-      { activeFilterCount: 2 },
+      { activeFilterCount: 2, resultCount: 38 },
       { filters: '<span data-testid="fake-filter" />' },
     )
     await wrapper.get('[data-testid="toolbar-filtros-button"]').trigger('click')
 
     const header = wrapper.get('[data-testid="toolbar-filters-header"]')
     expect(header.text()).toContain('Filtros')
-    expect(header.text()).toContain('Limpiar todo')
-    // The badge with the count is rendered with the existing
-    // toolbar-filtros-badge testid (already used for the trigger button)
-    // — inside the header it carries the count as data-label.
-    const headerBadge = header.find('[data-testid="toolbar-filtros-badge"]')
-    expect(headerBadge.exists()).toBe(true)
-    expect(headerBadge.attributes('data-label')).toBe('2')
+    expect(header.get('[data-testid="toolbar-filters-summary"]').text()).toBe('2 filtros activos · 38 resultados')
+    expect(header.find('[data-testid="toolbar-filters-close"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="toolbar-filters-footer"] [data-testid="toolbar-filters-clear-all"]').text()).toBe('Limpiar (2)')
   })
 
   it('renders header without badge or "Limpiar todo" when activeFilterCount is 0', async () => {
@@ -498,21 +503,22 @@ describe('DataTableToolbar — mobile filters bottom-sheet polish (REQ-2..4 / WU
     expect(wrapper.emitted('clear-filters')).toHaveLength(1)
   })
 
-  it('renders a sticky footer with "Cerrar" that closes the sheet', async () => {
+  it('renders a sticky footer whose «Ver N resultados» closes the sheet (filters already applied)', async () => {
     const wrapper = mountToolbar(
-      { activeFilterCount: 1 },
+      { activeFilterCount: 1, resultCount: 12 },
       { filters: '<span data-testid="fake-filter" />' },
     )
     await wrapper.get('[data-testid="toolbar-filtros-button"]').trigger('click')
     expect(wrapper.find('[data-testid="slideover"]').attributes('data-open')).toBe('true')
 
-    const footer = wrapper.get('[data-testid="toolbar-filters-footer"]')
-    expect(footer.text()).toContain('Cerrar')
+    const apply = wrapper.get('[data-testid="toolbar-filters-footer"] [data-testid="toolbar-filters-apply"]')
+    expect(apply.text()).toBe('Ver 12 resultados')
+    await apply.trigger('click')
+    expect(wrapper.find('[data-testid="slideover"]').attributes('data-open')).toBe('false')
 
-    const closeBtn = footer.find('button')
-    expect(closeBtn.exists()).toBe(true)
-    await closeBtn.trigger('click')
-
+    // ✕ in the header closes it too.
+    await wrapper.get('[data-testid="toolbar-filtros-button"]').trigger('click')
+    await wrapper.get('[data-testid="toolbar-filters-close"]').trigger('click')
     expect(wrapper.find('[data-testid="slideover"]').attributes('data-open')).toBe('false')
   })
 
@@ -546,9 +552,11 @@ describe('DataTableToolbar — active-filter-count contract', () => {
       { filters: '<span data-testid="fake-filter" />' },
     )
 
+    // mobile-tables T3: a count pill inside «Filtros» (board 01); the button names it.
     const badge = wrapper.find('[data-testid="toolbar-filtros-badge"]')
     expect(badge.exists()).toBe(true)
-    expect(badge.attributes('data-label')).toBe('2')
+    expect(badge.text()).toBe('2')
+    expect(wrapper.get('[data-testid="toolbar-filtros-button"]').attributes('aria-label')).toBe('Filtros, 2 activos')
   })
 
   it('does not render the badge when activeFilterCount is 0', () => {
@@ -698,10 +706,11 @@ describe('DataTableToolbar — products-visual marker hooks (T2 / S2)', () => {
 
     const regions = wrapper.findAll('[data-testid^="toolbar-mobile-"]')
     expect(regions.map(r => r.attributes('data-testid'))).toEqual([
-      'toolbar-mobile-search-row',
-      'toolbar-mobile-controls-row',
-      'toolbar-mobile-filters-row',
       'toolbar-mobile-actions-row',
+      'toolbar-mobile-sticky',
+      'toolbar-mobile-controls-row',
+      'toolbar-mobile-search-row',
+      'toolbar-mobile-filters-row',
     ])
   })
 

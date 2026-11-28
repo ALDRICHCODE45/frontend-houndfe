@@ -167,11 +167,13 @@ describe('CustomersView states — loading', () => {
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
   })
 
-  it('renders the card skeletons on mobile', () => {
+  // mobile-tables T3 (board 04): the skeleton takes the final shape — 72px rows on phones.
+  it('renders row skeletons on mobile', () => {
     isBelowBreakpoint.value = true
     state.isLoading.value = true
     const wrapper = mountView()
-    expect(wrapper.findAll('[data-testid="mobile-card-skeleton"]')).toHaveLength(3)
+    expect(wrapper.findAll('[data-testid="mobile-row-skeleton"]')).toHaveLength(5)
+    expect(wrapper.find('[data-testid="mobile-card-skeleton"]').exists()).toBe(false)
   })
 })
 
@@ -187,12 +189,51 @@ describe('CustomersView states — data', () => {
     expect(wrapper.find('[data-testid="table-skeleton"]').exists()).toBe(false)
   })
 
-  it('renders one card per row on mobile, with the same ⋮ menu', () => {
+  // mobile-tables T3 (S4, A · Lista densa): initials · full name · phone and pets · debt (or the
+  // last purchase), and no ⋮ in the row.
+  it('renders one dense row per customer on mobile: full name, phone, pets and the debt, no ⋮', () => {
     isBelowBreakpoint.value = true
-    state.data.value = [makeCustomer('c1')]
+    const long = 'Clínica Veterinaria Huellitas del Valle S.A. de C.V.'
+    state.data.value = [
+      makeCustomer('c1', {
+        fullName: long,
+        activePetsCount: 2,
+        petSpecies: ['DOG', 'CAT'],
+        metrics: { openDebtCents: 348000, overdueDebtCents: 348000, overdueCount: 1, oldestOverdueDueDate: null, salesCount: 3, totalSoldCents: 900000, averageTicketCents: 300000, lastPurchaseAt: '2026-09-30T12:00:00.000Z' },
+      } as Partial<Customer>),
+      makeCustomer('c2', {
+        metrics: { openDebtCents: 0, overdueDebtCents: 0, overdueCount: 0, oldestOverdueDueDate: null, salesCount: 1, totalSoldCents: 1000, averageTicketCents: 1000, lastPurchaseAt: null },
+      } as Partial<Customer>),
+    ]
     const wrapper = mountView()
-    expect(wrapper.findAll('[data-testid="customer-card"]')).toHaveLength(1)
-    expect(wrapper.find('[data-testid="customer-card"] [aria-label="Acciones de María Pérez"]').exists()).toBe(true)
+    const rows = wrapper.findAll('[data-testid="mobile-list-row"]')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]!.get('[data-testid="mobile-row-primary"]').text()).toBe(long)
+    expect(rows[0]!.get('[data-testid="mobile-row-lead"]').text()).toBe('CV')
+    expect(rows[0]!.get('[data-testid="customer-mobile-phone"]').text()).toBe('+52 55 1234 5678')
+    expect(rows[0]!.get('[data-testid="customer-mobile-pets"]').attributes('aria-label')).toBe('2 mascotas')
+    expect(rows[0]!.get('[data-testid="mobile-row-figure"]').text()).toBe('$3,480.00')
+    expect(rows[0]!.get('[data-testid="mobile-row-figure"]').attributes('data-tone')).toBe('warning')
+    expect(rows[0]!.get('[data-testid="mobile-row-note"]').text()).toBe('Vencida')
+    expect(rows[0]!.get('[data-testid="mobile-row-note"]').attributes('data-tone')).toBe('danger')
+    // No debt and never bought: no figure, the note says so.
+    expect(rows[1]!.find('[data-testid="mobile-row-figure"]').exists()).toBe(false)
+    expect(rows[1]!.get('[data-testid="mobile-row-note"]').text()).toBe('Sin compras')
+    // No ⋮ on the row: the only button is the name.
+    expect(wrapper.find('[aria-label="Acciones de María Pérez"]').exists()).toBe(false)
+    expect(rows[0]!.findAll('button')).toHaveLength(1)
+  })
+
+  it('shows the last purchase as the figure when nothing is owed', () => {
+    isBelowBreakpoint.value = true
+    state.data.value = [
+      makeCustomer('c1', {
+        metrics: { openDebtCents: 0, overdueDebtCents: 0, overdueCount: 0, oldestOverdueDueDate: null, salesCount: 1, totalSoldCents: 1000, averageTicketCents: 1000, lastPurchaseAt: '2026-11-18T12:00:00.000Z' },
+      } as Partial<Customer>),
+    ]
+    const row = mountView().get('[data-testid="mobile-list-row"]')
+    expect(row.get('[data-testid="mobile-row-figure"]').text()).toBe('18 nov 2026')
+    expect(row.get('[data-testid="mobile-row-note"]').text()).toBe('Última compra')
   })
 
   it('makes rows clickable for roles that can update', () => {

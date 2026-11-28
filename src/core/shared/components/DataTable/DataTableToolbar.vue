@@ -4,6 +4,7 @@ import { computed, ref, useSlots } from 'vue'
 import DataTableColumnsPanel from './DataTableColumnsPanel.vue'
 import type { ColumnGroup, ColumnsPanelGroups } from './columnArrange.utils'
 import { DEFAULT_TABLE_DENSITY, type TableDensity } from './tableLayout'
+import './mobile-list.css'
 
 const props = withDefaults(
   defineProps<{
@@ -56,6 +57,14 @@ const props = withDefaults(
     densityDisabled?: boolean
     /** Shows «Guardado en tu vista» for a moment (AppDataTable owns the timing and the live region). */
     saved?: boolean
+    /**
+     * The server total of the current search and filters, for the phone «Filtros» sheet: its title
+     * line and «Ver N resultados» (mobile-tables S4). The filters apply as they change, so the
+     * number follows them.
+     */
+    resultCount?: number
+    /** Noun of the records («cliente» / «clientes»). Default: «resultado» / «resultados». */
+    itemLabel?: { one: string; other: string }
   }>(),
   {
     searchPlaceholder: 'Buscar...',
@@ -74,6 +83,8 @@ const props = withDefaults(
     density: DEFAULT_TABLE_DENSITY,
     densityDisabled: false,
     saved: false,
+    resultCount: 0,
+    itemLabel: () => ({ one: 'resultado', other: 'resultados' }),
   },
 )
 
@@ -120,6 +131,20 @@ function openFilters() {
 function closeFilters() {
   isFiltersOpen.value = false
 }
+const count = (n: number, one: string, other: string) => `${n.toLocaleString('en-US')} ${n === 1 ? one : other}`
+const resultText = computed(() => count(props.resultCount, props.itemLabel.one, props.itemLabel.other))
+const filtersSummary = computed(() =>
+  props.activeFilterCount > 0
+    ? `${count(props.activeFilterCount, 'filtro activo', 'filtros activos')} · ${resultText.value}`
+    : resultText.value,
+)
+const filtrosName = computed(() =>
+  props.activeFilterCount > 0
+    ? `Filtros, ${count(props.activeFilterCount, 'activo', 'activos')}`
+    : 'Filtros',
+)
+const filtersSheetClass = computed(() => [props.portalClass, 'hf-filters-sheet'].filter(Boolean).join(' '))
+const hasActions = computed(() => props.showAddButton || props.showRefresh || !!slots.actions)
 
 // ─── «Columnas»: popover panel at md+, visibility-only sheet below md or in card mode ──
 const columnsEnabled = computed(() => !!props.columns && !props.columnsDisabled)
@@ -146,6 +171,7 @@ function openColumnsSheet() {
 <template>
   <div
     class="hf-toolbar flex w-full min-w-0 max-w-full flex-col gap-3 md:flex-row md:items-center md:justify-between"
+    :class="{ 'hf-toolbar--mobile': isMobile }"
   >
     <!-- ─── Desktop layout (md+) — historical horizontal layout ───────── -->
     <template v-if="!isMobile">
@@ -266,76 +292,79 @@ function openColumnsSheet() {
       </div>
     </template>
 
-    <!-- ─── Mobile layout (< md) — two rows: search, then Filtros + actions ── -->
+    <!-- ─── Phone layout (< md, design/mobile-tables 01) ────────────────────
+         The root is `display: contents` (hf-toolbar--mobile) so these blocks sit in AppDataTable's
+         column: the actions row scrolls away like a page header's primary, while the search,
+         «Filtros (N)» and the result line (#mobile-status) stay stuck under the app bar. -->
     <template v-else>
-      <!-- Row 1 — search full-width -->
       <div
-        class="hf-toolbar-search-region flex w-full min-w-0 max-w-full flex-col gap-2"
-        data-testid="toolbar-mobile-search-row"
+        v-if="hasActions"
+        class="hf-toolbar-actions hf-mtool-actions flex w-full min-w-0 max-w-full items-center justify-end gap-2"
+        data-testid="toolbar-mobile-actions-row"
       >
-        <UInput
-          :model-value="props.globalFilter"
-          :placeholder="props.searchPlaceholder"
-          icon="i-lucide-search"
-          class="hf-toolbar-search w-full"
-          @update:model-value="emit('update:globalFilter', $event as string)"
+        <UTooltip v-if="showRefresh" text="Refrescar" :ui="{ content: props.portalClass }">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-refresh-cw"
+            :loading="fetching"
+            :data-testid="refreshButtonTestId"
+            @click="emit('refresh')"
+          />
+        </UTooltip>
+
+        <slot name="actions" />
+
+        <UButton
+          v-if="showAddButton"
+          :label="addButtonText"
+          :icon="addButtonIcon"
+          :data-testid="addButtonTestId"
+          @click="emit('add')"
         />
       </div>
 
-      <!-- Row 2 — ONE row: Filtros on the left, the actions on the right.
-           The primary keeps its label (no icon-only primary) and sits last,
-           at the right edge. Order of the cluster: refresh → Columnas →
-           actions slot → add. -->
-      <div
-        v-if="hasFiltersSlot || showAddButton || showRefresh || showColumnVisibility || !!slots.actions"
-        class="flex w-full min-w-0 max-w-full items-center justify-between gap-2"
-        data-testid="toolbar-mobile-controls-row"
-      >
-        <div
-          v-if="hasFiltersSlot"
-          class="hf-toolbar-filters flex min-w-0 max-w-full shrink-0 items-center gap-2"
-          data-testid="toolbar-mobile-filters-row"
-        >
-          <UButton
-            color="neutral"
-            variant="outline"
-            data-testid="toolbar-filtros-button"
-            @click="openFilters"
-          >
-            <template #leading>
-              <UIcon name="i-lucide-sliders-horizontal" />
-            </template>
-            Filtros
-            <UBadge
-              v-if="activeFilterCount > 0"
-              :label="String(activeFilterCount)"
-              color="primary"
-              data-testid="toolbar-filtros-badge"
+      <div class="hf-mtool" data-testid="toolbar-mobile-sticky">
+        <div class="hf-mtool__r1" data-testid="toolbar-mobile-controls-row">
+          <div class="hf-toolbar-search-region hf-mtool__search" data-testid="toolbar-mobile-search-row">
+            <UInput
+              :model-value="props.globalFilter"
+              :placeholder="props.searchPlaceholder"
+              icon="i-lucide-search"
+              class="hf-toolbar-search w-full"
+              @update:model-value="emit('update:globalFilter', $event as string)"
             />
-          </UButton>
-        </div>
+          </div>
 
-        <div
-          v-if="showAddButton || showRefresh || showColumnVisibility || !!slots.actions"
-          class="hf-toolbar-actions ml-auto flex min-w-0 max-w-full items-center justify-end gap-2"
-          data-testid="toolbar-mobile-actions-row"
-        >
-          <UTooltip v-if="showRefresh" text="Refrescar" :ui="{ content: props.portalClass }">
+          <div v-if="hasFiltersSlot" class="hf-toolbar-filters shrink-0" data-testid="toolbar-mobile-filters-row">
             <UButton
               color="neutral"
-              variant="ghost"
-              icon="i-lucide-refresh-cw"
-              :loading="fetching"
-              :data-testid="refreshButtonTestId"
-              @click="emit('refresh')"
-            />
-          </UTooltip>
+              variant="outline"
+              class="hf-mtool__filtros"
+              :class="{ 'has-filters': activeFilterCount > 0 }"
+              :aria-label="filtrosName"
+              data-testid="toolbar-filtros-button"
+              @click="openFilters"
+            >
+              <template #leading>
+                <UIcon name="i-lucide-sliders-horizontal" />
+              </template>
+              Filtros
+              <span
+                v-if="activeFilterCount > 0"
+                class="hf-mtool__count"
+                aria-hidden="true"
+                data-testid="toolbar-filtros-badge"
+              >{{ activeFilterCount }}</span>
+            </UButton>
+          </div>
 
           <UButton
             v-if="showColumnVisibility"
             color="neutral"
             variant="outline"
             icon="i-lucide-columns-3"
+            class="hf-mtool__columns"
             :aria-label="columnsName"
             title="Columnas"
             :disabled="!columnsEnabled"
@@ -352,91 +381,63 @@ function openColumnsSheet() {
               data-testid="toolbar-columns-badge"
             />
           </UButton>
-
-          <slot name="actions" />
-
-          <UButton
-            v-if="showAddButton"
-            :label="addButtonText"
-            :icon="addButtonIcon"
-            :data-testid="addButtonTestId"
-            @click="emit('add')"
-          />
         </div>
+
+        <slot name="mobile-status" />
       </div>
 
-      <!-- Filters bottom-sheet — three-region layout (REQ-2..4 / WU-2):
-           • sticky header (title + active-count badge + Limpiar todo)
-           • scrollable body (each #filters child wrapped in a card section)
-           • sticky footer (Cerrar button).
-           The body's `h-[85vh] max-h-[85vh] overflow-y-auto` keeps landscape
-           overflow from clipping controls. The slideover content clips its
-           children (rounded corners), so the layout is capped to the inset
-           sheet's height: the body shrinks and scrolls, the footer stays in. -->
+      <!-- Filtros sheet (board 03): full height with 16px top corners, a handle, the title with the
+           active filters and the server total, ✕; the views' filter sections scroll in the body;
+           the sticky footer clears («Limpiar (N)») or closes on the result («Ver N resultados»).
+           The filters apply as they change, so «Ver…» only closes. Sort is not here on phones: the
+           result line has its own short menu. -->
       <USlideover
         v-if="hasFiltersSlot"
         v-model:open="isFiltersOpen"
         side="bottom"
-        inset
         :dismissible="true"
-        :ui="{ content: props.portalClass }"
+        :ui="{ content: filtersSheetClass }"
       >
         <template #content>
-          <div class="flex h-full max-h-[calc(100svh-2rem)] min-h-0 flex-col" data-testid="toolbar-filters-layout">
-            <!-- Sticky header (Filtros title + badge + Limpiar todo) -->
-            <div
-              class="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-default bg-default px-4 py-4"
-              data-testid="toolbar-filters-header"
-            >
-              <div class="flex items-center gap-2">
-                <h2 class="text-lg font-semibold">
-                  <slot name="filters-title">Filtros</slot>
-                </h2>
-                <UBadge
-                  v-if="activeFilterCount > 0"
-                  :label="String(activeFilterCount)"
-                  color="primary"
-                  data-testid="toolbar-filtros-badge"
-                />
-              </div>
+          <div class="hf-filters-sheet__layout flex h-full min-h-0 flex-col" data-testid="toolbar-filters-layout">
+            <span class="hf-filters-sheet__handle" aria-hidden="true" />
+            <header class="hf-filters-sheet__head" data-testid="toolbar-filters-header">
+              <h2 class="hf-filters-sheet__title">
+                <slot name="filters-title">Filtros</slot>
+                <small data-testid="toolbar-filters-summary">{{ filtersSummary }}</small>
+              </h2>
               <UButton
-                v-if="activeFilterCount > 0"
-                variant="ghost"
                 color="neutral"
-                size="sm"
-                data-testid="toolbar-filters-clear-all"
-                @click="emit('clear-filters')"
-              >
-                Limpiar todo
-              </UButton>
-            </div>
+                variant="ghost"
+                icon="i-lucide-x"
+                class="hf-filters-sheet__close"
+                aria-label="Cerrar filtros"
+                data-testid="toolbar-filters-close"
+                @click="closeFilters"
+              />
+            </header>
 
-            <!-- Scrollable body — renders the #filters slot DIRECTLY so that
-                 leaf components relying on provide/inject + Teleport (e.g.
-                 USelect's Reka UI popover) keep their parentage and open
-                 correctly. Card sections are owned by the consuming views via
-                 FilterSectionCard, not captured/re-rendered here. -->
+            <!-- Renders the #filters slot DIRECTLY so leaf components relying on provide/inject +
+                 Teleport (e.g. USelect's Reka UI popover) keep their parentage. `hf-filters-sheet__body`
+                 (houndfe-ui.css) stacks the views' desktop row so each region gets the sheet width. -->
             <div
-              class="h-[85vh] max-h-[85vh] min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
+              class="hf-filters-sheet__body min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
               data-testid="toolbar-filters-body"
             >
               <slot name="filters" />
             </div>
 
-            <!-- Sticky footer (Cerrar button) -->
-            <div
-              class="sticky bottom-0 z-10 flex justify-end border-t border-default bg-default px-4 py-4"
-              data-testid="toolbar-filters-footer"
-            >
+            <footer class="hf-filters-sheet__foot shrink-0" data-testid="toolbar-filters-footer">
               <UButton
-                variant="ghost"
                 color="neutral"
-                data-testid="toolbar-filters-close"
-                @click="closeFilters"
-              >
-                Cerrar
-              </UButton>
-            </div>
+                variant="outline"
+                block
+                :disabled="activeFilterCount === 0"
+                data-testid="toolbar-filters-clear-all"
+                @click="emit('clear-filters')"
+              >{{ activeFilterCount > 0 ? `Limpiar (${activeFilterCount})` : 'Limpiar' }}</UButton>
+              <UButton block data-testid="toolbar-filters-apply" @click="closeFilters">Ver {{ resultText }}</UButton>
+            </footer>
           </div>
         </template>
       </USlideover>

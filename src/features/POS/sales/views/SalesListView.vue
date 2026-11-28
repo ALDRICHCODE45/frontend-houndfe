@@ -8,7 +8,6 @@ import SortableHeader from '@/core/shared/components/DataTable/SortableHeader.vu
 import EmptyState from '@/core/shared/components/EmptyState.vue'
 import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import SaleAddressSourceNotice from '@/core/shared/components/SaleAddressSourceNotice.vue'
-import { useClickableRow } from '@/core/shared/composables/useClickableRow'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useConfirmedSales } from '../composables/useConfirmedSales'
@@ -29,7 +28,7 @@ import { isCanceledSale, saleDeliveryBadge, saleOpenDebtCents, salePaymentBadge 
 import { saleHoldLine } from '../utils/saleHold.utils'
 import { SALE_HOLD_EXPIRED_ICON, saleRowCancelNote } from '../utils/saleCancellation.utils'
 import type { ConfirmedSaleRow } from '../interfaces/sale.types'
-import type { TableColumnTotal } from '@/core/shared/types/table.types'
+import type { TableColumnTotal, TableMobileField } from '@/core/shared/types/table.types'
 import { customerApi } from '@/features/POS/customers/api/customer.api'
 import { usersApi } from '@/features/POS/users/api/user.api'
 import { customerQueryKeys, usersQueryKeys } from '@/core/shared/constants/query-keys'
@@ -125,9 +124,36 @@ const SALE_TOTALS: Record<string, TableColumnTotal<ConfirmedSaleRow>> = {
   totalCents: { kind: 'sum', value: (sale) => sale.totalCents, format: formatCentsMXN },
   debtCents: { kind: 'sum', value: saleOpenDebtCents, format: formatCentsMXN },
 }
+// Phones (mobile-tables S4, B · Tarjetas ricas): the folio as the name, then Total · Pagado · Saldo
+// together in the card's grid. Customer, date and badges come from the zone slots below.
+const SALE_MOBILE: Record<string, TableMobileField<ConfirmedSaleRow>[]> = {
+  venta: [{ role: 'primary', value: (sale) => folioDisplay(sale.folio) }],
+  totalCents: [
+    { role: 'stat', label: 'Total', value: (sale) => formatCentsMXN(sale.totalCents) },
+    {
+      role: 'stat',
+      label: 'Pagado',
+      value: (sale) => (isCanceledSale(sale) ? '—' : formatCentsMXN(Math.max(0, sale.totalCents - sale.debtCents))),
+      tone: (sale) => (isCanceledSale(sale) ? 'muted' : undefined),
+    },
+  ],
+  debtCents: [
+    {
+      role: 'stat',
+      label: 'Saldo',
+      value: (sale) => (isCanceledSale(sale) ? '—' : formatCentsMXN(saleOpenDebtCents(sale))),
+      tone: (sale) => (saleOpenDebtCents(sale) > 0 ? 'warning' : 'muted'),
+      note: (sale) => (saleOpenDebtCents(sale) > 0 && sale.dueDate ? `Vence ${formatSaleDueDate(sale.dueDate)}` : null),
+    },
+  ],
+}
 const columns = saleColumns.map((column) => {
-  const total = SALE_TOTALS[column.id ?? ('accessorKey' in column ? String(column.accessorKey) : '')]
-  return total ? { ...column, meta: { ...column.meta, total } } : column
+  const id = column.id ?? ('accessorKey' in column ? String(column.accessorKey) : '')
+  const total = SALE_TOTALS[id]
+  const mobile = SALE_MOBILE[id]
+  return total || mobile
+    ? { ...column, meta: { ...column.meta, ...(total ? { total } : {}), ...(mobile ? { mobile } : {}) } }
+    : column
 })
 
 // Error title of the sales table: a human sentence, never the server message.
@@ -195,12 +221,11 @@ function goToSaleDetail(id: string) {
   void router.push(`/pos/ventas/${id}`)
 }
 
-// The whole row opens the sale: AppDataTable's `row-open` for table rows,
-// `rowProps` for cards. The folio button is the tab stop, so neither is focusable itself.
+// The whole row (or phone card) opens the sale through AppDataTable's `row-open`. The folio button
+// is the tab stop, so neither is focusable itself.
 function openSale(sale: ConfirmedSaleRow) {
   goToSaleDetail(sale.id)
 }
-const { rowProps } = useClickableRow<ConfirmedSaleRow>(openSale, { focusable: false })
 
 // No ⋮ menu: its only item would be "Ver venta", which the row click already does.
 
@@ -322,6 +347,8 @@ watch(() => filtersCtl.serializedState.value, () => {
           empty="No hay ventas todavía"
           display-mode="auto"
           mobile-render="cards"
+          :sort-options="SORT_OPTIONS"
+          :item-label="{ one: 'venta', other: 'ventas' }"
           class="hf-data-table"
           portal-class="hf-theme hf-ui sales-list-portal"
           pagination-portal-class="hf-theme hf-ui sales-list-portal"
@@ -351,10 +378,11 @@ watch(() => filtersCtl.serializedState.value, () => {
                 />
               </div>
 
-              <div class="hidden h-5 w-px shrink-0 bg-default md:block" aria-hidden="true" />
+              <div v-if="!isMobile" class="hidden h-5 w-px shrink-0 bg-default md:block" aria-hidden="true" />
 
-              <!-- Region 2 — sort (predefined orderings, backend-safe), with a visible «Ordenar:». -->
-              <div class="flex shrink-0 items-center gap-2">
+              <!-- Region 2 — sort (predefined orderings, backend-safe), with a visible «Ordenar:».
+                   Phones sort from the result line's short «Ordenar» menu, never inside the sheet. -->
+              <div v-if="!isMobile" class="flex shrink-0 items-center gap-2">
                 <label :for="sortSelectId" class="sales-sort-label" data-testid="sales-sort-label">Ordenar:</label>
                 <USelect
                   :id="sortSelectId"
@@ -475,52 +503,42 @@ watch(() => filtersCtl.serializedState.value, () => {
           </template>
           <template #invoice-cell></template>
 
-          <template #mobile-card="{ row }">
-            <article class="sale-card" data-testid="sale-card" v-bind="rowProps(row)">
-              <div class="sale-card-head">
-                <button
-                  type="button"
-                  class="hf-row-primary sale-row-link"
-                  :data-testid="`sale-link-${row.id}`"
-                  @click="openSale(row)"
-                >
-                  {{ folioDisplay(row.folio) }}
-                </button>
-              </div>
-              <span class="hf-row-secondary" data-testid="sale-customer">{{ customerDisplay(row) }}</span>
-              <SaleAddressSourceNotice compact class="sale-card-notice" :address="row.shippingAddress" />
-              <p v-if="holdLine(row)" class="sale-hold-line sale-card-hold" data-testid="sale-hold-line">{{ holdLine(row) }}</p>
-              <div class="sale-card-meta">
-                <StatusBadge v-bind="salePaymentBadge(row)" />
-                <StatusBadge
-                  v-if="cancelNote(row)"
-                  data-testid="sale-cancel-reason"
-                  tone="warning"
-                  urgent
-                  :icon="SALE_HOLD_EXPIRED_ICON"
-                  :label="cancelNote(row)!.label"
-                  :aria-label="cancelNote(row)!.title"
-                  :title="cancelNote(row)!.title"
-                />
-                <StatusBadge v-if="saleDeliveryBadge(row)" v-bind="saleDeliveryBadge(row)!" />
-                <PaymentMethodPills
-                  v-if="row.paymentMethods.length > 0"
-                  :methods="row.paymentMethods"
-                  compact
-                  portal-class="hf-theme hf-ui sales-list-portal"
-                />
-              </div>
-              <p v-if="saleOpenDebtCents(row) > 0" class="sale-card-debt" data-testid="sale-card-debt">
-                Deuda <span class="hf-figure">{{ formatCentsMXN(row.debtCents) }}</span>
-                <template v-if="row.dueDate">
-                  · <span data-testid="sale-card-due-date">Vence {{ formatSaleDueDate(row.dueDate) }}</span>
-                </template>
-              </p>
-              <div class="sale-card-footer">
-                <span class="hf-figure sale-total">{{ formatCentsMXN(row.totalCents) }}</span>
-                <span>{{ saleWhen(row) }}</span>
-              </div>
-            </article>
+          <!-- Phone card (B): the shared card draws the folio and the Total · Pagado · Saldo grid
+               from meta.mobile; these zones add the customer and date, and the status badges. -->
+          <template #mobile-secondary="{ row }">
+            <span class="sale-card-customer" data-testid="sale-customer">{{ customerDisplay(row) }}</span>
+            <span aria-hidden="true">·</span>
+            <span class="sale-when">{{ saleWhen(row) }}</span>
+            <SaleAddressSourceNotice compact class="sale-card-notice" :address="row.shippingAddress" />
+            <span v-if="holdLine(row)" class="sale-hold-line sale-card-hold" data-testid="sale-hold-line">{{ holdLine(row) }}</span>
+          </template>
+
+          <template #mobile-status="{ row }">
+            <StatusBadge
+              :data-testid="isCanceledSale(row) ? 'sale-canceled-status' : 'sale-payment-status'"
+              v-bind="salePaymentBadge(row)"
+            />
+            <StatusBadge
+              v-if="cancelNote(row)"
+              data-testid="sale-cancel-reason"
+              tone="warning"
+              urgent
+              :icon="SALE_HOLD_EXPIRED_ICON"
+              :label="cancelNote(row)!.label"
+              :aria-label="cancelNote(row)!.title"
+              :title="cancelNote(row)!.title"
+            />
+            <StatusBadge
+              v-if="saleDeliveryBadge(row)"
+              data-testid="sale-delivery-status"
+              v-bind="saleDeliveryBadge(row)!"
+            />
+            <PaymentMethodPills
+              v-if="row.paymentMethods.length > 0"
+              :methods="row.paymentMethods"
+              compact
+              portal-class="hf-theme hf-ui sales-list-portal"
+            />
           </template>
         </AppDataTable>
       </div>
@@ -542,22 +560,15 @@ watch(() => filtersCtl.serializedState.value, () => {
 .sale-when { color: var(--hf-muted); white-space: nowrap; }
 .sale-total { font-weight: 600; color: var(--hf-heading); }
 .sale-debt { color: var(--hf-warning); font-weight: 600; }
-.sale-card { position: relative; min-width: 0; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); padding: 16px; }
-.sale-card-head { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
-.sale-card-head .sale-row-link { flex: 1; min-width: 0; padding-top: 2px; font-size: 15px; line-height: 1.4; }
-.sale-card .hf-row-secondary { padding-right: 8px; }
-.sale-card-notice { display: flex; width: fit-content; margin-top: 4px; }
+.sale-card-customer { color: var(--hf-ink); overflow-wrap: anywhere; }
+.sale-card-notice { display: flex; flex-basis: 100%; width: fit-content; }
 /* The hold: a muted line under the customer that wraps (two lines at most for the full
    «… vence jue 19 nov, 15:47») instead of being cut, and never widens the column. */
 .sale-hold-line { display: block; max-width: 16rem; color: var(--hf-muted); font-size: 12px; font-weight: 500; line-height: 1.35; white-space: normal; overflow-wrap: break-word; }
-.sale-card-hold { max-width: none; margin-top: 4px; white-space: normal; }
+.sale-card-hold { flex-basis: 100%; max-width: none; white-space: normal; }
 /* «Cancelada» + «Plazo vencido» in the Pago cell: they wrap onto a second line instead of
    spilling into Productos (the column stays narrow for every other status). */
 .sale-pay-cell { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
 .sales-sort-label { color: var(--hf-muted); font-size: 13px; font-weight: 500; white-space: nowrap; }
-.sale-card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-.sale-card-debt { margin-top: 10px; color: var(--hf-warning); font-size: 13px; font-weight: 600; }
-.sale-card-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hf-border); color: var(--hf-muted); font-size: 13px; }
-.sale-card-footer .sale-total { color: var(--hf-heading); font-size: 14px; }
 :deep(td[data-slot='td']) { height: 64px; padding-block: 10px; vertical-align: middle; }
 </style>

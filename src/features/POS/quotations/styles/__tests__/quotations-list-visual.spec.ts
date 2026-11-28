@@ -109,11 +109,12 @@ describe('Quotations listing adapter — scope and tokens (S1/S3/S4)', () => {
     expect(view).not.toMatch(/--coco-|coco-/)
   })
 
-  it('retires the card grid and the view toggle in favour of table + cards', () => {
+  it('retires the card grid and the view toggle in favour of table + phone rows', () => {
     expect(view).not.toContain('ViewToggle')
     expect(view).not.toContain('useQuotationViewMode')
-    expect(view).toContain('mobile-render="cards"')
-    expect(view).toContain('#mobile-card')
+    // mobile-tables T3 (S4): A · Lista densa from the columns' meta.mobile, no own card.
+    expect(view).toContain('mobile-render="rows"')
+    expect(view).not.toContain('#mobile-card')
     expect(view).toContain(':row-open="goToDetail"')
   })
 

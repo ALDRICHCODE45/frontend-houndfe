@@ -1,0 +1,203 @@
+<div class="tools" role="group" aria-label="Opciones del artboard">
+  <span class="lbl">03 · Filtros y formulario</span>
+  <span class="grow"></span>
+  <button type="button" id="t-notes" aria-expanded="false" aria-controls="notes"><svg class="icon sm"><use href="#i-notes"/></svg>Notas</button>
+  <button type="button" id="t-theme" aria-pressed="false"><svg class="icon sm"><use href="#i-moon"/></svg><span>Tema claro</span></button>
+</div>
+
+<aside class="notes" id="notes" tabindex="-1" hidden aria-label="Notas del artboard">
+  <h2>03 · Filtros, orden y formulario</h2>
+  <h3>Hoja «Filtros y orden» (sirve a A y a B)</h3>
+  <ul>
+    <li>Hoja de altura completa (12 px libres arriba para que se lea como hoja), esquinas superiores de 16 px (<code>--hf-radius-sheet</code>), asa, título con el número de resultados y ✕ de 44 px.</li>
+    <li><b>Ordenar por</b> es la primera sección: filas de 48 px de opción única con la marca redonda a la derecha. El botón de orden de la barra («Vencido») abre esta misma hoja con Ordenar desplegado.</li>
+    <li>Cada filtro es una sección plegable de 56 px sin cajas internas: nombre, valor actual resumido y contador de activos. Dentro: chips de alternancia de 44 px (<code>HfToggleChips</code>, <code>aria-pressed</code>), rangos con dos campos y switches.</li>
+    <li>Pie fijo sobre el área segura: «Limpiar (N)» y «Ver N clientes» (la única acción primaria). Los cambios se aplican al tocar «Ver…»; el número se actualiza al vuelo. Cerrar con ✕ o deslizar descarta.</li>
+    <li>Arregla el error S2 (a): nunca se pinta una caja vacía; una sección sin opciones no se muestra.</li>
+  </ul>
+  <h3>Formulario en hoja («Nuevo cliente»)</h3>
+  <ul>
+    <li>Por debajo de md los slideovers de formulario son hojas de altura completa de borde a borde: sin huecos laterales ni panel flotante.</li>
+    <li>Secciones como encabezado de 16 px + línea divisoria, sin <code>HfSectionCard</code> anidada (arregla S2 (c)). Campos a todo el ancho, 44 px; dos columnas solo para pares cortos (CP · Municipio, Límite · Días).</li>
+    <li>Pie fijo <code>HfSaveBar</code> móvil: «Cancelar» y «Guardar cliente» en columnas a todo el ancho, con <code>env(safe-area-inset-bottom)</code>.</li>
+  </ul>
+</aside>
+
+<header class="bhead">
+  <h1>Filtros, orden y formularios en móvil</h1>
+  <p>Una hoja de altura completa para filtrar y ordenar (A y B) y el mismo patrón de hoja para los formularios.</p>
+  <p class="trade"><svg class="icon"><use href="#i-info"/></svg><span><b>Tradeoff:</b> todo en un solo lugar y aplicado de una vez con «Ver N resultados»; a cambio, cambiar solo el orden también abre la hoja completa en vez de un menú corto.</span></p>
+</header>
+
+<!-- ═══ 1 · Hoja al abrir: Ordenar primero ═══ -->
+<header class="cap"><b>1 · Filtros y orden · al abrir</b><span>Ordenar desplegado; cada filtro dice su valor y cuántos tiene activos</span></header>
+<div class="phone tall">
+  <div aria-hidden="true">
+    <div class="mbar"><span class="icon-btn"><svg class="icon"><use href="#i-menu"/></svg></span><span class="ttl"><small>POS</small><b>Clientes</b></span></div>
+    <div class="phead"><h1>Clientes</h1></div>
+  </div>
+  <div class="scrim" aria-hidden="true"></div>
+  <section class="fsheet" role="dialog" aria-modal="true" aria-labelledby="fs1-t">
+    <span class="handle" aria-hidden="true"></span>
+    <header class="sh-h"><h2 id="fs1-t">Filtros y orden<small>3 filtros activos · 38 clientes</small></h2><button type="button" class="icon-btn" aria-label="Cerrar filtros"><svg class="icon"><use href="#i-x"/></svg></button></header>
+    <div class="sh-b">
+      <details class="acc" open>
+        <summary><span>Ordenar por</span><span class="grow"></span><span class="v">Vencido más antiguo</span><svg class="icon sm chev"><use href="#i-chev-d"/></svg></summary>
+        <div class="ab">
+          <div class="sortlist" role="radiogroup" aria-label="Ordenar clientes por" data-single>
+            <button type="button" role="radio" aria-checked="true"><span class="t">Vencido más antiguo<small>Quien lleva más días sin pagar, primero</small></span><i><svg class="icon"><use href="#i-check"/></svg></i></button>
+            <button type="button" role="radio" aria-checked="false"><span class="t">Deuda mayor</span><i><svg class="icon"><use href="#i-check"/></svg></i></button>
+            <button type="button" role="radio" aria-checked="false"><span class="t">Última compra reciente</span><i><svg class="icon"><use href="#i-check"/></svg></i></button>
+            <button type="button" role="radio" aria-checked="false"><span class="t">Total comprado</span><i><svg class="icon"><use href="#i-check"/></svg></i></button>
+            <button type="button" role="radio" aria-checked="false"><span class="t">Nombre · A–Z</span><i><svg class="icon"><use href="#i-check"/></svg></i></button>
+          </div>
+        </div>
+      </details>
+      <details class="acc">
+        <summary><span>Deuda</span><span class="nb" aria-label="1 activo">1</span><span class="grow"></span><span class="v">Vencida</span><svg class="icon sm chev"><use href="#i-chev-d"/></svg></summary>
+        <div class="ab"><div class="fgrp"><span class="fl">Estado de la deuda</span><div class="chips m" data-multi><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Con deuda</button><button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg>Vencida</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Sin deuda</button></div></div></div>
+      </details>
+      <details class="acc">
+        <summary><span>Compras</span><span class="grow"></span><span class="v">Cualquiera</span><svg class="icon sm chev"><use href="#i-chev-d"/></svg></summary>
+        <div class="ab"><div class="fgrp"><span class="fl">Última compra</span><div class="chips m" data-multi><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Últimos 30 días</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Más de 90 días</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Nunca</button></div></div></div>
+      </details>
+      <details class="acc">
+        <summary><span>Mascotas</span><span class="nb" aria-label="1 activo">1</span><span class="grow"></span><span class="v">Perro, Gato</span><svg class="icon sm chev"><use href="#i-chev-d"/></svg></summary>
+        <div class="ab"><div class="fgrp"><span class="fl">Especie</span><div class="chips m" data-multi><button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg>Perro</button><button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg>Gato</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Ave</button></div></div></div>
+      </details>
+      <details class="acc">
+        <summary><span>Ubicación</span><span class="nb" aria-label="1 activo">1</span><span class="grow"></span><span class="v">Monterrey, San Nicolás</span><svg class="icon sm chev"><use href="#i-chev-d"/></svg></summary>
+        <div class="ab"><div class="fgrp"><span class="fl">Municipio</span><div class="chips m" data-multi><button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg>Monterrey</button><button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg>San Nicolás</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Guadalupe</button></div></div></div>
+      </details>
+      <details class="acc">
+        <summary><span>Datos comerciales</span><span class="grow"></span><span class="v">Cualquiera</span><svg class="icon sm chev"><use href="#i-chev-d"/></svg></summary>
+        <div class="ab"><div class="fgrp"><span class="fl">Lista de precios</span><div class="chips m" data-multi><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Público general</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Mayoreo</button></div></div></div>
+      </details>
+    </div>
+    <footer class="sh-f wide"><button type="button" class="btn">Limpiar (3)</button><button type="button" class="btn primary">Ver 38 clientes</button></footer>
+    <div class="homebar" aria-hidden="true" style="height:22px;padding-bottom:6px;background:var(--hf-surface)"><i></i></div>
+  </section>
+</div>
+
+<!-- ═══ 2 · Secciones abiertas ═══ -->
+<header class="cap"><b>2 · Filtros y orden · secciones abiertas</b><span>Chips de 44 px que se acomodan en líneas · rangos de dos campos · sin cajas internas</span></header>
+<div class="phone tall">
+  <div aria-hidden="true">
+    <div class="mbar"><span class="icon-btn"><svg class="icon"><use href="#i-menu"/></svg></span><span class="ttl"><small>POS</small><b>Clientes</b></span></div>
+  </div>
+  <div class="scrim" aria-hidden="true"></div>
+  <section class="fsheet" role="dialog" aria-modal="true" aria-labelledby="fs2-t">
+    <span class="handle" aria-hidden="true"></span>
+    <header class="sh-h"><h2 id="fs2-t">Filtros y orden<small>3 filtros activos · 38 clientes</small></h2><button type="button" class="icon-btn" aria-label="Cerrar filtros"><svg class="icon"><use href="#i-x"/></svg></button></header>
+    <div class="sh-b">
+      <details class="acc">
+        <summary><span>Ordenar por</span><span class="grow"></span><span class="v">Vencido más antiguo</span><svg class="icon sm chev"><use href="#i-chev-d"/></svg></summary>
+        <div class="ab"><div class="sortlist" role="radiogroup" aria-label="Ordenar clientes por" data-single>
+            <button type="button" role="radio" aria-checked="true"><span class="t">Vencido más antiguo<small>Quien lleva más días sin pagar, primero</small></span><i><svg class="icon"><use href="#i-check"/></svg></i></button>
+            <button type="button" role="radio" aria-checked="false"><span class="t">Deuda mayor</span><i><svg class="icon"><use href="#i-check"/></svg></i></button>
+            <button type="button" role="radio" aria-checked="false"><span class="t">Última compra reciente</span><i><svg class="icon"><use href="#i-check"/></svg></i></button>
+            <button type="button" role="radio" aria-checked="false"><span class="t">Total comprado</span><i><svg class="icon"><use href="#i-check"/></svg></i></button>
+            <button type="button" role="radio" aria-checked="false"><span class="t">Nombre · A–Z</span><i><svg class="icon"><use href="#i-check"/></svg></i></button>
+          </div></div>
+      </details>
+      <details class="acc" open>
+        <summary><span>Deuda</span><span class="nb" aria-label="1 activo">1</span><span class="grow"></span><span class="v">Vencida</span><svg class="icon sm chev"><use href="#i-chev-d"/></svg></summary>
+        <div class="ab">
+          <div class="fgrp"><span class="fl">Estado de la deuda</span>
+            <div class="chips m" data-multi role="group" aria-label="Estado de la deuda">
+              <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Con deuda <small>52</small></button>
+              <button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg>Vencida <small>38</small></button>
+              <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Al corriente <small>14</small></button>
+              <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Sin deuda <small>162</small></button>
+            </div>
+          </div>
+          <div class="fgrp"><span class="fl">Monto de la deuda <small>MXN</small></span>
+            <div class="range2"><div class="input"><span class="pre">$</span><input inputmode="decimal" placeholder="Mínimo" aria-label="Deuda mínima"></div><span>a</span><div class="input"><span class="pre">$</span><input inputmode="decimal" placeholder="Máximo" aria-label="Deuda máxima"></div></div>
+          </div>
+          <div class="fgrp"><span class="fl">Días de vencido</span>
+            <div class="chips m" data-multi role="group" aria-label="Días de vencido">
+              <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Más de 30</button>
+              <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Más de 60</button>
+              <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Más de 90</button>
+            </div>
+          </div>
+        </div>
+      </details>
+      <details class="acc" open>
+        <summary><span>Mascotas</span><span class="nb" aria-label="1 activo">1</span><span class="grow"></span><span class="v">Perro, Gato</span><svg class="icon sm chev"><use href="#i-chev-d"/></svg></summary>
+        <div class="ab">
+          <div class="fgrp"><span class="fl">Especie</span>
+            <div class="chips m" data-multi role="group" aria-label="Especie">
+              <button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg><span class="pt"><svg class="icon"><use href="#i-dog"/></svg>Perro</span></button>
+              <button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg><span class="pt"><svg class="icon"><use href="#i-cat"/></svg>Gato</span></button>
+              <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Ave</button>
+              <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Pez</button>
+              <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Roedor</button>
+              <button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Reptil</button>
+            </div>
+          </div>
+          <div class="swrow"><span class="t"><b>Sin mascota registrada</b><small>Clientes a los que falta capturar su mascota</small></span><span class="st">Desactivado</span><button type="button" class="sw" role="switch" aria-checked="false" aria-label="Sin mascota registrada"></button></div>
+        </div>
+      </details>
+      <details class="acc">
+        <summary><span>Ubicación</span><span class="nb" aria-label="1 activo">1</span><span class="grow"></span><span class="v">Monterrey, San Nicolás</span><svg class="icon sm chev"><use href="#i-chev-d"/></svg></summary>
+        <div class="ab"><div class="fgrp"><span class="fl">Municipio</span><div class="chips m" data-multi role="group" aria-label="Municipio"><button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg>Monterrey</button><button type="button" class="chip" aria-pressed="true"><svg class="icon ck"><use href="#i-check"/></svg>San Nicolás</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Guadalupe</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>San Pedro</button><button type="button" class="chip" aria-pressed="false"><svg class="icon ck"><use href="#i-check"/></svg>Apodaca</button></div></div></div>
+      </details>
+    </div>
+    <footer class="sh-f wide"><button type="button" class="btn">Limpiar (3)</button><button type="button" class="btn primary">Ver 38 clientes</button></footer>
+    <div class="homebar" aria-hidden="true" style="height:22px;padding-bottom:6px;background:var(--hf-surface)"><i></i></div>
+  </section>
+</div>
+
+<!-- ═══ 3 · Nuevo cliente: hoja de formulario ═══ -->
+<header class="cap"><b>3 · Nuevo cliente · hoja de formulario</b><span>De borde a borde, secciones con encabezado y línea, sin tarjetas anidadas</span></header>
+<div class="phone tall">
+  <div aria-hidden="true">
+    <div class="mbar"><span class="icon-btn"><svg class="icon"><use href="#i-menu"/></svg></span><span class="ttl"><small>POS</small><b>Clientes</b></span></div>
+  </div>
+  <div class="scrim" aria-hidden="true"></div>
+  <section class="fsheet" role="dialog" aria-modal="true" aria-labelledby="nc-t">
+    <span class="handle" aria-hidden="true"></span>
+    <header class="sh-h"><h2 id="nc-t">Nuevo cliente<small>Los campos con <span class="req">*</span> son obligatorios</small></h2><button type="button" class="icon-btn" aria-label="Cerrar sin guardar"><svg class="icon"><use href="#i-x"/></svg></button></header>
+    <form class="sh-b" onsubmit="return false">
+      <section class="fsec2" aria-labelledby="nc-s1">
+        <h3 id="nc-s1">Contacto</h3>
+        <div class="field"><label for="nc-n">Nombre o razón social <span class="req" aria-hidden="true">*</span></label><div class="input"><input id="nc-n" value="Karla Méndez Leal" autocomplete="name" required></div></div>
+        <div class="field"><label for="nc-p">Teléfono <span class="req" aria-hidden="true">*</span></label><div class="input"><input id="nc-p" type="tel" inputmode="tel" placeholder="81 1234 5678" autocomplete="tel" required></div><span class="hint">Lo usamos para WhatsApp y recordatorios de pago.</span></div>
+        <div class="field"><label for="nc-e">Correo</label><div class="input"><input id="nc-e" type="email" inputmode="email" placeholder="nombre@correo.com" autocomplete="email"></div></div>
+      </section>
+      <section class="fsec2" aria-labelledby="nc-s2">
+        <h3 id="nc-s2">Dirección <small>opcional</small></h3>
+        <div class="field"><label for="nc-a">Calle y número</label><div class="input"><input id="nc-a" placeholder="Av. Universidad 1205" autocomplete="street-address"></div></div>
+        <div class="field"><label for="nc-c">Colonia</label><div class="input"><input id="nc-c" placeholder="Anáhuac"></div></div>
+        <div class="two">
+          <div class="field"><label for="nc-cp">C.P.</label><div class="input"><input id="nc-cp" inputmode="numeric" placeholder="66450" autocomplete="postal-code"></div></div>
+          <div class="field"><label for="nc-m">Municipio</label><span class="selfield">San Nicolás<svg class="icon"><use href="#i-chev-d"/></svg><select id="nc-m"><option>Monterrey</option><option selected>San Nicolás</option><option>Guadalupe</option><option>San Pedro</option></select></span></div>
+        </div>
+      </section>
+      <section class="fsec2" aria-labelledby="nc-s3">
+        <h3 id="nc-s3">Precios y crédito</h3>
+        <div class="field"><label for="nc-l">Lista de precios</label><span class="selfield">Público general<svg class="icon"><use href="#i-chev-d"/></svg><select id="nc-l"><option selected>Público general</option><option>Mayoreo</option></select></span></div>
+        <div class="swrow"><span class="t"><b>Vender a crédito</b><small>Permite dejar saldo pendiente</small></span><span class="st on">Activado</span><button type="button" class="sw" role="switch" aria-checked="true" aria-label="Vender a crédito"></button></div>
+        <div class="two">
+          <div class="field"><label for="nc-lim">Límite</label><div class="input"><span class="pre">$</span><input id="nc-lim" inputmode="decimal" value="5,000.00"></div></div>
+          <div class="field"><label for="nc-d">Días de crédito</label><div class="input"><input id="nc-d" inputmode="numeric" value="15"></div></div>
+        </div>
+      </section>
+      <section class="fsec2" aria-labelledby="nc-s4">
+        <h3 id="nc-s4">Notas</h3>
+        <textarea class="ta" aria-labelledby="nc-s4" placeholder="Ej. Prefiere entregas por la tarde"></textarea>
+      </section>
+    </form>
+    <footer class="sh-f"><button type="button" class="btn">Cancelar</button><button type="button" class="btn primary">Guardar cliente</button></footer>
+    <div class="homebar" aria-hidden="true" style="height:22px;padding-bottom:6px;background:var(--hf-surface)"><i></i></div>
+  </section>
+</div>
+
+<section class="maps" aria-label="Qué cambia respecto a hoy">
+  <h2>Qué cambia respecto a hoy (capturas de S1)</h2>
+  <ul>
+    <li>Hoja de filtros: de cajas vacías con bordes rotos a secciones plegables con valor y contador, y un pie fijo con el resultado.</li>
+    <li>Formulario: de panel flotante con huecos y tarjetas anidadas a hoja de borde a borde con secciones planas y botones a todo el ancho que nunca se cortan.</li>
+  </ul>
+</section>

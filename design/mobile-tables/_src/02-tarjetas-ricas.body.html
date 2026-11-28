@@ -1,0 +1,173 @@
+<div class="tools" role="group" aria-label="Opciones del artboard">
+  <span class="lbl">02 · B · Tarjetas ricas</span>
+  <span class="grow"></span>
+  <button type="button" id="t-notes" aria-expanded="false" aria-controls="notes"><svg class="icon sm"><use href="#i-notes"/></svg>Notas</button>
+  <button type="button" id="t-theme" aria-pressed="false"><svg class="icon sm"><use href="#i-moon"/></svg><span>Tema claro</span></button>
+</div>
+
+<aside class="notes" id="notes" tabindex="-1" hidden aria-label="Notas del artboard">
+  <h2>02 · B · Tarjetas ricas</h2>
+  <h3>Anatomía de la tarjeta</h3>
+  <ul>
+    <li>Tarjeta de 12 px de radio y 16 px de relleno (regla «Mobile cards»). Nombre 15 px/600 completo, en las líneas que necesite; nunca recortado.</li>
+    <li>Línea secundaria (teléfono · municipio) y una insignia de estado con su explicación al lado.</li>
+    <li>Mini cuadrícula de 3 datos separada por una línea: <b>Deuda · Última compra · Mascotas</b>. Cada dato tiene etiqueta de 12 px y valor de 14 px/600, con una nota opcional debajo. Sin cajas dentro de la tarjeta.</li>
+    <li>⋮ arriba a la derecha (44 px). En modo selección el ⋮ se cambia por la marca redonda en esa misma esquina, <b>dentro</b> de la tarjeta; la tarjeta seleccionada se tiñe de <code>--hf-active-soft</code> con borde <code>--hf-active</code>.</li>
+  </ul>
+  <h3>Igual que A</h3>
+  <ul>
+    <li>Barra fija (búsqueda, Filtros (N), línea de resultado con orden y «Seleccionar»), paginador «‹ 1 / 9 ›» y barra de selección acoplada abajo.</li>
+  </ul>
+  <h3>Implementación</h3>
+  <ul>
+    <li><code>AppDataTable</code> por debajo de md: <code>mobile-render="cards"</code> (ya existe) con <code>meta.mobile: 'stat'</code> en hasta 3 columnas para la mini cuadrícula y <code>'status'</code> para la insignia. El panel «Columnas» en móvil ya elige qué campos lleva la tarjeta.</li>
+  </ul>
+</aside>
+
+<header class="bhead">
+  <h1>B · Tarjetas ricas</h1>
+  <p>Una tarjeta por registro con 3 datos clave en una mini cuadrícula, insignia de estado y la marca de selección dentro de la tarjeta.</p>
+  <p class="trade"><svg class="icon"><use href="#i-info"/></svg><span><b>Tradeoff:</b> responde sin abrir el detalle (cuánto debe, cuándo compró, qué mascotas); a cambio entran 3–4 registros por pantalla y hay que desplazar más.</span></p>
+</header>
+
+<!-- ═══ 1 · Lista ═══ -->
+<header class="cap"><b>1 · Lista de clientes</b><span>390 px · un filtro activo · página 1 de 9</span></header>
+<div class="phone">
+  <div class="mbar"><button type="button" class="icon-btn" aria-label="Abrir menú"><svg class="icon"><use href="#i-menu"/></svg></button><span class="ttl"><small>POS</small><b>Clientes</b></span></div>
+  <div class="phead"><h1>Clientes</h1><button type="button" class="btn primary"><svg class="icon sm"><use href="#i-plus"/></svg>Nuevo</button></div>
+  <div class="mtool">
+    <div class="r1">
+      <div class="input"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" placeholder="Cliente o mascota" aria-label="Buscar clientes por nombre, teléfono o mascota"></div>
+      <button type="button" class="btn has-filters" aria-label="Filtros, 1 activo"><svg class="icon sm"><use href="#i-sliders"/></svg>Filtros<span class="count">1</span></button>
+    </div>
+    <div class="achips" aria-label="Filtros activos">
+      <span class="achip"><span>Municipio: Monterrey, San Nicolás</span><button type="button" aria-label="Quitar filtro Municipio"><svg class="icon xs"><use href="#i-x"/></svg></button></span>
+    </div>
+    <div class="rline" data-when-select="false">
+      <p class="total"><b>86 clientes</b></p>
+      <button type="button" class="tbtn" aria-label="Ordenado por vencido más antiguo primero. Cambiar orden"><svg class="icon"><use href="#i-sort"/></svg>Vencido</button>
+      <button type="button" class="tbtn" data-select-toggle><svg class="icon"><use href="#i-list-checks"/></svg>Seleccionar</button>
+    </div>
+    <div class="selhead" data-when-select="true" hidden>
+      <button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar los de esta página" data-all><i><svg class="icon ck"><use href="#i-check"/></svg><svg class="icon mx"><use href="#i-minus"/></svg></i></button>
+      <p class="n"><span data-selcount="N seleccionados">0 seleccionados</span><small>de 86 · toca las tarjetas</small></p>
+      <button type="button" class="tbtn" data-select-toggle>Listo</button>
+    </div>
+  </div>
+  <ul class="clist" aria-label="Clientes, página 1 de 9">
+    <li class="rcard">
+      <div class="top"><div class="who"><a class="nm" href="#c1">Rodrigo Salinas Cantú</a><p class="sec"><span class="fig">81 1987 2210</span>·<svg class="icon"><use href="#i-pin"/></svg>Monterrey</p></div>
+        <span class="corner"><button type="button" class="icon-btn more" aria-label="Acciones de Rodrigo Salinas Cantú"><svg class="icon"><use href="#i-more"/></svg></button><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a Rodrigo Salinas Cantú" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span></div>
+      <p class="status"><span class="badge danger">Vencida</span><span class="muted">desde 12 ago · 106 días</span></p>
+      <dl class="mini"><div><dt>Deuda</dt><dd class="owe">$3,480.00</dd></div><div><dt>Última compra</dt><dd>30 sep<small>hace 58 d</small></dd></div><div><dt>Mascotas</dt><dd>2<small>Rocky, Luna</small></dd></div></dl>
+    </li>
+    <li class="rcard">
+      <div class="top"><div class="who"><a class="nm" href="#c2">María Fernanda Garza Lozano</a><p class="sec"><span class="fig">81 2290 4417</span>·<svg class="icon"><use href="#i-pin"/></svg>San Nicolás</p></div>
+        <span class="corner"><button type="button" class="icon-btn more" aria-label="Acciones de María Fernanda Garza Lozano"><svg class="icon"><use href="#i-more"/></svg></button><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a María Fernanda Garza Lozano" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span></div>
+      <p class="status"><span class="badge danger">Vencida</span><span class="muted">desde 2 sep · 85 días</span></p>
+      <dl class="mini"><div><dt>Deuda</dt><dd class="owe">$1,150.00</dd></div><div><dt>Última compra</dt><dd>6 nov<small>hace 21 d</small></dd></div><div><dt>Mascotas</dt><dd>1<small>Toby</small></dd></div></dl>
+    </li>
+    <li class="rcard">
+      <div class="top"><div class="who"><a class="nm" href="#c4">Clínica Veterinaria Huellitas del Valle S.A. de C.V.</a><p class="sec"><svg class="icon"><use href="#i-building"/></svg>Mayoreo ·<svg class="icon"><use href="#i-pin"/></svg>San Nicolás</p></div>
+        <span class="corner"><button type="button" class="icon-btn more" aria-label="Acciones de Clínica Veterinaria Huellitas del Valle"><svg class="icon"><use href="#i-more"/></svg></button><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a Clínica Veterinaria Huellitas del Valle" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span></div>
+      <p class="status"><span class="badge">Al corriente</span><span class="muted">vence 5 dic · crédito 30 d</span></p>
+      <dl class="mini"><div><dt>Deuda</dt><dd class="owe">$12,480.00</dd></div><div><dt>Última compra</dt><dd>25 nov<small>hace 2 d</small></dd></div><div><dt>Mascotas</dt><dd class="zero">—<small>Cuenta de negocio</small></dd></div></dl>
+    </li>
+    <li class="rcard">
+      <div class="top"><div class="who"><a class="nm" href="#c7">Ana Sofía Treviño de la Garza</a><p class="sec"><span class="fig">81 1022 7781</span>·<svg class="icon"><use href="#i-pin"/></svg>Monterrey</p></div>
+        <span class="corner"><button type="button" class="icon-btn more" aria-label="Acciones de Ana Sofía Treviño de la Garza"><svg class="icon"><use href="#i-more"/></svg></button><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a Ana Sofía Treviño de la Garza" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span></div>
+      <p class="status"><span class="badge success">Sin deuda</span><span class="muted">cliente frecuente · 14 compras</span></p>
+      <dl class="mini"><div><dt>Deuda</dt><dd class="zero">$0.00</dd></div><div><dt>Última compra</dt><dd>25 nov<small>hace 2 d</small></dd></div><div><dt>Mascotas</dt><dd>2<small>Nala, Coco</small></dd></div></dl>
+    </li>
+    <li class="rcard">
+      <div class="top"><div class="who"><a class="nm" href="#c10">Paola Cavazos Ibarra</a><p class="sec"><span class="fig">81 7788 1209</span>·<svg class="icon"><use href="#i-pin"/></svg>San Nicolás</p></div>
+        <span class="corner"><button type="button" class="icon-btn more" aria-label="Acciones de Paola Cavazos Ibarra"><svg class="icon"><use href="#i-more"/></svg></button><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a Paola Cavazos Ibarra" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span></div>
+      <p class="status"><span class="badge warning">Sin compras</span><span class="muted">registrada el 3 nov</span></p>
+      <dl class="mini"><div><dt>Deuda</dt><dd class="zero">$0.00</dd></div><div><dt>Última compra</dt><dd class="zero">—<small>Nunca</small></dd></div><div><dt>Mascotas</dt><dd>1<small>Mía</small></dd></div></dl>
+    </li>
+  </ul>
+  <nav class="mpager" aria-label="Paginación de clientes">
+    <div class="left">
+      <label class="size"><span class="fig">10</span><small>por página</small><svg class="icon"><use href="#i-chev-d"/></svg><select aria-label="Clientes por página"><option selected>10</option><option>25</option><option>50</option></select></label>
+      <span class="range fig">1–10 de 86</span>
+    </div>
+    <div class="nav">
+      <button type="button" class="step" aria-label="Página anterior" disabled><svg class="icon"><use href="#i-chev-l"/></svg></button>
+      <span class="pg"><b>1</b><span>/ 9</span><select aria-label="Ir a la página"><option selected>Página 1</option><option>Página 2</option><option>Página 3</option><option>Página 4</option><option>Página 5</option><option>Página 6</option><option>Página 7</option><option>Página 8</option><option>Página 9</option></select></span>
+      <button type="button" class="step" aria-label="Página siguiente"><svg class="icon"><use href="#i-chev-r"/></svg></button>
+    </div>
+  </nav>
+  <div class="homebar" aria-hidden="true"><i></i></div>
+</div>
+
+<!-- ═══ 2 · Modo selección ═══ -->
+<header class="cap"><b>2 · Modo selección</b><span>El ⋮ se vuelve marca en la misma esquina, dentro de la tarjeta · barra acoplada abajo</span></header>
+<div class="phone tall selecting keep-dock">
+  <div class="mbar"><button type="button" class="icon-btn" aria-label="Abrir menú"><svg class="icon"><use href="#i-menu"/></svg></button><span class="ttl"><small>POS</small><b>Clientes</b></span></div>
+  <div class="mtool stuck">
+    <div class="r1">
+      <div class="input"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" placeholder="Cliente o mascota" aria-label="Buscar clientes por nombre, teléfono o mascota"></div>
+      <button type="button" class="btn has-filters" aria-label="Filtros, 1 activo"><svg class="icon sm"><use href="#i-sliders"/></svg>Filtros<span class="count">1</span></button>
+    </div>
+    <div class="selhead">
+      <button type="button" class="mark" role="checkbox" aria-checked="mixed" aria-label="Seleccionar los de esta página" data-all><i><svg class="icon ck"><use href="#i-check"/></svg><svg class="icon mx"><use href="#i-minus"/></svg></i></button>
+      <p class="n"><span data-selcount="N seleccionados">2 seleccionados</span><small>de 86 · <button type="button" class="linkbtn inline">Seleccionar los 86</button></small></p>
+      <button type="button" class="tbtn">Listo</button>
+    </div>
+  </div>
+  <ul class="clist" aria-label="Clientes, modo selección">
+    <li class="rcard sel-on">
+      <div class="top"><div class="who"><a class="nm" href="#c1">Rodrigo Salinas Cantú</a><p class="sec"><span class="fig">81 1987 2210</span>·<svg class="icon"><use href="#i-pin"/></svg>Monterrey</p></div>
+        <span class="corner"><button type="button" class="icon-btn more" aria-label="Acciones de Rodrigo Salinas Cantú"><svg class="icon"><use href="#i-more"/></svg></button><button type="button" class="mark" role="checkbox" aria-checked="true" aria-label="Seleccionar a Rodrigo Salinas Cantú" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span></div>
+      <p class="status"><span class="badge danger">Vencida</span><span class="muted">desde 12 ago · 106 días</span></p>
+      <dl class="mini"><div><dt>Deuda</dt><dd class="owe">$3,480.00</dd></div><div><dt>Última compra</dt><dd>30 sep<small>hace 58 d</small></dd></div><div><dt>Mascotas</dt><dd>2<small>Rocky, Luna</small></dd></div></dl>
+    </li>
+    <li class="rcard sel-on">
+      <div class="top"><div class="who"><a class="nm" href="#c2">María Fernanda Garza Lozano</a><p class="sec"><span class="fig">81 2290 4417</span>·<svg class="icon"><use href="#i-pin"/></svg>San Nicolás</p></div>
+        <span class="corner"><button type="button" class="icon-btn more" aria-label="Acciones de María Fernanda Garza Lozano"><svg class="icon"><use href="#i-more"/></svg></button><button type="button" class="mark" role="checkbox" aria-checked="true" aria-label="Seleccionar a María Fernanda Garza Lozano" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span></div>
+      <p class="status"><span class="badge danger">Vencida</span><span class="muted">desde 2 sep · 85 días</span></p>
+      <dl class="mini"><div><dt>Deuda</dt><dd class="owe">$1,150.00</dd></div><div><dt>Última compra</dt><dd>6 nov<small>hace 21 d</small></dd></div><div><dt>Mascotas</dt><dd>1<small>Toby</small></dd></div></dl>
+    </li>
+    <li class="rcard">
+      <div class="top"><div class="who"><a class="nm" href="#c4">Clínica Veterinaria Huellitas del Valle S.A. de C.V.</a><p class="sec"><svg class="icon"><use href="#i-building"/></svg>Mayoreo ·<svg class="icon"><use href="#i-pin"/></svg>San Nicolás</p></div>
+        <span class="corner"><button type="button" class="icon-btn more" aria-label="Acciones de Clínica Veterinaria Huellitas del Valle"><svg class="icon"><use href="#i-more"/></svg></button><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a Clínica Veterinaria Huellitas del Valle" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span></div>
+      <p class="status"><span class="badge">Al corriente</span><span class="muted">vence 5 dic · crédito 30 d</span></p>
+      <dl class="mini"><div><dt>Deuda</dt><dd class="owe">$12,480.00</dd></div><div><dt>Última compra</dt><dd>25 nov<small>hace 2 d</small></dd></div><div><dt>Mascotas</dt><dd class="zero">—<small>Cuenta de negocio</small></dd></div></dl>
+    </li>
+  </ul>
+  <section class="dock" aria-label="Acciones para la selección">
+    <div class="dh1"><span class="chipn" data-selcount="N">2</span><p class="sum">Deuda <b class="fig">$4,630.00</b></p><button type="button" class="icon-btn" aria-label="Quitar selección"><svg class="icon"><use href="#i-x"/></svg></button></div>
+    <div class="acts">
+      <button type="button" class="btn"><svg class="icon"><use href="#i-download"/></svg>Exportar</button>
+      <button type="button" class="btn"><svg class="icon"><use href="#i-send"/></svg>Recordar pago</button>
+      <button type="button" class="btn danger"><svg class="icon"><use href="#i-trash"/></svg>Eliminar…</button>
+    </div>
+    <div class="homebar" aria-hidden="true" style="height:22px;padding-bottom:0"><i></i></div>
+  </section>
+</div>
+
+<!-- ═══ 3 · Otras listas ═══ -->
+<header class="cap"><b>3 · La misma tarjeta en Ventas, Productos y Cotizaciones</b><span>Siempre: nombre · secundaria · insignia · 3 datos</span></header>
+<div class="phone">
+  <ul class="clist" aria-label="Ejemplos de otras listas" style="padding-top:16px">
+    <li class="rcard">
+      <div class="top"><div class="who"><a class="nm" href="#v2">V-10481 · Clínica Veterinaria Huellitas del Valle</a><p class="sec">28 nov, 11:40 ·<svg class="icon"><use href="#i-truck"/></svg>Entrega a domicilio</p></div>
+        <span class="corner"><button type="button" class="icon-btn more" aria-label="Acciones de la venta V-10481"><svg class="icon"><use href="#i-more"/></svg></button></span></div>
+      <p class="status"><span class="badge warning">Pago parcial</span><span class="badge info">En ruta</span></p>
+      <dl class="mini"><div><dt>Total</dt><dd>$8,930.00</dd></div><div><dt>Pagado</dt><dd>$4,000.00</dd></div><div><dt>Saldo</dt><dd class="owe">$4,930.00</dd></div></dl>
+    </li>
+    <li class="rcard">
+      <div class="top"><div class="who"><a class="nm" href="#p2">Arena aglutinante Fresh Step sin aroma 9 kg</a><p class="sec">FST-9 · Higiene felina</p></div>
+        <span class="corner"><button type="button" class="icon-btn more" aria-label="Acciones de Arena aglutinante Fresh Step"><svg class="icon"><use href="#i-more"/></svg></button></span></div>
+      <p class="status"><span class="badge warning">Existencia baja</span><span class="muted">mínimo 6</span></p>
+      <dl class="mini"><div><dt>Precio</dt><dd>$329.00</dd></div><div><dt>Existencia</dt><dd class="owe">2</dd></div><div><dt>Vendidos 30 d</dt><dd>41</dd></div></dl>
+    </li>
+    <li class="rcard">
+      <div class="top"><div class="who"><a class="nm" href="#q1">COT-0318 · Estética Canina Patitas Felices</a><p class="sec">Creada 27 nov · Karla Méndez</p></div>
+        <span class="corner"><button type="button" class="icon-btn more" aria-label="Acciones de la cotización COT-0318"><svg class="icon"><use href="#i-more"/></svg></button></span></div>
+      <p class="status"><span class="badge info">Enviada</span><span class="muted">por WhatsApp</span></p>
+      <dl class="mini"><div><dt>Total</dt><dd>$18,920.00</dd></div><div><dt>Vence</dt><dd>4 dic<small>en 7 d</small></dd></div><div><dt>Partidas</dt><dd>9</dd></div></dl>
+    </li>
+  </ul>
+  <div style="height:8px"></div>
+</div>

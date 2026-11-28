@@ -8,6 +8,17 @@ import _SalesListView from '../SalesListView.vue'
 import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import SortableHeader from '@/core/shared/components/DataTable/SortableHeader.vue'
 import type { ConfirmedSaleRow } from '../../interfaces/sale.types'
+import { resolveMobileRow } from '@/core/shared/components/DataTable/mobileFields'
+import type { TableColumn } from '@/core/shared/types/table.types'
+
+// mobile-tables T3: the phone breakpoint can flip per test (desktop keeps the sort select).
+const breakpoint = vi.hoisted(() => ({ mobile: true }))
+
+/** The phone card's fields (`meta.mobile`) for a row, as the shared card resolves them. */
+function phoneCard(wrapper: VueWrapper, row: ConfirmedSaleRow) {
+  const columns = wrapper.getComponent(appDataTableStub).props('columns') as TableColumn<ConfirmedSaleRow>[]
+  return resolveMobileRow(columns, row, 0, { honourVisibility: true })
+}
 
 // ---------------------------------------------------------------------------//
 // Lifecycle cleanup infrastructure
@@ -74,7 +85,7 @@ vi.mock('@vueuse/core', async (importOriginal) => {
   return {
     ...actual,
     useBreakpoints: () => ({
-      smaller: vi.fn(() => true), // mobile by default → DataTableFilters embedded=true
+      smaller: vi.fn(() => breakpoint.mobile), // mobile by default → DataTableFilters embedded=true
     }),
   }
 })
@@ -257,6 +268,8 @@ const appDataTableStub = {
     paginationPortalClass: { default: undefined },
     displayMode: { default: 'auto' },
     mobileRender: { default: 'table' },
+    sortOptions: { default: () => [] },
+    itemLabel: { default: undefined },
     rowOpen: { default: undefined },
     filtered: { default: false },
     noMatchTitle: { default: 'Ningún resultado' },
@@ -318,7 +331,9 @@ const appDataTableStub = {
           <slot name="seller-cell" :row="{ original: row }" />
           <slot name="channel-cell" :row="{ original: row }" />
           <slot name="invoice-cell" :row="{ original: row }" />
-          <div data-testid="cards-host"><slot name="mobile-card" :row="row" /></div>
+          <!-- mobile-tables T3: the shared card draws the folio and stats from meta.mobile; the
+               view fills the secondary and status zones. -->
+          <div data-testid="cards-host"><div data-testid="sale-card" @click="rowOpen?.(row)"><slot name="mobile-secondary" :row="row" /><slot name="mobile-status" :row="row" /></div></div>
         </div>
       </template>
       <!-- Header slot passthrough: UTable resolves #<id>-header per column, so
@@ -635,7 +650,9 @@ describe('SalesListView', () => {
       expect(badges[0]!.attributes('data-tone')).toBe('neutral')
       expect(card.text()).not.toContain('Pagada')
       expect(card.text()).not.toContain('No entregada')
-      expect(card.find('[data-testid="sale-card-debt"]').exists()).toBe(false)
+      // No debt on a canceled card: Pagado and Saldo read «—».
+      const stats = phoneCard(mountSalesList(), canceledRow).stats
+      expect(stats.map((stat) => [stat.label, stat.text])).toEqual([['Total', '$1,270.00'], ['Pagado', '—'], ['Saldo', '—']])
     })
 
     it('still opens the detail when the canceled folio is clicked', async () => {
@@ -654,7 +671,8 @@ describe('SalesListView', () => {
       expect(wrapper.find('[data-testid="sale-debt"]').exists()).toBe(true)
       const card = wrapper.get('[data-testid="sale-card"]')
       expect(card.findAll('.hf-status-badge').map(b => b.text())).toEqual(['Pagada', 'No entregada'])
-      expect(card.find('[data-testid="sale-card-debt"]').exists()).toBe(true)
+      const saldo = phoneCard(wrapper, { ...canceledRow, status: 'CONFIRMED' }).stats.find((stat) => stat.label === 'Saldo')
+      expect(saldo).toMatchObject({ text: '$50.00', tone: 'warning' })
     })
   })
 
@@ -920,12 +938,32 @@ describe('SalesListView — sortable column headers (REQ-13)', () => {
     expect(fecha!.props('column').getIsSorted()).toBe(false)
   })
 
-  it('keeps the USelect sort shortcut alongside the headers', () => {
+  it('keeps the USelect sort shortcut alongside the headers on desktop', () => {
     // Design decision #1: headers are additive; the dropdown shortcut stays.
-    const wrapper = mountSalesList()
+    breakpoint.mobile = false
+    try {
+      const wrapper = mountSalesList()
+      expect(wrapper.find('select').exists()).toBe(true)
+      expect(wrapper.text()).toContain('Más recientes')
+    } finally {
+      breakpoint.mobile = true
+    }
+  })
 
-    expect(wrapper.find('select').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Más recientes')
+  // mobile-tables T3 (S4): phones sort from the result line's short menu, never inside the sheet.
+  it('hands the same orderings to the phone «Ordenar» menu and keeps the select out of the sheet', () => {
+    const wrapper = mountSalesList()
+    expect(wrapper.find('[data-testid="sales-sort-select"]').exists()).toBe(false)
+    const table = wrapper.getComponent(appDataTableStub)
+    expect((table.props('sortOptions') as Array<{ label: string; value: string }>).map((option) => option.value)).toEqual([
+      'confirmedAt:desc',
+      'confirmedAt:asc',
+      'totalCents:desc',
+      'totalCents:asc',
+      'debtCents:desc',
+      'createdAt:desc',
+    ])
+    expect(table.props('itemLabel')).toEqual({ one: 'venta', other: 'ventas' })
   })
 })
 
@@ -994,8 +1032,9 @@ describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
     const filters = wrapper.find('[data-testid="sales-filters"]')
     expect(filters.exists()).toBe(true)
     expect(filters.attributes('data-embedded')).toBe('true')
-    // The sort select sibling MUST remain rendered; the status tabs are the views above the toolbar.
-    expect(wrapper.find('[data-testid="sales-sort-select"]').exists()).toBe(true)
+    // mobile-tables T3: on phones the sort is the result line's menu, not a sibling in the sheet;
+    // the status tabs are the views above the toolbar.
+    expect(wrapper.find('[data-testid="sales-sort-select"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="tab-pending"]').exists()).toBe(false)
   })
 
@@ -1146,12 +1185,18 @@ describe('SalesListView — preserved invariants (REQ-16)', () => {
     const wrapper = mountSalesList()
 
     const card = wrapper.get('[data-testid="cards-host"] [data-testid="sale-card"]')
-    expect(card.get('.hf-row-primary').text()).toBe('#12')
     expect(card.get('[data-testid="sale-customer"]').text()).toBe('Ada Lovelace')
     expect(card.findAll('.hf-status-badge').map((b) => b.text())).toEqual(['Impaga', 'Entregada'])
-    expect(card.get('[data-testid="sale-card-debt"]').text()).toContain('$50.00')
-    expect(card.text()).toContain('$1,270.00')
     expect(card.text()).toContain(formatShortDateTime(initialRow.confirmedAt))
+    // mobile-tables T3 (B): the folio and Total · Pagado · Saldo come from meta.mobile.
+    expect(wrapper.getComponent(appDataTableStub).props('mobileRender')).toBe('cards')
+    const fields = phoneCard(wrapper, mockState.data.value[0]!)
+    expect(fields.primary?.text).toBe('#12')
+    expect(fields.stats.map((stat) => [stat.label, stat.text])).toEqual([
+      ['Total', '$1,270.00'],
+      ['Pagado', '$1,220.00'],
+      ['Saldo', '$50.00'],
+    ])
   })
 
   it('opens the sale detail when the card is clicked and the card has no row menu', async () => {

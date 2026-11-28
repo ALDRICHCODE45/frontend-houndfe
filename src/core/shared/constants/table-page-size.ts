@@ -12,3 +12,13 @@ export function nearestPageSize(size: number, options: readonly number[] = TABLE
     Math.abs(option - size) < Math.abs(best - size) ? option : best,
   )
 }
+
+/**
+ * The page size a phone starts at when the table remembers none (odd/tasks/mobile-tables.md S4):
+ * short pages load fast and keep the pager in reach. A stored size or one in the URL still wins;
+ * desktop keeps each table's own default.
+ */
+export const MOBILE_DEFAULT_PAGE_SIZE = 10
+
+/** The phone breakpoint of the tables (below Tailwind's `md`, as AppDataTable and its toolbar). */
+export const MOBILE_TABLE_MEDIA_QUERY = '(max-width: 767.98px)'

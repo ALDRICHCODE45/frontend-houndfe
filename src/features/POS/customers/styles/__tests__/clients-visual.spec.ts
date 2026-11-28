@@ -33,9 +33,11 @@ describe('Clients local presentation adapter', () => {
     }
   })
 
-  it('uses the shared table pattern: table on desktop, cards on mobile, no toggle', () => {
-    expect(view).toContain('mobile-render="cards"')
-    expect(view).toContain('#mobile-card')
+  it('uses the shared table pattern: table on desktop, dense rows on mobile, no toggle', () => {
+    // mobile-tables T3 (S4): A · Lista densa on phones.
+    expect(view).toContain('mobile-render="rows"')
+    expect(view).toContain('#mobile-secondary')
+    expect(view).not.toContain('#mobile-card')
     expect(view).toContain(':row-open="rowOpen"')
     expect(view).not.toContain('ViewToggle')
     expect(view).not.toContain('CustomerCardGrid')

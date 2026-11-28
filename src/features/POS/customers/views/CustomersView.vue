@@ -12,7 +12,7 @@ import {
   type FilterOption,
 } from '@/core/shared/data-table-filters'
 import { customerQueryKeys, productQueryKeys } from '@/core/shared/constants/query-keys'
-import type { BulkAction, TableColumnTotal } from '@/core/shared/types/table.types'
+import type { BulkAction, TableColumnTotal, TableMobileField } from '@/core/shared/types/table.types'
 import '../styles/clients-visual.css'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
@@ -21,7 +21,6 @@ import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { productApi } from '@/features/POS/products/api/product.api'
 import { formatCentsMXN } from '@/features/POS/sales/utils/currency.utils'
 import { customerApi } from '../api/customer.api'
-import CustomerMobileCard from '../components/CustomerMobileCard.vue'
 import CustomerBulkDownloadDialog from '../components/CustomerBulkDownloadDialog.vue'
 import { canBulkStatements, canExportCustomers } from '../authorization/customer-bulk-access'
 import { buildBulkSelectionFilter, bulkCapReason, type CustomerBulkKind } from '../bulk/customerBulkSelection'
@@ -193,9 +192,40 @@ const CUSTOMER_TOTALS: Record<string, TableColumnTotal<CustomerListingRow>> = {
   name: { kind: 'count', label: (n) => `${n} ${n === 1 ? 'cliente' : 'clientes'}` },
   openDebt: { kind: 'custom', compute: () => '', format: formatCentsMXN },
 }
+// Phones (mobile-tables S4, A · Lista densa): initials · full name · phone and pets · the debt at
+// the right, or the last purchase when nothing is owed. Desktop ignores `meta.mobile`.
+const CUSTOMER_MOBILE: Record<string, TableMobileField<CustomerListingRow>[]> = {
+  name: [
+    { role: 'lead', value: (row) => row.fullName },
+    { role: 'primary', value: (row) => row.fullName },
+    { role: 'secondary', value: (row) => phoneOf(row) },
+  ],
+  openDebt: [
+    { role: 'figure', value: (row) => customerMobileFigure(row), tone: (row) => (debtOf(row) > 0 ? 'warning' : undefined) },
+    {
+      role: 'figureNote',
+      value: (row) => customerMobileNote(row),
+      tone: (row) => ((row.metrics?.overdueCount ?? 0) > 0 && debtOf(row) > 0 ? 'danger' : 'muted'),
+    },
+  ],
+}
+const debtOf = (row: CustomerListingRow) => row.metrics?.openDebtCents ?? 0
+function customerMobileFigure(row: CustomerListingRow): string | null {
+  if (debtOf(row) > 0) return formatCentsMXN(debtOf(row))
+  const last = row.metrics?.lastPurchaseAt
+  return last ? formatListingInstant(last) : null
+}
+function customerMobileNote(row: CustomerListingRow): string | null {
+  if (!row.metrics) return null
+  if (debtOf(row) > 0) return row.metrics.overdueCount > 0 ? 'Vencida' : 'Deuda'
+  return row.metrics.lastPurchaseAt ? 'Última compra' : 'Sin compras'
+}
 const columns = useCustomerColumns({ canReadSales: moneyAccess }).columns.map((column) => {
   const total = CUSTOMER_TOTALS[column.id ?? '']
-  return total ? { ...column, meta: { ...column.meta, total } } : column
+  const mobile = CUSTOMER_MOBILE[column.id ?? '']
+  return total || mobile
+    ? { ...column, meta: { ...column.meta, ...(total ? { total } : {}), ...(mobile ? { mobile } : {}) } }
+    : column
 })
 
 // The locked selection column first, only when a bulk action exists.
@@ -724,7 +754,9 @@ function clearFilters() {
             :row-open="rowOpen"
             enable-column-visibility
             display-mode="auto"
-            mobile-render="cards"
+            mobile-render="rows"
+            :sort-options="SORT_OPTIONS"
+            :item-label="{ one: 'cliente', other: 'clientes' }"
             :show-add-button="canCreate"
             search-placeholder="Buscar clientes o mascotas..."
             add-button-text="Crear cliente"
@@ -754,9 +786,10 @@ function clearFilters() {
                   />
                 </div>
 
-                <div class="hidden h-5 w-px shrink-0 bg-default md:block" aria-hidden="true" />
+                <!-- Phones sort from the result line's short «Ordenar» menu, never inside the sheet. -->
+                <div v-if="!isMobile" class="hidden h-5 w-px shrink-0 bg-default md:block" aria-hidden="true" />
 
-                <div class="flex shrink-0 items-center gap-2">
+                <div v-if="!isMobile" class="flex shrink-0 items-center gap-2">
                   <label :for="sortSelectId" class="clients-sort-label" data-testid="customers-sort-label">Ordenar:</label>
                   <USelect
                     :id="sortSelectId"
@@ -951,15 +984,29 @@ function clearFilters() {
               />
             </template>
 
-            <template #mobile-card="{ row }">
-              <CustomerMobileCard
-                :customer="row"
-                :actions="actionsFor()"
-                openable
-                portal-class="clients-list-portal"
-                @open="openRow"
-                @action="handleRowAction"
-              />
+            <!-- Phone row (A): phone · pets (species icons) · the pet the search matched. No ⋮: the
+                 record's actions live on its page and the selection bar. -->
+            <template #mobile-secondary="{ row }">
+              <span v-if="phoneOf(row)" class="hf-figure" data-testid="customer-mobile-phone">{{ phoneOf(row) }}</span>
+              <span
+                v-if="row.activePetsCount > 0"
+                class="clients-mobile-pets"
+                :aria-label="`${row.activePetsCount} ${row.activePetsCount === 1 ? 'mascota' : 'mascotas'}`"
+                role="img"
+                data-testid="customer-mobile-pets"
+              >
+                <UIcon
+                  v-for="species in row.petSpecies"
+                  :key="species"
+                  :name="speciesIcon(species).icon"
+                  class="size-3.5"
+                  aria-hidden="true"
+                />
+                <span class="hf-figure" aria-hidden="true">{{ row.activePetsCount }}</span>
+              </span>
+              <span v-if="row.matchedPetName" class="clients-mobile-pets" data-testid="customer-mobile-pet-match">
+                <UIcon name="i-lucide-paw-print" class="size-3.5" aria-hidden="true" />{{ row.matchedPetName }}
+              </span>
             </template>
           </AppDataTable>
         </div>

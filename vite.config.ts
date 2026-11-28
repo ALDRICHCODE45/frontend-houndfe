@@ -212,6 +212,18 @@ export default defineConfig({
           slots: {
             content: 'overflow-hidden',
           },
+          // Phones (< sm, mobile-tables T1): a side `inset` panel (the form slideovers) is a
+          // full-height edge-to-edge sheet instead of a card floating 16px from every edge.
+          // From sm Nuxt's inset panel is untouched; bottom sheets keep their own layout.
+          compoundVariants: [
+            {
+              side: ['right', 'left'],
+              inset: true,
+              class: {
+                content: 'max-sm:inset-0 max-sm:w-full max-sm:max-w-none max-sm:rounded-none',
+              },
+            },
+          ],
         },
         dashboardPanel: {
           slots: {

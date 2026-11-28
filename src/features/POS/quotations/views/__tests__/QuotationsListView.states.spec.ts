@@ -146,11 +146,13 @@ describe('QuotationsListView states — loading', () => {
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
   })
 
-  it('renders the card skeletons on mobile', () => {
+  // mobile-tables T3 (board 04): the skeleton takes the final shape — 72px rows on phones.
+  it('renders row skeletons on mobile', () => {
     isBelowBreakpoint.value = true
     state.isLoading.value = true
     const wrapper = mountView()
-    expect(wrapper.findAll('[data-testid="mobile-card-skeleton"]')).toHaveLength(3)
+    expect(wrapper.findAll('[data-testid="mobile-row-skeleton"]').length).toBeGreaterThan(0)
+    expect(wrapper.find('[data-testid="mobile-card-skeleton"]').exists()).toBe(false)
   })
 })
 
@@ -165,11 +167,31 @@ describe('QuotationsListView states — data', () => {
     expect(wrapper.find('[data-testid="table-skeleton"]').exists()).toBe(false)
   })
 
-  it('renders one card per row on mobile', () => {
+  // mobile-tables T3 (S4, A · Lista densa): icon · customer · expiry · total with the status badge
+  // under it. No ⋮: the quotation's actions live in its detail.
+  it('renders one dense row per quotation on mobile: customer, expiry, total and status, no ⋮', async () => {
     isBelowBreakpoint.value = true
     state.data.value = [makeQuotation('q1', 'DRAFT')]
     const wrapper = mountView()
-    expect(wrapper.findAll('[data-testid="quotation-card"]')).toHaveLength(1)
+    const rows = wrapper.findAll('[data-testid="mobile-list-row"]')
+    expect(rows).toHaveLength(1)
+    const row = rows[0]!
+    expect(row.find('[data-testid="mobile-row-lead"] .hf-mrow__thumb').exists()).toBe(true)
+    expect(row.get('[data-testid="mobile-row-primary"]').text()).toBe('María Pérez')
+    expect(row.get('[data-testid="mobile-row-secondary"]').text()).toMatch(/^Vence /)
+    expect(row.get('[data-testid="mobile-row-figure"]').text()).toBe('$100.00')
+    expect(row.get('.hf-mrow__fig .hf-status-badge').text()).toBe('Borrador')
+    expect(row.find('[aria-label^="Acciones de"]').exists()).toBe(false)
+    expect(row.findAll('button')).toHaveLength(1)
+    await row.get('[data-testid="mobile-row-primary"]').trigger('click')
+    expect(routerPush).toHaveBeenCalledWith('/pos/cotizaciones/q1')
+  })
+
+  it('reads an expired sent quotation as «Expirada» on the phone row', () => {
+    isBelowBreakpoint.value = true
+    state.data.value = [{ ...makeQuotation('q2', 'SENT'), expiresAt: '2020-01-01T00:00:00.000Z' }]
+    const wrapper = mountView()
+    expect(wrapper.get('[data-testid="mobile-list-row"] .hf-status-badge').text()).toBe('Expirada')
   })
 })
 

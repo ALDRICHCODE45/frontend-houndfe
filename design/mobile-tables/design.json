@@ -1,0 +1,35 @@
+{
+  "title": "Tablas en móvil · lista, filtros, paginador y formularios",
+  "brief": "Rediseño de la infraestructura compartida de listas en móvil (AppDataTable, DataTableToolbar, paginador, hojas de formulario) a 390 px, con Clientes como ejemplo y el mismo patrón para Ventas, Productos y Cotizaciones. Dos direcciones (A lista densa, B tarjetas ricas), la hoja de filtros y orden, el formulario en hoja y los estados. Datos de una tienda de mascotas de Monterrey.",
+  "feature": "odd/tasks/mobile-tables.md",
+  "artboards": [
+    {
+      "file": "01-lista-densa.html",
+      "title": "01 · A · Lista densa",
+      "tradeoff": "Filas de borde a borde (avatar · nombre completo · cifra a la derecha) con 8–10 registros por pantalla: la más rápida para buscar y comparar una cifra, pero muestra un solo dato clave y quita el ⋮ de la fila (acciones en el detalle o en la selección)",
+      "width": 390,
+      "height": 3720
+    },
+    {
+      "file": "02-tarjetas-ricas.html",
+      "title": "02 · B · Tarjetas ricas",
+      "tradeoff": "Cada tarjeta responde sin abrir el detalle (deuda, última compra, mascotas e insignia de estado) y la marca de selección vive dentro de la tarjeta; a cambio entran 3–4 registros por pantalla y hay que desplazar más",
+      "width": 390,
+      "height": 3410
+    },
+    {
+      "file": "03-filtros-y-orden.html",
+      "title": "03 · Filtros y orden + formulario en hoja",
+      "tradeoff": "Una hoja de altura completa con Ordenar primero, secciones plegables con contador y «Ver N resultados» fijo, y el mismo patrón de hoja de borde a borde para «Nuevo cliente»; todo se aplica de una vez, pero cambiar solo el orden también abre la hoja completa",
+      "width": 390,
+      "height": 3250
+    },
+    {
+      "file": "04-estados.html",
+      "title": "04 · Estados y 360 px",
+      "tradeoff": "Vacío, sin resultados, cargando (A y B), error, selección de todo el filtro y el peor caso a 360 px usan la barra y la forma final, así nada salta; a cambio la barra fija ocupa unos 140 px aun sin datos",
+      "width": 390,
+      "height": 4250
+    }
+  ]
+}
