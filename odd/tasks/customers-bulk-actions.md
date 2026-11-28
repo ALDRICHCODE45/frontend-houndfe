@@ -1,0 +1,15 @@
+# Customers bulk actions — statements ZIP and CSV export (owner ideas batch T5)
+
+API source of truth: odd/handoff/33-customers-bulk-actions.md (verbatim). Decisions: odd/tasks/owner-ideas-batch.md S3, L3, L4.
+
+## Specs
+- S1 Owner (2026-11-27): «Acciones masivas en Clientes» — «Seleccionar varios clientes → «Estados de cuenta PDF» y «Exportar CSV».» Design: design/customers-module/01-tabla-y-filtros.html (selection + bulk bar).
+- S2 Owner decisions: caps OK (50 statements, 10,000 CSV rows); ZIP with one PDF per customer; customers without movements included; «Nonono, perdon, exportar datos de clientes debe ser un permiso nuevo especial.» → CSV needs export:Customer; audit table later.
+- S3 Selection: row checkboxes (page) + «Seleccionar los N del filtro» → `{mode:"filter", filter, excludeIds}`; otherwise `{mode:"ids"}`. Bulk bar (design/system.md `.hf-bulk-bar`): «Estados de cuenta PDF» (read:Sale; period picker like the single statement: este mes / mes anterior / últimos 3 meses / elegir fechas ≤ 366 días) and «Exportar CSV» (export:Customer). Errors per handoff flow (404 missingIds → offer retry without them; 429 wait retryAfterSeconds; 503 timeout copy; 400 TOO_LARGE / EMPTY → explain caps and refresh). Cancel aborts the request.
+
+## Tasks
+- [ ] T1 S1-S3 Selection + bulk bar + both downloads + permission gating — worker
+- [ ] T2 Full suite, preview, owner check, merge — parent
+
+## Log
+- L1 Backend handoff 053429df copied (odd/handoff/33-customers-bulk-actions.md).
