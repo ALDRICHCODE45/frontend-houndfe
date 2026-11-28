@@ -1,0 +1,220 @@
+<div class="tools" role="group" aria-label="Opciones del artboard">
+  <span class="lbl">01 · A · Lista densa</span>
+  <span class="grow"></span>
+  <button type="button" id="t-notes" aria-expanded="false" aria-controls="notes"><svg class="icon sm"><use href="#i-notes"/></svg>Notas</button>
+  <button type="button" id="t-theme" aria-pressed="false"><svg class="icon sm"><use href="#i-moon"/></svg><span>Tema claro</span></button>
+</div>
+
+<aside class="notes" id="notes" tabindex="-1" hidden aria-label="Notas del artboard">
+  <h2>01 · A · Lista densa</h2>
+  <h3>Anatomía de la fila (una sola para todas las listas)</h3>
+  <ul>
+    <li>Fila de 72 px mínimo: <b>inicio</b> 44 px (avatar, miniatura o icono) · <b>nombre</b> 600 completo, en las líneas que necesite (nunca recortado) · <b>línea secundaria</b> 13 px que se acomoda en varias líneas · <b>cifra clave</b> a la derecha, tabular, con una nota de 12 px debajo.</li>
+    <li>Toda la fila es el enlace (nombre estirado). Sin ⋮ en la fila: las acciones de un registro viven en su detalle; las de varios, en la barra de selección. Así el nombre gana 52 px.</li>
+    <li>Divisor de 1 px en <code>--hf-border</code> desde el texto (68 px) hasta el borde; la lista va de borde a borde, sin tarjetas.</li>
+    <li>«Seleccionar» (o mantener presionada una fila) activa el modo selección: el avatar se convierte en la marca redonda de 24 px dentro de su área de 44 px. Mismo lugar, sin saltos; tocar la fila marca y desmarca.</li>
+  </ul>
+  <h3>Barra superior fija</h3>
+  <ul>
+    <li>El título y «Nuevo» se desplazan con la página; la búsqueda, «Filtros (N)» y la línea de resultado se quedan fijas bajo la barra de la app.</li>
+    <li>La línea de resultado dice cuántos hay y en qué orden («Vencido» abre la hoja de filtros en la sección Ordenar). «Seleccionar» vive ahí, no en la fila.</li>
+  </ul>
+  <h3>Paginador</h3>
+  <ul>
+    <li>«‹ 1 / 9 ›»: dos flechas de 44 px y el número de página, que abre un select nativo para saltar. A la izquierda el tamaño de página y el rango «1–10 de 86». Cabe en 320 px.</li>
+  </ul>
+  <h3>Implementación</h3>
+  <ul>
+    <li><code>AppDataTable</code> por debajo de md: <code>mobile-render="rows"</code>. Cada columna declara su papel con <code>meta.mobile</code>: <code>lead</code>, <code>primary</code>, <code>secondary</code>, <code>figure</code>, <code>figureNote</code>. Las listas que no lo declaren usan la primera columna como nombre y la primera <code>meta.total</code> como cifra.</li>
+  </ul>
+</aside>
+
+<header class="bhead">
+  <h1>A · Lista densa</h1>
+  <p>Filas en lugar de tarjetas, como la lista de contactos del teléfono: entran 8–10 registros por pantalla.</p>
+  <p class="trade"><svg class="icon"><use href="#i-info"/></svg><span><b>Tradeoff:</b> la más rápida para buscar y comparar una cifra; muestra solo un dato a la derecha, el resto vive en el detalle.</span></p>
+</header>
+
+<!-- ═══ 1 · Lista en reposo ═══ -->
+<header class="cap"><b>1 · Lista de clientes</b><span>390 px · un filtro activo · página 1 de 9</span></header>
+<div class="phone">
+  <div class="mbar"><button type="button" class="icon-btn" aria-label="Abrir menú"><svg class="icon"><use href="#i-menu"/></svg></button><span class="ttl"><small>POS</small><b>Clientes</b></span></div>
+  <div class="phead"><h1>Clientes</h1><button type="button" class="btn primary"><svg class="icon sm"><use href="#i-plus"/></svg>Nuevo</button></div>
+  <div class="mtool">
+    <div class="r1">
+      <div class="input"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" placeholder="Cliente o mascota" aria-label="Buscar clientes por nombre, teléfono o mascota"></div>
+      <button type="button" class="btn has-filters" aria-label="Filtros, 1 activo"><svg class="icon sm"><use href="#i-sliders"/></svg>Filtros<span class="count">1</span></button>
+    </div>
+    <div class="achips" aria-label="Filtros activos">
+      <span class="achip"><span>Municipio: Monterrey, San Nicolás</span><button type="button" aria-label="Quitar filtro Municipio"><svg class="icon xs"><use href="#i-x"/></svg></button></span>
+    </div>
+    <div class="rline" data-when-select="false">
+      <p class="total"><b>86 clientes</b></p>
+      <button type="button" class="tbtn" aria-label="Ordenado por vencido más antiguo primero. Cambiar orden"><svg class="icon"><use href="#i-sort"/></svg>Vencido</button>
+      <button type="button" class="tbtn" data-select-toggle><svg class="icon"><use href="#i-list-checks"/></svg>Seleccionar</button>
+    </div>
+    <div class="selhead" data-when-select="true" hidden>
+      <button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar los 10 de esta página" data-all><i><svg class="icon ck"><use href="#i-check"/></svg><svg class="icon mx"><use href="#i-minus"/></svg></i></button>
+      <p class="n"><span data-selcount="N seleccionados">0 seleccionados</span><small>de 86 · toca las filas</small></p>
+      <button type="button" class="tbtn" data-select-toggle>Listo</button>
+    </div>
+  </div>
+  <ul class="dlist" aria-label="Clientes, página 1 de 9">
+    <li class="drow"><span class="lead"><span class="avatar" aria-hidden="true">RS</span><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a Rodrigo Salinas Cantú" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c1">Rodrigo Salinas Cantú</a><p class="sec"><span class="fig">81 1987 2210</span>·<span class="pt"><svg class="icon"><use href="#i-dog"/></svg>Rocky</span><span class="pt"><svg class="icon"><use href="#i-cat"/></svg>Luna</span></p></div>
+      <div class="fig-r"><b class="owe">$3,480.00</b><small class="due">Vencida · 106 d</small></div></li>
+    <li class="drow"><span class="lead"><span class="avatar" aria-hidden="true">MG</span><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a María Fernanda Garza Lozano" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c2">María Fernanda Garza Lozano</a><p class="sec"><span class="fig">81 2290 4417</span>·<span class="pt"><svg class="icon"><use href="#i-dog"/></svg>Toby</span></p></div>
+      <div class="fig-r"><b class="owe">$1,150.00</b><small class="due">Vencida · 85 d</small></div></li>
+    <li class="drow"><span class="lead"><span class="avatar" aria-hidden="true">HV</span><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a Héctor Villarreal Elizondo" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c3">Héctor Villarreal Elizondo</a><p class="sec"><span class="fig">81 8350 1123</span>·<span class="pt"><svg class="icon"><use href="#i-dog"/></svg>Max, Kira</span><span class="pt"><svg class="icon"><use href="#i-cat"/></svg>Simba</span></p></div>
+      <div class="fig-r"><b class="owe">$6,215.00</b><small class="due">Vencida · 69 d</small></div></li>
+    <li class="drow"><span class="lead"><span class="avatar" aria-hidden="true">CH</span><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a Clínica Veterinaria Huellitas del Valle S.A. de C.V." data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c4">Clínica Veterinaria Huellitas del Valle S.A. de C.V.</a><p class="sec"><svg class="icon"><use href="#i-building"/></svg>Mayoreo · San Nicolás</p></div>
+      <div class="fig-r"><b class="owe">$12,480.00</b><small>vence 5 dic</small></div></li>
+    <li class="drow"><span class="lead"><span class="avatar" aria-hidden="true">PF</span><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a Estética Canina Patitas Felices" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c5">Estética Canina Patitas Felices</a><p class="sec"><svg class="icon"><use href="#i-building"/></svg>Mayoreo · Monterrey</p></div>
+      <div class="fig-r"><b class="owe">$2,940.00</b><small>vence 10 dic</small></div></li>
+    <li class="drow"><span class="lead"><span class="avatar" aria-hidden="true">DR</span><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a Daniel Ríos Sepúlveda" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c6">Daniel Ríos Sepúlveda</a><p class="sec"><span class="fig">81 4410 2287</span>·<span class="pt"><svg class="icon"><use href="#i-dog"/></svg>Firulais</span></p></div>
+      <div class="fig-r"><b class="owe">$560.00</b><small>vence 3 dic</small></div></li>
+    <li class="drow"><span class="lead"><span class="avatar" aria-hidden="true">AT</span><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a Ana Sofía Treviño de la Garza" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c7">Ana Sofía Treviño de la Garza</a><p class="sec"><span class="fig">81 1022 7781</span>·<span class="pt"><svg class="icon"><use href="#i-dog"/></svg>Nala</span><span class="pt"><svg class="icon"><use href="#i-cat"/></svg>Coco</span></p></div>
+      <div class="fig-r"><b class="zero">$0.00</b><small>compró hace 2 d</small></div></li>
+    <li class="drow"><span class="lead"><span class="avatar" aria-hidden="true">LM</span><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a Luis Alberto Montemayor" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c8">Luis Alberto Montemayor</a><p class="sec"><span class="fig">81 3345 9902</span>·<span class="pt"><svg class="icon"><use href="#i-dog"/></svg>Bruno</span></p></div>
+      <div class="fig-r"><b class="zero">$0.00</b><small>compró 18 nov</small></div></li>
+    <li class="drow"><span class="lead"><span class="avatar" aria-hidden="true">JE</span><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a Jorge Elizondo Peña" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c9">Jorge Elizondo Peña</a><p class="sec"><span class="fig">81 2201 4456</span>·<span class="pt"><svg class="icon"><use href="#i-dog"/></svg>Thor</span></p></div>
+      <div class="fig-r"><b class="zero">$0.00</b><small>compró 12 nov</small></div></li>
+    <li class="drow"><span class="lead"><span class="avatar" aria-hidden="true">PC</span><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a Paola Cavazos Ibarra" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c10">Paola Cavazos Ibarra</a><p class="sec"><span class="fig">81 7788 1209</span>·<span class="pt"><svg class="icon"><use href="#i-cat"/></svg>Mía</span></p></div>
+      <div class="fig-r"><b class="zero">$0.00</b><small>sin compras</small></div></li>
+  </ul>
+  <nav class="mpager" aria-label="Paginación de clientes">
+    <div class="left">
+      <label class="size"><span class="fig">10</span><small>por página</small><svg class="icon"><use href="#i-chev-d"/></svg><select aria-label="Clientes por página"><option selected>10</option><option>25</option><option>50</option></select></label>
+      <span class="range fig">1–10 de 86</span>
+    </div>
+    <div class="nav">
+      <button type="button" class="step" aria-label="Página anterior" disabled><svg class="icon"><use href="#i-chev-l"/></svg></button>
+      <span class="pg"><b>1</b><span>/ 9</span><select aria-label="Ir a la página"><option selected>Página 1</option><option>Página 2</option><option>Página 3</option><option>Página 4</option><option>Página 5</option><option>Página 6</option><option>Página 7</option><option>Página 8</option><option>Página 9</option></select></span>
+      <button type="button" class="step" aria-label="Página siguiente"><svg class="icon"><use href="#i-chev-r"/></svg></button>
+    </div>
+  </nav>
+  <div class="homebar" aria-hidden="true"><i></i></div>
+</div>
+
+<!-- ═══ 2 · Al desplazar ═══ -->
+<header class="cap"><b>2 · Al desplazar</b><span>El título se va; búsqueda, Filtros y orden quedan fijos con una línea de borde</span></header>
+<div class="phone">
+  <div class="mbar"><button type="button" class="icon-btn" aria-label="Abrir menú"><svg class="icon"><use href="#i-menu"/></svg></button><span class="ttl"><small>POS</small><b>Clientes</b></span></div>
+  <div class="mtool stuck">
+    <div class="r1">
+      <div class="input"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" placeholder="Cliente o mascota" aria-label="Buscar clientes por nombre, teléfono o mascota"></div>
+      <button type="button" class="btn has-filters" aria-label="Filtros, 1 activo"><svg class="icon sm"><use href="#i-sliders"/></svg>Filtros<span class="count">1</span></button>
+    </div>
+    <div class="rline">
+      <p class="total"><b>86 clientes</b></p>
+      <button type="button" class="tbtn" aria-label="Ordenado por vencido más antiguo primero. Cambiar orden"><svg class="icon"><use href="#i-sort"/></svg>Vencido</button>
+      <button type="button" class="tbtn"><svg class="icon"><use href="#i-list-checks"/></svg>Seleccionar</button>
+    </div>
+  </div>
+  <ul class="dlist" aria-label="Clientes (continuación)" style="border-top:0">
+    <li class="drow"><span class="lead"><span class="avatar" aria-hidden="true">PF</span></span>
+      <div class="main"><a class="nm" href="#c5">Estética Canina Patitas Felices</a><p class="sec"><svg class="icon"><use href="#i-building"/></svg>Mayoreo · Monterrey</p></div>
+      <div class="fig-r"><b class="owe">$2,940.00</b><small>vence 10 dic</small></div></li>
+    <li class="drow"><span class="lead"><span class="avatar" aria-hidden="true">DR</span></span>
+      <div class="main"><a class="nm" href="#c6">Daniel Ríos Sepúlveda</a><p class="sec"><span class="fig">81 4410 2287</span>·<span class="pt"><svg class="icon"><use href="#i-dog"/></svg>Firulais</span></p></div>
+      <div class="fig-r"><b class="owe">$560.00</b><small>vence 3 dic</small></div></li>
+    <li class="drow"><span class="lead"><span class="avatar" aria-hidden="true">AT</span></span>
+      <div class="main"><a class="nm" href="#c7">Ana Sofía Treviño de la Garza</a><p class="sec"><span class="fig">81 1022 7781</span>·<span class="pt"><svg class="icon"><use href="#i-dog"/></svg>Nala</span><span class="pt"><svg class="icon"><use href="#i-cat"/></svg>Coco</span></p></div>
+      <div class="fig-r"><b class="zero">$0.00</b><small>compró hace 2 d</small></div></li>
+  </ul>
+</div>
+
+<!-- ═══ 3 · Modo selección ═══ -->
+<header class="cap"><b>3 · Modo selección</b><span>Avatar → marca en el mismo lugar · barra de acciones acoplada abajo, sobre el área segura</span></header>
+<div class="phone tall selecting keep-dock">
+  <div class="mbar"><button type="button" class="icon-btn" aria-label="Abrir menú"><svg class="icon"><use href="#i-menu"/></svg></button><span class="ttl"><small>POS</small><b>Clientes</b></span></div>
+  <div class="mtool stuck">
+    <div class="r1">
+      <div class="input"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" placeholder="Cliente o mascota" aria-label="Buscar clientes por nombre, teléfono o mascota"></div>
+      <button type="button" class="btn has-filters" aria-label="Filtros, 1 activo"><svg class="icon sm"><use href="#i-sliders"/></svg>Filtros<span class="count">1</span></button>
+    </div>
+    <div class="selhead">
+      <button type="button" class="mark" role="checkbox" aria-checked="mixed" aria-label="Seleccionar los 10 de esta página" data-all><i><svg class="icon ck"><use href="#i-check"/></svg><svg class="icon mx"><use href="#i-minus"/></svg></i></button>
+      <p class="n"><span data-selcount="N seleccionados">3 seleccionados</span><small>de 86 · <button type="button" class="linkbtn inline">Seleccionar los 86</button></small></p>
+      <button type="button" class="tbtn">Listo</button>
+    </div>
+  </div>
+  <ul class="dlist" aria-label="Clientes, modo selección">
+    <li class="drow sel-on"><span class="lead"><span class="avatar" aria-hidden="true">RS</span><button type="button" class="mark" role="checkbox" aria-checked="true" aria-label="Seleccionar a Rodrigo Salinas Cantú" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c1">Rodrigo Salinas Cantú</a><p class="sec"><span class="fig">81 1987 2210</span>·<span class="pt"><svg class="icon"><use href="#i-dog"/></svg>Rocky</span><span class="pt"><svg class="icon"><use href="#i-cat"/></svg>Luna</span></p></div>
+      <div class="fig-r"><b class="owe">$3,480.00</b><small class="due">Vencida · 106 d</small></div></li>
+    <li class="drow sel-on"><span class="lead"><span class="avatar" aria-hidden="true">MG</span><button type="button" class="mark" role="checkbox" aria-checked="true" aria-label="Seleccionar a María Fernanda Garza Lozano" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c2">María Fernanda Garza Lozano</a><p class="sec"><span class="fig">81 2290 4417</span>·<span class="pt"><svg class="icon"><use href="#i-dog"/></svg>Toby</span></p></div>
+      <div class="fig-r"><b class="owe">$1,150.00</b><small class="due">Vencida · 85 d</small></div></li>
+    <li class="drow sel-on"><span class="lead"><span class="avatar" aria-hidden="true">HV</span><button type="button" class="mark" role="checkbox" aria-checked="true" aria-label="Seleccionar a Héctor Villarreal Elizondo" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c3">Héctor Villarreal Elizondo</a><p class="sec"><span class="fig">81 8350 1123</span>·<span class="pt"><svg class="icon"><use href="#i-dog"/></svg>Max, Kira</span><span class="pt"><svg class="icon"><use href="#i-cat"/></svg>Simba</span></p></div>
+      <div class="fig-r"><b class="owe">$6,215.00</b><small class="due">Vencida · 69 d</small></div></li>
+    <li class="drow"><span class="lead"><span class="avatar" aria-hidden="true">CH</span><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a Clínica Veterinaria Huellitas del Valle S.A. de C.V." data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c4">Clínica Veterinaria Huellitas del Valle S.A. de C.V.</a><p class="sec"><svg class="icon"><use href="#i-building"/></svg>Mayoreo · San Nicolás</p></div>
+      <div class="fig-r"><b class="owe">$12,480.00</b><small>vence 5 dic</small></div></li>
+    <li class="drow"><span class="lead"><span class="avatar" aria-hidden="true">PF</span><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a Estética Canina Patitas Felices" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c5">Estética Canina Patitas Felices</a><p class="sec"><svg class="icon"><use href="#i-building"/></svg>Mayoreo · Monterrey</p></div>
+      <div class="fig-r"><b class="owe">$2,940.00</b><small>vence 10 dic</small></div></li>
+    <li class="drow"><span class="lead"><span class="avatar" aria-hidden="true">DR</span><button type="button" class="mark" role="checkbox" aria-checked="false" aria-label="Seleccionar a Daniel Ríos Sepúlveda" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c6">Daniel Ríos Sepúlveda</a><p class="sec"><span class="fig">81 4410 2287</span>·<span class="pt"><svg class="icon"><use href="#i-dog"/></svg>Firulais</span></p></div>
+      <div class="fig-r"><b class="owe">$560.00</b><small>vence 3 dic</small></div></li>
+  </ul>
+  <section class="dock" aria-label="Acciones para la selección">
+    <div class="dh1"><span class="chipn" data-selcount="N">3</span><p class="sum">Deuda <b class="fig">$10,845.00</b></p><button type="button" class="icon-btn" aria-label="Quitar selección"><svg class="icon"><use href="#i-x"/></svg></button></div>
+    <div class="acts">
+      <button type="button" class="btn"><svg class="icon"><use href="#i-download"/></svg>Exportar</button>
+      <button type="button" class="btn"><svg class="icon"><use href="#i-send"/></svg>Recordar pago</button>
+      <button type="button" class="btn danger"><svg class="icon"><use href="#i-trash"/></svg>Eliminar…</button>
+    </div>
+    <div class="homebar" aria-hidden="true" style="height:22px;padding-bottom:0"><i></i></div>
+  </section>
+</div>
+
+<!-- ═══ 4 · Mismo patrón en otras listas ═══ -->
+<header class="cap"><b>4 · La misma fila en Ventas, Productos y Cotizaciones</b><span>Cambian los datos, no la estructura: inicio · nombre · secundaria · cifra</span></header>
+<div class="phone">
+  <p class="subhead">Ventas · ordenadas por fecha, más recientes primero</p>
+  <ul class="dlist" aria-label="Ventas (ejemplo)">
+    <li class="drow"><span class="lead"><span class="thumb" aria-hidden="true"><svg class="icon"><use href="#i-receipt"/></svg></span></span>
+      <div class="main"><a class="nm" href="#v1">V-10482 · Rodrigo Salinas Cantú</a><p class="sec">28 nov, 13:05 · Mostrador · 3 artículos</p></div>
+      <div class="fig-r"><b>$1,245.00</b><span class="badge success">Pagada</span></div></li>
+    <li class="drow"><span class="lead"><span class="thumb" aria-hidden="true"><svg class="icon"><use href="#i-truck"/></svg></span></span>
+      <div class="main"><a class="nm" href="#v2">V-10481 · Clínica Veterinaria Huellitas del Valle</a><p class="sec">28 nov, 11:40 · Entrega a domicilio · 14 artículos</p></div>
+      <div class="fig-r"><b>$8,930.00</b><small class="warn-ink" style="font-weight:600">Saldo $4,930.00</small></div></li>
+  </ul>
+  <p class="subhead">Productos · por nombre</p>
+  <ul class="dlist" aria-label="Productos (ejemplo)">
+    <li class="drow"><span class="lead"><span class="thumb" aria-hidden="true"><svg class="icon"><use href="#i-package"/></svg></span></span>
+      <div class="main"><a class="nm" href="#p1">Croquetas Nupec Adulto Raza Mediana 15 kg</a><p class="sec">NUP-AD-15 · Alimento seco</p></div>
+      <div class="fig-r"><b>$1,389.00</b><small>12 en existencia</small></div></li>
+    <li class="drow"><span class="lead"><span class="thumb" aria-hidden="true"><svg class="icon"><use href="#i-package"/></svg></span></span>
+      <div class="main"><a class="nm" href="#p2">Arena aglutinante Fresh Step sin aroma 9 kg</a><p class="sec">FST-9 · Higiene felina</p></div>
+      <div class="fig-r"><b>$329.00</b><small class="warn-ink" style="font-weight:600">Quedan 2</small></div></li>
+  </ul>
+  <p class="subhead">Cotizaciones · por vencimiento</p>
+  <ul class="dlist" aria-label="Cotizaciones (ejemplo)">
+    <li class="drow"><span class="lead"><span class="thumb" aria-hidden="true"><svg class="icon"><use href="#i-quote"/></svg></span></span>
+      <div class="main"><a class="nm" href="#q1">COT-0318 · Estética Canina Patitas Felices</a><p class="sec">Vence 4 dic · 9 partidas</p></div>
+      <div class="fig-r"><b>$18,920.00</b><span class="badge info">Enviada</span></div></li>
+  </ul>
+  <div style="height:16px"></div>
+</div>
+
+<section class="maps" aria-label="Cómo se lleva a todas las listas">
+  <h2>Cómo se lleva a todas las listas</h2>
+  <ul>
+    <li><b>Ventas:</b> inicio = icono de canal · nombre = folio · cliente · cifra = total, con estado o saldo debajo.</li>
+    <li><b>Productos:</b> inicio = foto (o icono) · cifra = precio, con existencia debajo (aviso si quedan pocas).</li>
+    <li><b>Cotizaciones:</b> cifra = total, con estado en insignia.</li>
+    <li>Lo que no cabe en la fila no se esconde: está en el detalle y en los filtros.</li>
+  </ul>
+</section>

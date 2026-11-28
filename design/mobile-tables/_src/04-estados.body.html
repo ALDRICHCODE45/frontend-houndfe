@@ -1,0 +1,191 @@
+<div class="tools" role="group" aria-label="Opciones del artboard">
+  <span class="lbl">04 · Estados</span>
+  <span class="grow"></span>
+  <button type="button" id="t-notes" aria-expanded="false" aria-controls="notes"><svg class="icon sm"><use href="#i-notes"/></svg>Notas</button>
+  <button type="button" id="t-theme" aria-pressed="false"><svg class="icon sm"><use href="#i-moon"/></svg><span>Tema claro</span></button>
+</div>
+
+<aside class="notes" id="notes" tabindex="-1" hidden aria-label="Notas del artboard">
+  <h2>04 · Estados</h2>
+  <ul>
+    <li><b>Sin registros</b> y <b>sin resultados</b> son estados distintos (<code>EmptyState</code> kinds <code>empty</code> y <code>no-match</code>). Sin resultados conserva la búsqueda y los filtros a la vista y ofrece quitarlos.</li>
+    <li>Sin registros: no hay búsqueda ni filtros (no hay qué buscar); «Nuevo cliente» vive solo en el estado vacío para no repetir la acción primaria.</li>
+    <li><b>Cargando</b>: la barra real se queda y la lista muestra esqueletos con la forma final (fila de 72 px o tarjeta), lavado de tinta al 16 %. Se anuncia «Cargando clientes…» con <code>aria-live</code>.</li>
+    <li><b>Error</b>: kind <code>error</code>, dice qué falló, que los filtros se conservan y ofrece «Reintentar».</li>
+    <li><b>Selección de todo el filtro</b>: «Seleccionar los 86» cambia el resumen a «Todos los del filtro» y la barra suma la deuda del filtro (dato del servidor).</li>
+    <li><b>360 px</b>: el peor caso (nombre largo, cifra de 6 dígitos, paginador y barra de selección) cabe sin desplazamiento horizontal.</li>
+  </ul>
+</aside>
+
+<header class="bhead">
+  <h1>Estados de las listas en móvil</h1>
+  <p>Vacío, sin resultados, cargando, error, selección con barra y la comprobación a 360 px, para A y B.</p>
+  <p class="trade"><svg class="icon"><use href="#i-info"/></svg><span><b>Tradeoff:</b> los estados usan la barra y la forma final de la lista, así nada salta al cargar; a cambio, la barra fija ocupa unos 140 px aunque no haya datos.</span></p>
+</header>
+
+<!-- ═══ 1 · Sin clientes ═══ -->
+<header class="cap"><b>1 · Sin clientes todavía</b><span>Lista vacía de verdad: una sola acción</span></header>
+<div class="phone">
+  <div class="mbar"><button type="button" class="icon-btn" aria-label="Abrir menú"><svg class="icon"><use href="#i-menu"/></svg></button><span class="ttl"><small>POS</small><b>Clientes</b></span></div>
+  <div class="phead"><h1>Clientes</h1></div>
+  <div class="empty" style="min-height:340px">
+    <svg class="icon"><use href="#i-users"/></svg>
+    <h3>Aún no tienes clientes</h3>
+    <p>Registra a quien te compra para darle crédito, ver su deuda y recordarle cuándo le toca el alimento a su mascota.</p>
+    <button type="button" class="btn primary"><svg class="icon sm"><use href="#i-plus"/></svg>Nuevo cliente</button>
+  </div>
+  <div class="homebar" aria-hidden="true"><i></i></div>
+</div>
+
+<!-- ═══ 2 · Sin resultados ═══ -->
+<header class="cap"><b>2 · Sin resultados</b><span>Se conservan la búsqueda y el filtro; se ofrece quitarlos</span></header>
+<div class="phone">
+  <div class="mbar"><button type="button" class="icon-btn" aria-label="Abrir menú"><svg class="icon"><use href="#i-menu"/></svg></button><span class="ttl"><small>POS</small><b>Clientes</b></span></div>
+  <div class="phead"><h1>Clientes</h1><button type="button" class="btn primary"><svg class="icon sm"><use href="#i-plus"/></svg>Nuevo</button></div>
+  <div class="mtool">
+    <div class="r1">
+      <div class="input"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" value="tobi" aria-label="Buscar clientes por nombre, teléfono o mascota"><button type="button" class="icon-btn" aria-label="Borrar búsqueda"><svg class="icon sm"><use href="#i-x"/></svg></button></div>
+      <button type="button" class="btn has-filters" aria-label="Filtros, 1 activo"><svg class="icon sm"><use href="#i-sliders"/></svg>Filtros<span class="count">1</span></button>
+    </div>
+    <div class="achips" aria-label="Filtros activos"><span class="achip"><span>Municipio: Guadalupe</span><button type="button" aria-label="Quitar filtro Municipio"><svg class="icon xs"><use href="#i-x"/></svg></button></span></div>
+    <div class="rline"><p class="total" aria-live="polite"><b>0 clientes</b></p></div>
+  </div>
+  <div class="empty" style="background:var(--hf-surface);border-top:1px solid var(--hf-border);border-bottom:1px solid var(--hf-border)">
+    <svg class="icon"><use href="#i-search-x"/></svg>
+    <h3>Ningún cliente coincide con «tobi»</h3>
+    <p>Buscamos en nombre, teléfono y mascota, solo en Guadalupe. Hay 2 coincidencias en otros municipios.</p>
+    <button type="button" class="btn">Quitar filtro y buscar en todos</button>
+  </div>
+  <div style="height:24px"></div>
+</div>
+
+<!-- ═══ 3 · Cargando ═══ -->
+<header class="cap"><b>3 · Cargando · A filas y B tarjetas</b><span>La barra real se queda; los esqueletos tienen la forma final</span></header>
+<div class="phone">
+  <div class="mbar"><button type="button" class="icon-btn" aria-label="Abrir menú"><svg class="icon"><use href="#i-menu"/></svg></button><span class="ttl"><small>POS</small><b>Clientes</b></span></div>
+  <div class="mtool stuck">
+    <div class="r1">
+      <div class="input"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" placeholder="Cliente o mascota" aria-label="Buscar clientes por nombre, teléfono o mascota"></div>
+      <button type="button" class="btn"><svg class="icon sm"><use href="#i-sliders"/></svg>Filtros</button>
+    </div>
+    <div class="rline"><p class="total" aria-live="polite"><svg class="icon xs" style="vertical-align:-2px"><use href="#i-loader"/></svg> Cargando clientes…</p></div>
+  </div>
+  <p class="subhead">A · Lista densa</p>
+  <div class="dlist" aria-hidden="true">
+    <div class="sk-row"><span class="sk c"></span><span style="display:grid;gap:8px"><span class="sk" style="height:14px;width:70%"></span><span class="sk" style="height:12px;width:50%"></span></span><span style="display:grid;gap:8px;justify-items:end"><span class="sk" style="height:14px;width:64px"></span><span class="sk" style="height:12px;width:48px"></span></span></div>
+    <div class="sk-row"><span class="sk c"></span><span style="display:grid;gap:8px"><span class="sk" style="height:14px;width:82%"></span><span class="sk" style="height:12px;width:40%"></span></span><span style="display:grid;gap:8px;justify-items:end"><span class="sk" style="height:14px;width:56px"></span><span class="sk" style="height:12px;width:40px"></span></span></div>
+    <div class="sk-row"><span class="sk c"></span><span style="display:grid;gap:8px"><span class="sk" style="height:14px;width:60%"></span><span class="sk" style="height:12px;width:55%"></span></span><span style="display:grid;gap:8px;justify-items:end"><span class="sk" style="height:14px;width:68px"></span><span class="sk" style="height:12px;width:52px"></span></span></div>
+  </div>
+  <p class="subhead">B · Tarjetas ricas</p>
+  <div class="clist" aria-hidden="true">
+    <div class="sk-card"><span class="sk" style="height:16px;width:72%"></span><span class="sk" style="height:12px;width:45%"></span><span class="sk" style="height:22px;width:88px"></span><span style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding-top:10px;border-top:1px solid var(--hf-border)"><span class="sk" style="height:30px"></span><span class="sk" style="height:30px"></span><span class="sk" style="height:30px"></span></span></div>
+  </div>
+  <div style="height:16px"></div>
+</div>
+
+<!-- ═══ 4 · Error ═══ -->
+<header class="cap"><b>4 · Error al cargar</b><span>Qué falló, qué se conserva y cómo reintentar</span></header>
+<div class="phone">
+  <div class="mbar"><button type="button" class="icon-btn" aria-label="Abrir menú"><svg class="icon"><use href="#i-menu"/></svg></button><span class="ttl"><small>POS</small><b>Clientes</b></span></div>
+  <div class="mtool">
+    <div class="r1">
+      <div class="input"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" placeholder="Cliente o mascota" aria-label="Buscar clientes por nombre, teléfono o mascota"></div>
+      <button type="button" class="btn has-filters" aria-label="Filtros, 1 activo"><svg class="icon sm"><use href="#i-sliders"/></svg>Filtros<span class="count">1</span></button>
+    </div>
+  </div>
+  <div style="padding:8px 16px 24px">
+    <div class="empty error" role="alert">
+      <svg class="icon"><use href="#i-triangle"/></svg>
+      <h3>No pudimos cargar los clientes</h3>
+      <p>Parece que no hay conexión. Tu búsqueda y tus filtros se conservan.</p>
+      <button type="button" class="btn"><svg class="icon sm"><use href="#i-rotate"/></svg>Reintentar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 5 · Selección de todo el filtro ═══ -->
+<header class="cap"><b>5 · Selección de todo el filtro con barra</b><span>«Seleccionar los 86» · la barra suma lo del servidor</span></header>
+<div class="phone tall selecting keep-dock" style="height:640px">
+  <div class="mbar"><button type="button" class="icon-btn" aria-label="Abrir menú"><svg class="icon"><use href="#i-menu"/></svg></button><span class="ttl"><small>POS</small><b>Clientes</b></span></div>
+  <div class="mtool stuck">
+    <div class="selhead">
+      <button type="button" class="mark" role="checkbox" aria-checked="true" aria-label="Quitar selección de esta página" data-all><i><svg class="icon ck"><use href="#i-check"/></svg><svg class="icon mx"><use href="#i-minus"/></svg></i></button>
+      <p class="n">86 seleccionados<small>Todos los del filtro · <button type="button" class="linkbtn inline">Solo esta página</button></small></p>
+      <button type="button" class="tbtn">Listo</button>
+    </div>
+  </div>
+  <ul class="dlist" aria-label="Clientes, todos seleccionados">
+    <li class="drow sel-on"><span class="lead"><button type="button" class="mark" role="checkbox" aria-checked="true" aria-label="Seleccionar a Rodrigo Salinas Cantú" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c1">Rodrigo Salinas Cantú</a><p class="sec"><span class="fig">81 1987 2210</span>·<span class="pt"><svg class="icon"><use href="#i-dog"/></svg>Rocky</span><span class="pt"><svg class="icon"><use href="#i-cat"/></svg>Luna</span></p></div>
+      <div class="fig-r"><b class="owe">$3,480.00</b><small class="due">Vencida · 106 d</small></div></li>
+    <li class="drow sel-on"><span class="lead"><button type="button" class="mark" role="checkbox" aria-checked="true" aria-label="Seleccionar a María Fernanda Garza Lozano" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c2">María Fernanda Garza Lozano</a><p class="sec"><span class="fig">81 2290 4417</span>·<span class="pt"><svg class="icon"><use href="#i-dog"/></svg>Toby</span></p></div>
+      <div class="fig-r"><b class="owe">$1,150.00</b><small class="due">Vencida · 85 d</small></div></li>
+    <li class="drow sel-on"><span class="lead"><button type="button" class="mark" role="checkbox" aria-checked="true" aria-label="Seleccionar a Héctor Villarreal Elizondo" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+      <div class="main"><a class="nm" href="#c3">Héctor Villarreal Elizondo</a><p class="sec"><span class="fig">81 8350 1123</span>·<span class="pt"><svg class="icon"><use href="#i-dog"/></svg>Max, Kira</span><span class="pt"><svg class="icon"><use href="#i-cat"/></svg>Simba</span></p></div>
+      <div class="fig-r"><b class="owe">$6,215.00</b><small class="due">Vencida · 69 d</small></div></li>
+  </ul>
+  <section class="dock" aria-label="Acciones para la selección">
+    <div class="dh1"><span class="chipn">86</span><p class="sum">Deuda del filtro <b class="fig">$48,215.50</b></p><button type="button" class="icon-btn" aria-label="Quitar selección"><svg class="icon"><use href="#i-x"/></svg></button></div>
+    <div class="acts">
+      <button type="button" class="btn"><svg class="icon"><use href="#i-download"/></svg>Exportar</button>
+      <button type="button" class="btn"><svg class="icon"><use href="#i-send"/></svg>Recordar pago</button>
+      <button type="button" class="btn danger"><svg class="icon"><use href="#i-trash"/></svg>Eliminar…</button>
+    </div>
+    <div class="homebar" aria-hidden="true" style="height:22px;padding-bottom:0"><i></i></div>
+  </section>
+</div>
+
+<!-- ═══ 6 · 360 px ═══ -->
+<header class="cap"><b>6 · Comprobación a 360 px</b><span>Peor caso: nombre largo, cifra de 6 dígitos, paginador y barra de selección</span></header>
+<div class="narrow-wrap">
+  <div class="ruler" aria-hidden="true"><span>0</span><span>360 px</span></div>
+  <div class="phone narrow selecting keep-dock" style="padding-bottom:176px">
+    <div class="mtool stuck">
+      <div class="r1">
+        <div class="input"><svg class="icon sm"><use href="#i-search"/></svg><input type="search" placeholder="Cliente o mascota" aria-label="Buscar clientes por nombre, teléfono o mascota"></div>
+        <button type="button" class="btn has-filters" aria-label="Filtros, 3 activos"><svg class="icon sm"><use href="#i-sliders"/></svg>Filtros<span class="count">3</span></button>
+      </div>
+      <div class="rline">
+        <p class="total"><b>1,284 clientes</b></p>
+        <button type="button" class="tbtn" aria-label="Ordenado por deuda mayor primero. Cambiar orden"><svg class="icon"><use href="#i-sort"/></svg>Deuda</button>
+        <button type="button" class="tbtn"><svg class="icon"><use href="#i-list-checks"/></svg>Seleccionar</button>
+      </div>
+    </div>
+    <p class="subhead">A · fila</p>
+    <ul class="dlist" aria-label="Fila de prueba a 360 px">
+      <li class="drow sel-on"><span class="lead"><button type="button" class="mark" role="checkbox" aria-checked="true" aria-label="Seleccionar a Distribuidora Veterinaria del Noreste" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span>
+        <div class="main"><a class="nm" href="#c20">Distribuidora Veterinaria y Alimentos para Mascotas del Noreste S.A. de C.V.</a><p class="sec"><svg class="icon"><use href="#i-building"/></svg>Mayoreo · Santa Catarina</p></div>
+        <div class="fig-r"><b class="owe">$124,880.00</b><small class="due">Vencida · 112 d</small></div></li>
+    </ul>
+    <p class="subhead">B · tarjeta</p>
+    <ul class="clist" aria-label="Tarjeta de prueba a 360 px">
+      <li class="rcard sel-on">
+        <div class="top"><div class="who"><a class="nm" href="#c20">Distribuidora Veterinaria y Alimentos para Mascotas del Noreste S.A. de C.V.</a><p class="sec"><span class="fig">81 8340 0021</span>·<svg class="icon"><use href="#i-pin"/></svg>Santa Catarina</p></div>
+          <span class="corner"><button type="button" class="icon-btn more" aria-label="Acciones de Distribuidora Veterinaria del Noreste"><svg class="icon"><use href="#i-more"/></svg></button><button type="button" class="mark" role="checkbox" aria-checked="true" aria-label="Seleccionar a Distribuidora Veterinaria del Noreste" data-item><i><svg class="icon ck"><use href="#i-check"/></svg></i></button></span></div>
+        <p class="status"><span class="badge danger">Vencida</span><span class="muted">desde 7 ago · 112 días</span></p>
+        <dl class="mini"><div><dt>Deuda</dt><dd class="owe">$124,880.00</dd></div><div><dt>Última compra</dt><dd>14 oct<small>hace 44 d</small></dd></div><div><dt>Mascotas</dt><dd class="zero">—<small>Cuenta de negocio</small></dd></div></dl>
+      </li>
+    </ul>
+    <nav class="mpager" aria-label="Paginación de clientes">
+      <div class="left">
+        <label class="size"><span class="fig">25</span><small>por página</small><svg class="icon"><use href="#i-chev-d"/></svg><select aria-label="Clientes por página"><option>10</option><option selected>25</option><option>50</option></select></label>
+        <span class="range fig">1–25 de 1,284</span>
+      </div>
+      <div class="nav">
+        <button type="button" class="step" aria-label="Página anterior" disabled><svg class="icon"><use href="#i-chev-l"/></svg></button>
+        <span class="pg"><b>1</b><span>/ 52</span><select aria-label="Ir a la página"><option selected>Página 1</option><option>Página 52</option></select></span>
+        <button type="button" class="step" aria-label="Página siguiente"><svg class="icon"><use href="#i-chev-r"/></svg></button>
+      </div>
+    </nav>
+    <section class="dock" aria-label="Acciones para la selección">
+      <div class="dh1"><span class="chipn">1</span><p class="sum">Deuda <b class="fig">$124,880.00</b></p><button type="button" class="icon-btn" aria-label="Quitar selección"><svg class="icon"><use href="#i-x"/></svg></button></div>
+      <div class="acts">
+        <button type="button" class="btn"><svg class="icon"><use href="#i-download"/></svg>Exportar</button>
+        <button type="button" class="btn"><svg class="icon"><use href="#i-send"/></svg>Recordar pago</button>
+        <button type="button" class="btn danger"><svg class="icon"><use href="#i-trash"/></svg>Eliminar…</button>
+      </div>
+      <div class="homebar" aria-hidden="true" style="height:22px;padding-bottom:0"><i></i></div>
+    </section>
+  </div>
+</div>

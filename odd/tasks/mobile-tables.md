@@ -7,9 +7,10 @@
 
 ## Tasks
 - [ ] T1 S2 Fix the mobile bugs (filters sheet empty, pager overflow, mobile form slideover layout) — worker
-- [ ] T2 S3 Mobile table design proposals — worker (design files only)
+- [x] T2 S3 Mobile table design proposals — worker (design files only)
 - [ ] T3 Owner chooses; implement the chosen direction — worker(s)
 - [ ] T4 Full suite, preview, owner check, merge — parent
 
 ## Log
 - L1 Owner S1 after approving bulk actions (merged bb565a65).
+- L2 T2 design (worker mwzutpuh-10-y73y): design/mobile-tables/ — 01 A lista densa, 02 B tarjetas ricas, 03 filtros y orden + formulario en hoja, 04 estados y 360 px (390 px boards; self-checks: tokens only, ≥ 44px targets, no overflow at 360/390, safe-area footers; screenshots checked by the worker). Proposed: docked bulk bar on mobile, compact pager «‹ 1 / 9 ›», full-height filters sheet with «Ver N resultados».
