@@ -37,7 +37,23 @@ export function useCustomerBulkSelection(options: {
     mode.value === 'filter' ? Math.max(0, total() - excluded.value.size) : ids.value.size,
   )
 
+  // The limit is reported a microtask later, so a clear() in the same tick drops it: AppDataTable's
+  // «Quitar selección» empties the page marks (in filter mode that reads as «exclude the page» and
+  // may hit the 1,000 cap) right before it emits clear-selection.
+  let pendingLimit: CustomerBulkSelectionLimit | null = null
+  function reportLimit(limit: CustomerBulkSelectionLimit) {
+    const queued = pendingLimit !== null
+    pendingLimit = limit
+    if (queued) return
+    void Promise.resolve().then(() => {
+      const reported = pendingLimit
+      pendingLimit = null
+      if (reported) options.onLimit?.(reported)
+    })
+  }
+
   function clear() {
+    pendingLimit = null
     mode.value = 'ids'
     ids.value = new Set()
     excluded.value = new Set()
@@ -63,7 +79,7 @@ export function useCustomerBulkSelection(options: {
           }
         })
         excluded.value = nextExcluded
-        if (limited) options.onLimit?.('exclude')
+        if (limited) reportLimit('exclude')
         if (count.value === 0) clear()
         return
       }
@@ -77,7 +93,7 @@ export function useCustomerBulkSelection(options: {
         else nextIds.add(row.id)
       })
       ids.value = nextIds
-      if (limited) options.onLimit?.('ids')
+      if (limited) reportLimit('ids')
     },
   })
 
@@ -94,13 +110,14 @@ export function useCustomerBulkSelection(options: {
     excluded.value = new Set()
   }
 
-  /** Customers that no longer exist (404 missingIds) leave the selection. */
+  /**
+   * Customers that no longer exist (404 missingIds) leave an ids selection. In filter mode nothing
+   * changes: the server re-evaluates the filter, so a deleted customer drops out by itself, and taking
+   * an id out of `excludeIds` would re-include a customer the user unmarked.
+   */
   function removeIds(missing: readonly string[]) {
+    if (mode.value === 'filter') return
     const gone = new Set(missing)
-    if (mode.value === 'filter') {
-      excluded.value = new Set([...excluded.value].filter((id) => !gone.has(id)))
-      return
-    }
     ids.value = new Set([...ids.value].filter((id) => !gone.has(id)))
   }
 

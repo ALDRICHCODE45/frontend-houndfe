@@ -71,7 +71,9 @@ describe('customerBulkFailure', () => {
     }
   })
 
-  it('LISTING_* reuses the listing copy and asks for a refetch', () => {
+  // A LISTING_* 400 is the filter itself (a param the role cannot use, a bad range): the table would
+  // get the same 400, so refetching it changes nothing — the copy tells the user what to change.
+  it('LISTING_* reuses the listing copy and does not refetch the table', () => {
     const failure = customerBulkFailure(
       httpError(400, { code: 'LISTING_PARAM_REQUIRES_PERMISSION', field: 'sortBy' }),
       'csv',
@@ -81,6 +83,7 @@ describe('customerBulkFailure', () => {
       message: 'Tu rol no puede ver las ventas, así que no puede ordenar por montos ni compras.',
       canRetry: false,
     })
+    expect(failure.refetch).toBeUndefined()
   })
 
   it('403 says which permission is missing', () => {

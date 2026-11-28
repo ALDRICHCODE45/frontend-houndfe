@@ -6,7 +6,7 @@
  * - Whole page marked + more rows → «Seleccionar los N clientes del filtro» → filter mode body.
  * - The download goes through the authenticated API helper; success toasts the file name.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { computed, reactive, ref } from 'vue'
 import CustomersView from '../CustomersView.vue'
@@ -16,6 +16,8 @@ const mockState = {
   pagination: ref({ pageIndex: 0, pageSize: 50 }),
   sorting: ref<Array<{ id: string; desc: boolean }>>([]),
   globalFilter: ref(''),
+  /** The search the listing request carries (useServerTable debounces it 300 ms). */
+  debouncedFilter: ref(''),
   data: ref<CustomerListingRow[]>([]),
   total: ref(0),
 }
@@ -28,6 +30,7 @@ vi.mock('@/core/shared/composables/useServerTable', () => ({
       pagination: mockState.pagination,
       sorting: mockState.sorting,
       globalFilter: mockState.globalFilter,
+      debouncedGlobalFilter: mockState.debouncedFilter,
       columnPinning: ref({ left: [], right: [] }),
       columnVisibility: ref({}),
       columnOrder: ref([]),
@@ -119,7 +122,7 @@ vi.mock('../../components/CustomerBulkDownloadDialog.vue', () => ({
   default: {
     name: 'CustomerBulkDownloadDialog',
     props: ['open', 'kind', 'count', 'running', 'error', 'canRetry', 'canRetryWithoutMissing'],
-    emits: ['update:open', 'submit', 'cancel', 'retry', 'retry-without-missing'],
+    emits: ['update:open', 'submit', 'cancel', 'retry', 'retry-without-missing', 'back'],
     template: '<div v-if="open" data-testid="bulk-dialog-stub">{{ kind }}<span v-if="error" data-testid="bulk-dialog-stub-error">{{ error.message }}</span></div>',
   },
 }))
@@ -182,6 +185,7 @@ beforeEach(() => {
   mockState.data.value = [row('a'), row('b'), row('c')]
   mockState.total.value = 3
   mockState.globalFilter.value = ''
+  mockState.debouncedFilter.value = ''
   mockState.sorting.value = []
   grant('read:Customer', 'read:Sale', 'export:Customer')
 })
@@ -239,6 +243,7 @@ describe('CustomersView bulk — selection and caps', () => {
   it('offers «Seleccionar los N clientes del filtro» and then sends the filter without paging keys', async () => {
     mockState.total.value = 120
     mockState.globalFilter.value = 'ana'
+    mockState.debouncedFilter.value = 'ana'
     bulkExportCustomers.mockResolvedValue({ blob: new Blob(['x']), fileName: 'c.csv' })
     const wrapper = mount(CustomersView)
     await markRows(wrapper, { 0: true, 1: true, 2: true })
@@ -281,6 +286,7 @@ describe('CustomersView bulk — selection and caps', () => {
     const wrapper = mount(CustomersView)
     await markRows(wrapper, { 0: true })
     mockState.globalFilter.value = 'otro'
+    mockState.debouncedFilter.value = 'otro'
     await flushPromises()
     expect(table(wrapper).props('selectionCount')).toBe(0)
 
@@ -326,5 +332,176 @@ describe('CustomersView bulk — selection and caps', () => {
     await flushPromises()
     expect(bulkExportCustomers.mock.calls[1]![0].selection).toEqual({ mode: 'ids', customerIds: ['b'] })
     expect(table(wrapper).props('selectionCount')).toBe(1)
+  })
+})
+
+describe('CustomersView bulk — T1b (L4 review advisories, L5 verifier findings)', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  const busy = (seconds: number) => ({
+    response: { status: 429, data: { code: 'BULK_EXPORT_BUSY', details: { retryAfterSeconds: seconds } } },
+  })
+
+  it('429: the wait survives closing the dialog; both bar actions stay disabled with the countdown, and re-clicking does nothing', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    bulkCustomerStatements.mockRejectedValueOnce(busy(3))
+    bulkExportCustomers.mockResolvedValue({ blob: new Blob(['x']), fileName: 'c.csv' })
+    const wrapper = mount(CustomersView)
+    await markRows(wrapper, { 1: true })
+    action(wrapper, 'statements')!.onClick([])
+    await flushPromises()
+    const dialog = wrapper.getComponent({ name: 'CustomerBulkDownloadDialog' })
+    dialog.vm.$emit('submit', { from: '2026-11-01', to: '2026-12-01' })
+    await flushPromises()
+    expect(dialog.props('error').code).toBe('BULK_EXPORT_BUSY')
+
+    dialog.vm.$emit('update:open', false)
+    await flushPromises()
+    expect(dialog.props('open')).toBe(false)
+    expect(action(wrapper, 'statements')!.disabled).toBe(true)
+    expect(action(wrapper, 'csv')!.disabled).toBe(true)
+    expect(wrapper.get('[data-testid="customers-bulk-cap"]').text()).toContain('Hay otra descarga en curso; reintenta en 3 s.')
+
+    // Re-clicking (the handlers are guarded too) neither reopens nor requests.
+    action(wrapper, 'statements')!.onClick([])
+    action(wrapper, 'csv')!.onClick([])
+    await flushPromises()
+    expect(dialog.props('open')).toBe(false)
+    expect(bulkExportCustomers).not.toHaveBeenCalled()
+    expect(bulkCustomerStatements).toHaveBeenCalledTimes(1)
+
+    vi.advanceTimersByTime(2_000)
+    await flushPromises()
+    expect(wrapper.get('[data-testid="customers-bulk-cap"]').text()).toContain('reintenta en 1 s.')
+    vi.advanceTimersByTime(1_000)
+    await flushPromises()
+    expect(action(wrapper, 'statements')!.disabled).toBe(false)
+    expect(action(wrapper, 'csv')!.disabled).toBe(false)
+    expect(wrapper.find('[data-testid="customers-bulk-cap"]').exists()).toBe(false)
+
+    action(wrapper, 'csv')!.onClick([])
+    await flushPromises()
+    expect(bulkExportCustomers).toHaveBeenCalledTimes(1)
+  })
+
+  it('429: reopening «Estados de cuenta PDF» after the wait shows the picker, not the stale error', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    bulkCustomerStatements.mockRejectedValueOnce(busy(1))
+    const wrapper = mount(CustomersView)
+    await markRows(wrapper, { 1: true })
+    action(wrapper, 'statements')!.onClick([])
+    await flushPromises()
+    const dialog = wrapper.getComponent({ name: 'CustomerBulkDownloadDialog' })
+    dialog.vm.$emit('submit', { from: '2026-11-01', to: '2026-12-01' })
+    await flushPromises()
+    dialog.vm.$emit('update:open', false)
+    vi.advanceTimersByTime(1_000)
+    await flushPromises()
+
+    action(wrapper, 'statements')!.onClick([])
+    await flushPromises()
+    expect(dialog.props('open')).toBe(true)
+    expect(dialog.props('error')).toBeNull()
+  })
+
+  it('builds «Seleccionar los N del filtro» from the debounced search the listing used, not the raw input', async () => {
+    mockState.total.value = 120
+    mockState.debouncedFilter.value = 'ana'
+    bulkExportCustomers.mockResolvedValue({ blob: new Blob(['x']), fileName: 'c.csv' })
+    const wrapper = mount(CustomersView)
+    await markRows(wrapper, { 0: true, 1: true, 2: true })
+    await wrapper.get('[data-testid="customers-bulk-select-filter"]').trigger('click')
+
+    // Typing that has not reached the listing yet neither changes the request nor clears the selection.
+    mockState.globalFilter.value = 'ana lópez'
+    await flushPromises()
+    expect(table(wrapper).props('selectionCount')).toBe(120)
+    action(wrapper, 'csv')!.onClick([])
+    await flushPromises()
+    expect(bulkExportCustomers.mock.calls[0]![0].selection).toEqual({ mode: 'filter', filter: { search: 'ana' }, excludeIds: [] })
+
+    // Once the listing applies it, the selection (which described the old filter) is cleared.
+    mockState.debouncedFilter.value = 'ana lópez'
+    await flushPromises()
+    expect(table(wrapper).props('selectionCount')).toBe(0)
+  })
+
+  it('«Quitar selección» in filter mode never shows the 1,000-limit toast', async () => {
+    const page = (prefix: string) => Array.from({ length: 1_000 }, (_, i) => row(`${prefix}-${i}`))
+    const allMarked = Object.fromEntries(Array.from({ length: 1_000 }, (_, i) => [i, true]))
+    mockState.data.value = page('p1')
+    mockState.total.value = 5_000
+    const wrapper = mount(CustomersView)
+    await markRows(wrapper, allMarked)
+    await wrapper.get('[data-testid="customers-bulk-select-filter"]').trigger('click')
+    await markRows(wrapper, {}) // 1,000 customers excluded: the cap.
+    mockState.data.value = page('p2')
+    await flushPromises()
+    toastAdd.mockClear()
+
+    // AppDataTable's «Quitar selección»: empty page marks, then clear-selection, in the same tick.
+    table(wrapper).vm.$emit('update:rowSelection', {})
+    table(wrapper).vm.$emit('clear-selection')
+    await flushPromises()
+
+    expect(table(wrapper).props('selectionCount')).toBe(0)
+    expect(toastAdd).not.toHaveBeenCalledWith(expect.objectContaining({ title: 'Límite de la selección' }))
+  })
+
+  it('cancelling a CSV closes the dialog (no empty dialog left behind)', async () => {
+    bulkExportCustomers.mockImplementation(
+      (_body: unknown, options: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => options.signal.addEventListener('abort', () => reject(new Error('canceled')))),
+    )
+    const wrapper = mount(CustomersView)
+    await markRows(wrapper, { 0: true })
+    action(wrapper, 'csv')!.onClick([])
+    await flushPromises()
+    const dialog = wrapper.getComponent({ name: 'CustomerBulkDownloadDialog' })
+    expect(dialog.props('running')).toBe(true)
+
+    dialog.vm.$emit('cancel')
+    await flushPromises()
+    expect(dialog.props('open')).toBe(false)
+    expect(dialog.props('running')).toBe(false)
+    expect(saveBlobAsFile).not.toHaveBeenCalled()
+  })
+
+  it('cancelling the statements ZIP keeps the dialog open on the period picker', async () => {
+    bulkCustomerStatements.mockImplementation(
+      (_body: unknown, options: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => options.signal.addEventListener('abort', () => reject(new Error('canceled')))),
+    )
+    const wrapper = mount(CustomersView)
+    await markRows(wrapper, { 0: true })
+    action(wrapper, 'statements')!.onClick([])
+    await flushPromises()
+    const dialog = wrapper.getComponent({ name: 'CustomerBulkDownloadDialog' })
+    dialog.vm.$emit('submit', { from: '2026-11-01', to: '2026-12-01' })
+    await flushPromises()
+    dialog.vm.$emit('cancel')
+    await flushPromises()
+    expect(dialog.props('open')).toBe(true)
+    expect(dialog.props('running')).toBe(false)
+    expect(dialog.props('error')).toBeNull()
+  })
+
+  it('«Volver» after a statements timeout goes back to the picker in place', async () => {
+    bulkCustomerStatements.mockRejectedValueOnce({ response: { status: 503, data: { code: 'BULK_EXPORT_TIMEOUT' } } })
+    const wrapper = mount(CustomersView)
+    await markRows(wrapper, { 0: true })
+    action(wrapper, 'statements')!.onClick([])
+    await flushPromises()
+    const dialog = wrapper.getComponent({ name: 'CustomerBulkDownloadDialog' })
+    dialog.vm.$emit('submit', { from: '2026-11-01', to: '2026-12-01' })
+    await flushPromises()
+    expect(dialog.props('error').code).toBe('BULK_EXPORT_TIMEOUT')
+
+    dialog.vm.$emit('back')
+    await flushPromises()
+    expect(dialog.props('open')).toBe(true)
+    expect(dialog.props('error')).toBeNull()
   })
 })

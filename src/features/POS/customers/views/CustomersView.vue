@@ -184,6 +184,7 @@ const {
   filterTotals,
   filterErrors,
   listingErrorMessage,
+  appliedSearch,
 } = listing
 
 // Totals row: the count of the filter on Cliente and its debt on Deuda, both from the server
@@ -258,10 +259,11 @@ watch(
 )
 
 // ── customers-bulk-actions S3: selection + bulk bar (statements ZIP, CSV export) ─────────────
-// `selection.filter` is the listing request of the table without page/limit/sortBy/sortOrder; any
-// change of it (search, filters sheet, a saved view) clears the selection.
+// `selection.filter` is the listing request of the table without page/limit/sortBy/sortOrder — with
+// the debounced search the listing sent (`appliedSearch`), so N and the request agree; any change
+// of it (search, filters sheet, a saved view) clears the selection.
 const bulkSelectionFilter = computed(() =>
-  buildBulkSelectionFilter(globalFilter.value, filtersCtl.backendParams.value, { canReadSales: moneyAccess }),
+  buildBulkSelectionFilter(appliedSearch.value, filtersCtl.backendParams.value, { canReadSales: moneyAccess }),
 )
 const bulkSelection = useCustomerBulkSelection({
   rows: () => data.value,
@@ -298,20 +300,24 @@ const bulkDownload = useCustomerBulkDownload({
 
 const statementsCap = computed(() => bulkCapReason('statements', bulkSelection.count.value))
 const csvCap = computed(() => bulkCapReason('csv', bulkSelection.count.value))
+// A 429 wait outlives the dialog: both actions stay disabled with the countdown as the reason.
+const bulkWaitReason = computed(() => bulkDownload.waitReason.value)
+const bulkBlocked = computed(() => bulkDownload.isRunning.value || bulkWaitReason.value !== null)
 const bulkCapReasons = computed(() => [
+  ...(bulkWaitReason.value ? [bulkWaitReason.value] : []),
   ...(canBulkStatementsAccess.value && statementsCap.value ? [statementsCap.value] : []),
   ...(canExportCsv.value && csvCap.value ? [csvCap.value] : []),
 ])
 
 function openBulkStatements() {
-  if (!canBulkStatementsAccess.value || statementsCap.value) return
+  if (!canBulkStatementsAccess.value || statementsCap.value || bulkBlocked.value) return
   bulkDownload.reset()
   bulkDialogKind.value = 'statements'
   bulkDialogOpen.value = true
 }
 
 function startBulkCsv() {
-  if (!canExportCsv.value || csvCap.value) return
+  if (!canExportCsv.value || csvCap.value || bulkBlocked.value) return
   bulkDialogKind.value = 'csv'
   bulkDialogOpen.value = true
   void bulkDownload.start({ kind: 'csv' })
@@ -319,6 +325,13 @@ function startBulkCsv() {
 
 function submitBulkStatements(range: CustomerStatementRange) {
   void bulkDownload.start({ kind: 'statements', range })
+}
+
+// Cancelling the CSV leaves nothing to show (it has no picker), so the dialog closes; the
+// statements dialog goes back to its period picker.
+function cancelBulkDownload() {
+  bulkDownload.cancel()
+  if (bulkDialogKind.value === 'csv') bulkDialogOpen.value = false
 }
 
 function setBulkDialogOpen(open: boolean) {
@@ -336,7 +349,7 @@ const bulkActions = computed<BulkAction<CustomerListingRow>[]>(() => [
           id: 'statements',
           label: 'Estados de cuenta PDF',
           icon: 'i-lucide-file-text',
-          disabled: bulkDownload.isRunning.value || statementsCap.value !== null,
+          disabled: bulkBlocked.value || statementsCap.value !== null,
           onClick: openBulkStatements,
         },
       ]
@@ -347,7 +360,7 @@ const bulkActions = computed<BulkAction<CustomerListingRow>[]>(() => [
           id: 'csv',
           label: 'Exportar CSV',
           icon: 'i-lucide-download',
-          disabled: bulkDownload.isRunning.value || csvCap.value !== null,
+          disabled: bulkBlocked.value || csvCap.value !== null,
           onClick: startBulkCsv,
         },
       ]
@@ -616,9 +629,10 @@ function clearFilters() {
       :can-retry-without-missing="bulkDownload.canRetryWithoutMissing.value"
       @update:open="setBulkDialogOpen"
       @submit="submitBulkStatements"
-      @cancel="bulkDownload.cancel()"
+      @cancel="cancelBulkDownload"
       @retry="bulkDownload.retry()"
       @retry-without-missing="bulkDownload.retryWithoutMissing()"
+      @back="bulkDownload.reset()"
     />
 
     <section

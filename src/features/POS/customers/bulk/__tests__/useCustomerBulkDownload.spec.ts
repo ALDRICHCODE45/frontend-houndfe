@@ -165,6 +165,44 @@ describe('useCustomerBulkDownload — errors', () => {
     expect(saveBlobAsFile).toHaveBeenCalledTimes(1)
   })
 
+  it('filter mode 404 → retries the same selection once, never touching excludeIds', async () => {
+    const filterSelection: CustomerBulkSelection = { mode: 'filter', filter: { city: 'Monterrey' }, excludeIds: ['x1'] }
+    bulkExportCustomers.mockRejectedValueOnce(
+      httpError(404, { code: 'BULK_CUSTOMERS_NOT_FOUND', details: { missingIds: ['x1', 'm1'] } }),
+    )
+    bulkExportCustomers.mockResolvedValueOnce({ blob: new Blob(['x']), fileName: 'c.csv' })
+    const { download, removeIds } = setup(filterSelection)
+
+    await download.start({ kind: 'csv' })
+    expect(download.canRetryWithoutMissing.value).toBe(true)
+    await download.retryWithoutMissing()
+
+    expect(removeIds).not.toHaveBeenCalled()
+    expect(bulkExportCustomers.mock.calls[1]![0].selection).toEqual(filterSelection)
+    expect(saveBlobAsFile).toHaveBeenCalledTimes(1)
+  })
+
+  it('filter mode 404 twice → shows the message without another retry', async () => {
+    const notFound = httpError(404, { code: 'BULK_CUSTOMERS_NOT_FOUND', details: { missingIds: ['m1'] } })
+    bulkExportCustomers.mockRejectedValueOnce(notFound).mockRejectedValueOnce(notFound)
+    const { download, removeIds } = setup({ mode: 'filter', filter: {}, excludeIds: [] })
+
+    await download.start({ kind: 'csv' })
+    await download.retryWithoutMissing()
+
+    expect(bulkExportCustomers).toHaveBeenCalledTimes(2)
+    expect(download.error.value?.message).toBe('1 cliente de la selección ya no existe.')
+    expect(download.canRetryWithoutMissing.value).toBe(false)
+    expect(await download.retryWithoutMissing()).toBe(false)
+    expect(bulkExportCustomers).toHaveBeenCalledTimes(2)
+    expect(removeIds).not.toHaveBeenCalled()
+
+    // A fresh run from the bar gets its one retry again.
+    bulkExportCustomers.mockRejectedValueOnce(notFound)
+    await download.start({ kind: 'csv' })
+    expect(download.canRetryWithoutMissing.value).toBe(true)
+  })
+
   it('404 where every customer is missing offers no retry', async () => {
     bulkExportCustomers.mockRejectedValueOnce(
       httpError(404, { code: 'BULK_CUSTOMERS_NOT_FOUND', details: { missingIds: ['a', 'b', 'c'] } }),
@@ -198,6 +236,31 @@ describe('useCustomerBulkDownload — errors', () => {
     expect(bulkCustomerStatements).toHaveBeenCalledTimes(2)
     expect(bulkCustomerStatements.mock.calls[1]![0]).toMatchObject(RANGE)
     expect(saveBlobAsFile).toHaveBeenCalledTimes(1)
+  })
+
+  it('429 → the wait survives reset() (closing the dialog) and start() refuses until it is over', async () => {
+    vi.useFakeTimers()
+    bulkCustomerStatements.mockRejectedValueOnce(
+      httpError(429, { code: 'BULK_EXPORT_BUSY', details: { retryAfterSeconds: 3 } }),
+    )
+    bulkExportCustomers.mockResolvedValue({ blob: new Blob(['x']), fileName: 'c.csv' })
+    const { download } = setup()
+
+    await download.start({ kind: 'statements', range: RANGE })
+    download.reset()
+    expect(download.error.value).toBeNull()
+    expect(download.retryIn.value).toBe(3)
+    expect(download.waitReason.value).toBe('Hay otra descarga en curso; reintenta en 3 s.')
+
+    expect(await download.start({ kind: 'csv' })).toBe(false)
+    expect(await download.start({ kind: 'statements', range: RANGE })).toBe(false)
+    expect(bulkExportCustomers).not.toHaveBeenCalled()
+    expect(bulkCustomerStatements).toHaveBeenCalledTimes(1)
+
+    vi.advanceTimersByTime(3_000)
+    expect(download.waitReason.value).toBeNull()
+    expect(await download.start({ kind: 'csv' })).toBe(true)
+    expect(bulkExportCustomers).toHaveBeenCalledTimes(1)
   })
 
   it('503 → «La descarga tardó demasiado; prueba con menos clientes»', async () => {

@@ -1,4 +1,4 @@
-import { ref, computed, watch, type Ref, type ComputedRef } from 'vue'
+import { ref, computed, readonly, watch, type Ref, type ComputedRef } from 'vue'
 import { useQuery, keepPreviousData } from '@tanstack/vue-query'
 import { refDebounced } from '@vueuse/core'
 import { useTablePreferences } from './useTablePreferences'
@@ -23,6 +23,8 @@ export interface UseServerTableReturn<T> {
   pagination: Ref<PaginationState>
   sorting: Ref<SortingState>
   globalFilter: Ref<string>
+  /** The search the request carries: `globalFilter` after the debounce (read-only). */
+  debouncedGlobalFilter: Readonly<Ref<string>>
   rowSelection: Ref<RowSelectionState>
   columnPinning: Ref<ColumnPinningState>
   columnVisibility: Ref<VisibilityState>
@@ -261,6 +263,7 @@ export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableR
     pagination,
     sorting,
     globalFilter,
+    debouncedGlobalFilter: readonly(debouncedFilter),
     rowSelection,
     columnPinning,
     columnVisibility,

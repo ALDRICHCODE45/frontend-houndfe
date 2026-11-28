@@ -105,6 +105,52 @@ describe('CustomerBulkDownloadDialog — failures', () => {
     expect(dialogComponent().emitted('retry')).toHaveLength(1)
   })
 
+  it('INVALID_PERIOD shows the picker again with the error inline and lets the user submit another period', async () => {
+    mountDialog({ error: { code: 'INVALID_PERIOD', message: 'Revisa el periodo: debe ser de 1 a 366 días.', canRetry: false } })
+    await flushPromises()
+    expect(text(q('[data-testid="bulk-dialog-error"]'))).toContain('Revisa el periodo')
+    expect(all('[data-testid="bulk-statement-preset"]')).toHaveLength(3)
+    expect(q('[data-testid="bulk-dialog-back"]')).toBeNull()
+
+    all('[data-testid="bulk-statement-preset"]')[2]!.click()
+    await flushPromises()
+    q('[data-testid="bulk-dialog-submit"]')!.click()
+    await flushPromises()
+    expect(dialogComponent().emitted('submit')?.slice(-1)[0]).toEqual([{ from: '2026-09-01', to: '2026-12-01' }])
+  })
+
+  it('statements BULK_EXPORT_TIMEOUT offers «Volver» back to the period picker (and «Cerrar»)', async () => {
+    mountDialog({ error: { code: 'BULK_EXPORT_TIMEOUT', message: 'La descarga tardó demasiado; prueba con menos clientes.', canRetry: false } })
+    await flushPromises()
+    expect(q('[data-testid="bulk-statement-preset"]')).toBeNull()
+    expect(q('[data-testid="bulk-dialog-close"]')).not.toBeNull()
+    q('[data-testid="bulk-dialog-back"]')!.click()
+    await flushPromises()
+    expect(dialogComponent().emitted('back')).toHaveLength(1)
+    expect(dialogComponent().emitted('update:open')).toBeUndefined()
+  })
+
+  it.each([
+    ['statements', 'BULK_SELECTION_TOO_LARGE', 'La selección tiene 63 clientes y el máximo es 50 por descarga. Quita algunos e intenta de nuevo.'],
+    ['statements', 'BULK_SELECTION_EMPTY', 'La selección ya no tiene clientes. Actualizamos la lista.'],
+    ['csv', 'BULK_SELECTION_TOO_LARGE', 'La selección tiene 12,000 clientes y el máximo es 10,000 por exportación. Quita algunos e intenta de nuevo.'],
+    ['csv', 'BULK_SELECTION_EMPTY', 'La selección ya no tiene clientes. Actualizamos la lista.'],
+    ['csv', 'BULK_EXPORT_TIMEOUT', 'La descarga tardó demasiado; prueba con menos clientes.'],
+  ])('%s %s offers «Volver», which closes back to the table (the selection must change)', async (kind, code, message) => {
+    mountDialog({ kind, error: { code, message, canRetry: false } })
+    await flushPromises()
+    expect(text(q('[data-testid="bulk-dialog-error"]'))).toContain(message)
+    expect(q('[data-testid="bulk-statement-preset"]')).toBeNull()
+    // One way out, not two buttons doing the same.
+    expect(q('[data-testid="bulk-dialog-close"]')).toBeNull()
+    const back = q('[data-testid="bulk-dialog-back"]')!
+    expect(text(back)).toBe('Volver')
+    back.click()
+    await flushPromises()
+    expect(dialogComponent().emitted('update:open')).toEqual([[false]])
+    expect(dialogComponent().emitted('back')).toBeUndefined()
+  })
+
   it('CSV has no period picker', async () => {
     mountDialog({ kind: 'csv', running: true, count: 1200 })
     await flushPromises()

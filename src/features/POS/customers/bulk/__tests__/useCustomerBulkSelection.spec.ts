@@ -60,11 +60,12 @@ describe('useCustomerBulkSelection — ids mode', () => {
     expect(selection.canSelectAllFilter.value).toBe(false)
   })
 
-  it('caps ids at 1,000 and reports it', () => {
+  it('caps ids at 1,000 and reports it', async () => {
     const ids = Array.from({ length: 1_001 }, (_, i) => `id-${i}`)
     const { selection, onLimit } = setup({ ids, total: 2_000 })
     selection.pageSelection.value = Object.fromEntries(ids.map((_, i) => [i, true]))
     expect(selection.count.value).toBe(1_000)
+    await nextTick()
     expect(onLimit).toHaveBeenCalledWith('ids')
   })
 })
@@ -90,7 +91,7 @@ describe('useCustomerBulkSelection — filter mode', () => {
     expect(selection.toSelection()).toEqual({ mode: 'filter', filter: { city: 'Monterrey' }, excludeIds: [] })
   })
 
-  it('caps excludeIds at 1,000 and reports it', () => {
+  it('caps excludeIds at 1,000 and reports it', async () => {
     const ids = Array.from({ length: 1_001 }, (_, i) => `id-${i}`)
     const { selection, onLimit } = setup({ ids, total: 5_000 })
     selection.selectAllFilter()
@@ -98,7 +99,21 @@ describe('useCustomerBulkSelection — filter mode', () => {
     const body = selection.toSelection()
     expect(body?.mode).toBe('filter')
     expect(body && body.mode === 'filter' ? body.excludeIds.length : 0).toBe(1_000)
+    await nextTick()
     expect(onLimit).toHaveBeenCalledWith('exclude')
+  })
+
+  it('«Quitar selección» (page marks emptied, then clear()) never reports the exclude limit', async () => {
+    const ids = Array.from({ length: 1_001 }, (_, i) => `id-${i}`)
+    const { selection, onLimit } = setup({ ids, total: 5_000 })
+    selection.selectAllFilter()
+    // AppDataTable empties the page marks and then emits clear-selection, in the same tick.
+    selection.pageSelection.value = {}
+    selection.clear()
+    await nextTick()
+    expect(onLimit).not.toHaveBeenCalled()
+    expect(selection.count.value).toBe(0)
+    expect(selection.mode.value).toBe('ids')
   })
 
   it('a row of the filter mode on a new page is marked unless excluded', () => {
@@ -119,7 +134,7 @@ describe('useCustomerBulkSelection — clearing and missing ids', () => {
     expect(selection.toSelection()).toBeNull()
   })
 
-  it('removes missing ids from the ids selection and from excludeIds', () => {
+  it('removes missing ids from the ids selection but never from excludeIds', () => {
     const { selection } = setup({ total: 40 })
     selection.pageSelection.value = { 0: true, 1: true }
     selection.removeIds(['a'])
@@ -127,8 +142,9 @@ describe('useCustomerBulkSelection — clearing and missing ids', () => {
 
     selection.selectAllFilter()
     selection.pageSelection.value = { 0: true }
+    // Taking an id out of excludeIds would re-include a customer the user unmarked.
     selection.removeIds(['b'])
-    expect(selection.toSelection()).toEqual({ mode: 'filter', filter: { city: 'Monterrey' }, excludeIds: ['c'] })
+    expect(selection.toSelection()).toEqual({ mode: 'filter', filter: { city: 'Monterrey' }, excludeIds: ['b', 'c'] })
   })
 
   it('clear() empties everything', () => {

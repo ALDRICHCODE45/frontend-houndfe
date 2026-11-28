@@ -170,6 +170,12 @@ export function useCustomersListing(options: {
 
   return {
     ...table,
+    /**
+     * The search the listing request carries (the table's debounced one), for anything that must
+     * describe the same rows as the listing — the bulk «filter» selection. A partial table double
+     * without it (older view specs) falls back to the raw search.
+     */
+    appliedSearch: computed(() => (table.debouncedGlobalFilter ?? table.globalFilter).value),
     // The totals travel with their page in the query cache, so a cached page brings its own.
     filterTotals: computed(() =>
       customersFilterTotals((table.response.value as CustomerListingPage | undefined)?.filterSummary, access()),

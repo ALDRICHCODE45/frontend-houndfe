@@ -3,10 +3,16 @@
  * (customers-bulk-actions S3, handoff 33 «Flujo sugerido»).
  *
  * - The body is built from the current selection on every run, so «Reintentar sin ellos» (404)
- *   removes the missing ids from the selection and runs again with what is left.
- * - 429 BULK_EXPORT_BUSY: the retry is enabled only after `retryAfterSeconds` (read from the body;
- *   the Retry-After header is not exposed by CORS), counted down every second.
- * - 400 TOO_LARGE / EMPTY: explain and refetch the table.
+ *   removes the missing ids from an ids selection and runs again with what is left. In filter mode
+ *   the server re-evaluates the filter (a deleted customer drops out by itself) and `excludeIds` is
+ *   never touched — removing from it would re-include customers the user unmarked — so the same
+ *   selection is retried once; a second 404 shows the message without another retry.
+ * - 429 BULK_EXPORT_BUSY: nothing starts until `retryAfterSeconds` (read from the body; the
+ *   Retry-After header is not exposed by CORS) is over, counted down every second. The wait lives
+ *   here, not in the dialog: closing it (`reset`) keeps the countdown, `start()` refuses meanwhile
+ *   and `waitReason` lets the screen disable its actions with the countdown as the reason.
+ * - 400 TOO_LARGE / EMPTY: explain and refetch the table (LISTING_* 400s do not: the table would
+ *   get the same 400).
  * - «Cancelar» (or an unmount) aborts the request: nothing is saved and no error shows.
  * - The file is saved only once the whole Blob arrived.
  */
@@ -32,6 +38,8 @@ export function useCustomerBulkDownload(options: {
   const failure = shallowRef<CustomerBulkFailure | null>(null)
   const retryIn = shallowRef(0)
   const lastRequest = shallowRef<CustomerBulkRequest | null>(null)
+  /** The one filter-mode «Reintentar sin ellos» of the current run was used. */
+  const filterMissingRetried = shallowRef(false)
   let controller: AbortController | null = null
   let timer: ReturnType<typeof setInterval> | null = null
 
@@ -55,10 +63,8 @@ export function useCustomerBulkDownload(options: {
     isRunning.value = false
   }
 
-  /** Forget the last error (closing the dialog); a run in flight is not touched. */
+  /** Forget the last error (closing the dialog); a run in flight and a 429 wait are not touched. */
   function reset() {
-    stopCountdown()
-    retryIn.value = 0
     failure.value = null
   }
 
@@ -69,38 +75,44 @@ export function useCustomerBulkDownload(options: {
     })
   }
 
-  async function start(request: CustomerBulkRequest): Promise<boolean> {
-    if (isRunning.value) return false
+  /** A new run from the screen (bar action, dialog submit, «Reintentar»). */
+  function start(request: CustomerBulkRequest): Promise<boolean> {
+    return run(request, true)
+  }
+
+  async function run(request: CustomerBulkRequest, fresh: boolean): Promise<boolean> {
+    if (isRunning.value || retryIn.value > 0) return false
     if (request.kind === 'statements' && validateCustomerStatementRange(request.range) !== null) return false
     const selection = options.selection()
     if (!selection) return false
+    if (fresh) filterMissingRetried.value = false
 
-    const run = new AbortController()
-    controller = run
+    const current = new AbortController()
+    controller = current
     lastRequest.value = request
     isRunning.value = true
     reset()
     try {
       const file =
         request.kind === 'csv'
-          ? await customerApi.bulkExportCustomers({ selection, ...toValue(options.sort) }, { signal: run.signal })
+          ? await customerApi.bulkExportCustomers({ selection, ...toValue(options.sort) }, { signal: current.signal })
           : await customerApi.bulkCustomerStatements(
               { selection, from: request.range.from, to: request.range.to },
-              { signal: run.signal },
+              { signal: current.signal },
             )
-      if (run.signal.aborted) return false
+      if (current.signal.aborted) return false
       saveBlobAsFile(file.blob, file.fileName)
       options.onSaved(file.fileName, request.kind)
       return true
     } catch (error) {
-      if (run.signal.aborted) return false
+      if (current.signal.aborted) return false
       const mapped = customerBulkFailure(error, request.kind)
       failure.value = mapped
       if (mapped.retryAfterSeconds) startCountdown(mapped.retryAfterSeconds)
       if (mapped.refetch) options.refetch()
       return false
     } finally {
-      if (controller === run) {
+      if (controller === current) {
         controller = null
         isRunning.value = false
       }
@@ -123,7 +135,7 @@ export function useCustomerBulkDownload(options: {
     if (isRunning.value || missingIds.value.length === 0 || lastRequest.value === null) return false
     const selection = options.selection()
     if (!selection) return false
-    if (selection.mode === 'filter') return true
+    if (selection.mode === 'filter') return !filterMissingRetried.value
     const gone = new Set(missingIds.value)
     return selection.customerIds.some((id) => !gone.has(id))
   })
@@ -135,15 +147,23 @@ export function useCustomerBulkDownload(options: {
 
   async function retryWithoutMissing(): Promise<boolean> {
     if (!canRetryWithoutMissing.value || !lastRequest.value) return false
+    if (options.selection()?.mode === 'filter') {
+      filterMissingRetried.value = true
+      return run(lastRequest.value, false)
+    }
     options.removeIds([...missingIds.value])
-    return start(lastRequest.value)
+    return run(lastRequest.value, false)
   }
+
+  /** While a 429 wait runs: why nothing can start (the countdown), else null. */
+  const waitReason = computed(() => (retryIn.value > 0 ? customerBulkBusyMessage(retryIn.value) : null))
 
   return {
     isRunning: readonly(isRunning),
     kind: computed(() => lastRequest.value?.kind ?? null),
     error,
     retryIn: readonly(retryIn),
+    waitReason,
     canRetry,
     canRetryWithoutMissing,
     start,

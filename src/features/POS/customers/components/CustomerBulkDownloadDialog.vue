@@ -6,8 +6,11 @@
  * - «Estados de cuenta PDF»: the period picker of the single statement (same presets, calendar and
  *   1-366-day validation from `customerStatementPeriod.ts`), then «Descargar ZIP».
  * - While running (statements take ~10 s for 50): progress and «Cancelar», which aborts the request.
- * - A failure: its Spanish message and the next step — «Reintentar sin ellos» (404 missingIds) or
- *   «Reintentar» (enabled once a 429 wait is over).
+ * - A failure: its Spanish message and the next step — «Reintentar sin ellos» (404 missingIds),
+ *   «Reintentar» (enabled once a 429 wait is over), the period picker again with the error inline
+ *   (INVALID_PERIOD), or «Volver» where nothing can be retried as is: back to the picker after a
+ *   statements timeout (`back`), else back to the table (TOO_LARGE / EMPTY: the selection must
+ *   change; the CSV has no picker). Never a dead end with only «Cerrar».
  * One primary action per state; the CSV has no picker (it starts as soon as it is chosen).
  */
 import { computed, shallowRef, useId, watch } from 'vue'
@@ -43,6 +46,8 @@ const emit = defineEmits<{
   cancel: []
   retry: []
   'retry-without-missing': []
+  /** «Volver» to the period picker: the screen forgets the error. */
+  back: []
 }>()
 
 type CalendarRange = { start?: CalendarDate; end?: CalendarDate }
@@ -67,7 +72,25 @@ const progressLabel = computed(() =>
 )
 const periodLabel = computed(() => formatCustomerStatementPeriod(range.value.from, range.value.to) ?? 'Sin periodo')
 const validationMessage = computed(() => validateCustomerStatementRange(range.value))
-const showPicker = computed(() => props.kind === 'statements' && !props.running && !props.error)
+const showPicker = computed(
+  () => props.kind === 'statements' && !props.running && (!props.error || props.error.code === 'INVALID_PERIOD'),
+)
+/** A failure nothing can retry as is: «Volver» instead of a dead end. */
+const showBack = computed(
+  () =>
+    !!props.error &&
+    !props.running &&
+    !showPicker.value &&
+    !props.canRetryWithoutMissing &&
+    !props.error.canRetry,
+)
+/** «Volver» returns to the picker only where another try of the same selection makes sense. */
+const backToPicker = computed(() => props.kind === 'statements' && props.error?.code === 'BULK_EXPORT_TIMEOUT')
+
+function goBack() {
+  if (backToPicker.value) emit('back')
+  else close()
+}
 
 function calendarRangeOf(value: CustomerStatementRange): CalendarRange | undefined {
   const start = parseMexicoCityCalendarDate(value.from) ?? undefined
@@ -213,6 +236,8 @@ function close() {
         />
         <template v-else>
           <UButton
+            v-if="!showBack || backToPicker"
+            data-testid="bulk-dialog-close"
             label="Cerrar"
             color="neutral"
             variant="outline"
@@ -245,6 +270,15 @@ function close() {
             :disabled="validationMessage !== null"
             class="hf-primary-control min-h-11 justify-center sm:min-h-0"
             @click="submit"
+          />
+          <UButton
+            v-else-if="showBack"
+            data-testid="bulk-dialog-back"
+            label="Volver"
+            icon="i-lucide-arrow-left"
+            color="primary"
+            class="hf-primary-control min-h-11 justify-center sm:min-h-0"
+            @click="goBack"
           />
         </template>
       </div>
