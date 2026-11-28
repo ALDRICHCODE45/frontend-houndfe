@@ -7,6 +7,9 @@ import {
   readCustomerStatementBlobError,
 } from '../statement/customerStatementFile'
 import type { CustomerStatementRange } from '../statement/customerStatementPeriod'
+import { parseContentDispositionFileName } from '@/core/shared/utils/downloadFile'
+import { mexicoCityToday } from '@/core/shared/utils/mexicoCityCalendar'
+import type { CustomerBulkSelection } from '../bulk/customerBulkSelection'
 import type {
   CreateCustomerAddressPayload,
   CreateCustomerPayload,
@@ -28,6 +31,8 @@ import type {
   CustomerListingPage,
   CustomerListingParams,
   CustomerListingRow,
+  CustomerListingSortBy,
+  CustomerListingSortOrder,
 } from '../interfaces/customer-listing.types'
 
 /** Values asked for each filter of the customers table (GET /customers/listing/options max 200). */
@@ -349,9 +354,86 @@ export const customerApi = {
       throw await readCustomerStatementBlobError(error)
     }
   },
+
+  /**
+   * customers-bulk-actions (handoff 33 §1): the CSV of the selection (read:Customer +
+   * export:Customer). Through the authenticated client as a Blob — never a bare link.
+   */
+  async bulkExportCustomers(
+    body: CustomerBulkExportBody,
+    options: { signal?: AbortSignal } = {},
+  ): Promise<CustomerBulkFile> {
+    return postBulkFile('/customers/bulk/export', body, options.signal, {
+      extension: '.csv',
+      fallback: `clientes-${mexicoCityToday().toString()}.csv`,
+    })
+  },
+
+  /**
+   * customers-bulk-actions (handoff 33 §2): one statement PDF per customer in a ZIP (read:Sale +
+   * read:Customer). Synchronous on the server (~10 s for 50); the signal cancels it.
+   */
+  async bulkCustomerStatements(
+    body: CustomerBulkStatementsBody,
+    options: { signal?: AbortSignal } = {},
+  ): Promise<CustomerBulkFile> {
+    return postBulkFile('/customers/bulk/statements', body, options.signal, {
+      extension: '.zip',
+      fallback: `estados-de-cuenta-${body.from}-${body.to}.zip`,
+    })
+  },
+}
+
+/** A bulk POST answered with a file: only a 200 Blob is returned; a JSON error in a Blob is read. */
+async function postBulkFile(
+  path: string,
+  body: CustomerBulkExportBody | CustomerBulkStatementsBody,
+  signal: AbortSignal | undefined,
+  name: { extension: string; fallback: string },
+): Promise<CustomerBulkFile> {
+  try {
+    const config: TenantContextBlobErrorConfig = {
+      responseType: 'blob',
+      signal,
+      tenantContextBlobError: true,
+    }
+    const response = await http.post<Blob>(path, body, config)
+    if (response.status !== 200 || !(response.data instanceof Blob)) {
+      throw new Error('CUSTOMER_BULK_UNEXPECTED_RESPONSE')
+    }
+    return {
+      blob: response.data,
+      fileName: parseContentDispositionFileName(
+        response.headers?.['content-disposition'] ?? null,
+        name.fallback,
+        name.extension,
+      ),
+    }
+  } catch (error) {
+    throw await readCustomerStatementBlobError(error)
+  }
 }
 
 export interface CustomerStatementPdf {
+  blob: Blob
+  fileName: string
+}
+
+export interface CustomerBulkExportBody {
+  selection: CustomerBulkSelection
+  sortBy?: CustomerListingSortBy
+  sortOrder?: CustomerListingSortOrder
+}
+
+export interface CustomerBulkStatementsBody {
+  selection: CustomerBulkSelection
+  /** First included day (YYYY-MM-DD, Mexico City). */
+  from: string
+  /** Exclusive end, as the single statement. */
+  to: string
+}
+
+export interface CustomerBulkFile {
   blob: Blob
   fileName: string
 }

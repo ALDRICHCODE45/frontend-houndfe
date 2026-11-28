@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { AppDataTable, DataTableViews, SortableHeader } from '@/core/shared/components/DataTable'
+import SelectColumn from '@/core/shared/components/DataTable/SelectColumn.vue'
 import {
   DataTableFilters,
   useDataTableFilters,
@@ -11,7 +12,7 @@ import {
   type FilterOption,
 } from '@/core/shared/data-table-filters'
 import { customerQueryKeys, productQueryKeys } from '@/core/shared/constants/query-keys'
-import type { TableColumnTotal } from '@/core/shared/types/table.types'
+import type { BulkAction, TableColumnTotal } from '@/core/shared/types/table.types'
 import '../styles/clients-visual.css'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
@@ -21,12 +22,18 @@ import { productApi } from '@/features/POS/products/api/product.api'
 import { formatCentsMXN } from '@/features/POS/sales/utils/currency.utils'
 import { customerApi } from '../api/customer.api'
 import CustomerMobileCard from '../components/CustomerMobileCard.vue'
+import CustomerBulkDownloadDialog from '../components/CustomerBulkDownloadDialog.vue'
+import { canBulkStatements, canExportCustomers } from '../authorization/customer-bulk-access'
+import { buildBulkSelectionFilter, bulkCapReason, type CustomerBulkKind } from '../bulk/customerBulkSelection'
+import { useCustomerBulkSelection } from '../bulk/useCustomerBulkSelection'
+import { useCustomerBulkDownload } from '../bulk/useCustomerBulkDownload'
+import type { CustomerStatementRange } from '../statement/customerStatementPeriod'
 import CustomerPetsSlideover from '../components/CustomerPetsSlideover.vue'
 import CustomerUpsertSlideover from '../components/CustomerUpsertSlideover.vue'
 import { createCustomersFiltersSchema } from '../config/customersFiltersSchema'
 import { formatListingDay, formatListingInstant } from '../config/customersListingFormat'
 import { formatPetMatchHint, useCustomerColumns } from '../composables/useCustomerColumns'
-import { useCustomersListing } from '../composables/useCustomersListing'
+import { mapCustomersSort, useCustomersListing } from '../composables/useCustomersListing'
 import { useCustomersViews } from '../composables/useCustomersViews'
 import { useCustomerEditor } from '../composables/useCustomerEditor'
 import { useCustomerDelete } from '../composables/useCustomerDelete'
@@ -69,6 +76,19 @@ const canReadSales = computed(() => authStore.userCan('read', 'Sale'))
 // customers-module T6: without read:Sale the rows have no `metrics`, so the money columns, filters,
 // sorts and views are not built at all (handoff 32 §2.6). Read once: the table is built from it.
 const moneyAccess = canReadSales.value
+
+// customers-bulk-actions (risk item 2): «Exportar CSV» only with read:Customer + the explicit
+// export:Customer code; «Estados de cuenta PDF» with read:Sale + read:Customer. Reactive, so a
+// permission refresh hides an action at once; without any action there is no selection at all.
+const canBulkStatementsAccess = computed(() => canBulkStatements((action, subject) => authStore.userCan(action, subject)))
+const canExportCsv = computed(() =>
+  canExportCustomers({
+    codes: authStore.permissionCodes,
+    isSuperAdmin: authStore.isSuperAdmin,
+    userCan: (action, subject) => authStore.userCan(action, subject),
+  }),
+)
+const bulkEnabled = computed(() => canBulkStatementsAccess.value || canExportCsv.value)
 
 const isMobile = useBreakpoints(breakpointsTailwind).smaller('md')
 
@@ -164,6 +184,7 @@ const {
   filterTotals,
   filterErrors,
   listingErrorMessage,
+  appliedSearch,
 } = listing
 
 // Totals row: the count of the filter on Cliente and its debt on Deuda, both from the server
@@ -176,6 +197,10 @@ const columns = useCustomerColumns({ canReadSales: moneyAccess }).columns.map((c
   const total = CUSTOMER_TOTALS[column.id ?? '']
   return total ? { ...column, meta: { ...column.meta, total } } : column
 })
+
+// The locked selection column first, only when a bulk action exists.
+const SELECT_COLUMN = { id: 'select', header: 'Selección', enableSorting: false, enableHiding: false }
+const tableColumns = computed(() => (bulkEnabled.value ? [SELECT_COLUMN, ...columns] : columns))
 
 // Error title of the customers table: a Spanish sentence for a listing 400, never the server message.
 const customersErrorMessage = computed(() => listingErrorMessage.value ?? 'No se pudieron cargar los clientes')
@@ -232,6 +257,116 @@ watch(
     pagination.value = { ...pagination.value, pageIndex: 0 }
   },
 )
+
+// ── customers-bulk-actions S3: selection + bulk bar (statements ZIP, CSV export) ─────────────
+// `selection.filter` is the listing request of the table without page/limit/sortBy/sortOrder — with
+// the debounced search the listing sent (`appliedSearch`), so N and the request agree; any change
+// of it (search, filters sheet, a saved view) clears the selection.
+const bulkSelectionFilter = computed(() =>
+  buildBulkSelectionFilter(appliedSearch.value, filtersCtl.backendParams.value, { canReadSales: moneyAccess }),
+)
+const bulkSelection = useCustomerBulkSelection({
+  rows: () => data.value,
+  totalCount: () => totalCount.value,
+  filter: () => bulkSelectionFilter.value,
+  onLimit: (limit) =>
+    toast.add({
+      title: 'Límite de la selección',
+      description:
+        limit === 'ids'
+          ? 'Puedes marcar hasta 1,000 clientes. Usa «Seleccionar los clientes del filtro» para más.'
+          : 'Puedes quitar hasta 1,000 clientes de la selección del filtro.',
+      color: 'warning',
+    }),
+})
+const { pageSelection } = bulkSelection
+watch(
+  () => customersViews.activeId.value,
+  () => bulkSelection.clear(),
+)
+
+const bulkDialogOpen = ref(false)
+const bulkDialogKind = ref<CustomerBulkKind>('statements')
+const bulkDownload = useCustomerBulkDownload({
+  selection: () => bulkSelection.toSelection(),
+  sort: () => mapCustomersSort(sorting.value, { canReadSales: moneyAccess }),
+  removeIds: (ids) => bulkSelection.removeIds(ids),
+  refetch: () => refresh(),
+  onSaved: (fileName) => {
+    bulkDialogOpen.value = false
+    toast.add({ title: 'Descarga lista', description: fileName, color: 'success' })
+  },
+})
+
+const statementsCap = computed(() => bulkCapReason('statements', bulkSelection.count.value))
+const csvCap = computed(() => bulkCapReason('csv', bulkSelection.count.value))
+// A 429 wait outlives the dialog: both actions stay disabled with the countdown as the reason.
+const bulkWaitReason = computed(() => bulkDownload.waitReason.value)
+const bulkBlocked = computed(() => bulkDownload.isRunning.value || bulkWaitReason.value !== null)
+const bulkCapReasons = computed(() => [
+  ...(bulkWaitReason.value ? [bulkWaitReason.value] : []),
+  ...(canBulkStatementsAccess.value && statementsCap.value ? [statementsCap.value] : []),
+  ...(canExportCsv.value && csvCap.value ? [csvCap.value] : []),
+])
+
+function openBulkStatements() {
+  if (!canBulkStatementsAccess.value || statementsCap.value || bulkBlocked.value) return
+  bulkDownload.reset()
+  bulkDialogKind.value = 'statements'
+  bulkDialogOpen.value = true
+}
+
+function startBulkCsv() {
+  if (!canExportCsv.value || csvCap.value || bulkBlocked.value) return
+  bulkDialogKind.value = 'csv'
+  bulkDialogOpen.value = true
+  void bulkDownload.start({ kind: 'csv' })
+}
+
+function submitBulkStatements(range: CustomerStatementRange) {
+  void bulkDownload.start({ kind: 'statements', range })
+}
+
+// Cancelling the CSV leaves nothing to show (it has no picker), so the dialog closes; the
+// statements dialog goes back to its period picker.
+function cancelBulkDownload() {
+  bulkDownload.cancel()
+  if (bulkDialogKind.value === 'csv') bulkDialogOpen.value = false
+}
+
+function setBulkDialogOpen(open: boolean) {
+  bulkDialogOpen.value = open
+  if (!open) {
+    bulkDownload.cancel()
+    bulkDownload.reset()
+  }
+}
+
+const bulkActions = computed<BulkAction<CustomerListingRow>[]>(() => [
+  ...(canBulkStatementsAccess.value
+    ? [
+        {
+          id: 'statements',
+          label: 'Estados de cuenta PDF',
+          icon: 'i-lucide-file-text',
+          disabled: bulkBlocked.value || statementsCap.value !== null,
+          onClick: openBulkStatements,
+        },
+      ]
+    : []),
+  ...(canExportCsv.value
+    ? [
+        {
+          id: 'csv',
+          label: 'Exportar CSV',
+          icon: 'i-lucide-download',
+          disabled: bulkBlocked.value || csvCap.value !== null,
+          onClick: startBulkCsv,
+        },
+      ]
+    : []),
+])
+const formatBulkCount = (value: number) => value.toLocaleString('en-US')
 
 // customers-module T4: the edit session and the delete flow are shared with the customer page.
 const editor = useCustomerEditor()
@@ -484,6 +619,22 @@ function clearFilters() {
 
     <CustomerPetsSlideover v-model:open="isPetsOpen" :customer="petsCustomer" />
 
+    <CustomerBulkDownloadDialog
+      :open="bulkDialogOpen"
+      :kind="bulkDialogKind"
+      :count="bulkSelection.count.value"
+      :running="bulkDownload.isRunning.value"
+      :error="bulkDownload.error.value"
+      :can-retry="bulkDownload.canRetry.value"
+      :can-retry-without-missing="bulkDownload.canRetryWithoutMissing.value"
+      @update:open="setBulkDialogOpen"
+      @submit="submitBulkStatements"
+      @cancel="cancelBulkDownload"
+      @retry="bulkDownload.retry()"
+      @retry-without-missing="bulkDownload.retryWithoutMissing()"
+      @back="bulkDownload.reset()"
+    />
+
     <section
       class="hf-theme hf-ui clients-visual flex w-full min-w-0 flex-col gap-6"
       aria-labelledby="clients-title"
@@ -548,7 +699,13 @@ function clearFilters() {
             v-model:column-order="columnOrder"
             v-model:column-sizing="columnSizing"
             v-model:density="density"
-            :columns="columns"
+            v-model:row-selection="pageSelection"
+            :columns="tableColumns"
+            :enable-row-selection="bulkEnabled"
+            :bulk-actions="bulkActions"
+            :selection-count="bulkSelection.count.value"
+            :row-mark-label="(customer: CustomerListingRow) => `Seleccionar a ${customer.fullName}`"
+            select-all-label="Seleccionar los clientes de esta página"
             :data="data"
             :loading="isLoading"
             :fetching="isFetching"
@@ -581,6 +738,7 @@ function clearFilters() {
             @clear-filters="clearFilters"
             @refresh="refresh"
             @reset-columns="resetLayout"
+            @clear-selection="bulkSelection.clear()"
           >
             <template #filters>
               <!-- Filter · sort, as in Ventas: the sheet (embedded in the mobile bottom sheet) and the
@@ -612,6 +770,35 @@ function clearFilters() {
                   />
                 </div>
               </div>
+            </template>
+
+            <!-- Bulk selection: round row marks; the header mark selects the page. -->
+            <template #select-header="{ table }">
+              <SelectColumn :table="table" mode="header" header-label="Seleccionar los clientes de esta página" />
+            </template>
+            <template #select-cell="{ row }">
+              <SelectColumn
+                :row="row"
+                mode="cell"
+                :label="(customer: CustomerListingRow) => `Seleccionar a ${customer.fullName}`"
+              />
+            </template>
+
+            <template #bulk-summary>
+              <span v-if="bulkSelection.mode.value === 'filter'" data-testid="customers-bulk-filter-mode">
+                Todos los del filtro
+              </span>
+              <button
+                v-else-if="bulkSelection.canSelectAllFilter.value"
+                type="button"
+                class="clients-bulk-link"
+                data-testid="customers-bulk-select-filter"
+                @click="bulkSelection.selectAllFilter()"
+              >Seleccionar los {{ formatBulkCount(totalCount) }} clientes del filtro</button>
+              <span v-if="bulkCapReasons.length > 0" class="clients-bulk-cap" data-testid="customers-bulk-cap">
+                <UIcon name="i-lucide-info" class="size-3.5 shrink-0" aria-hidden="true" />
+                {{ bulkCapReasons.join(' · ') }}
+              </span>
             </template>
 
             <!-- Sortable headers: only the columns GET /customers/listing can order by. -->

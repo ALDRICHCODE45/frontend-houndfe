@@ -343,6 +343,12 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
       label: 'Gestión completa de clientes',
       description: 'Crear, ver, editar y eliminar clientes y sus direcciones.',
     },
+    // customers-bulk-actions: explicit permission; `manage:Customer` does not include it.
+    export: {
+      label: 'Exportar clientes',
+      description:
+        'Descargar en CSV los datos de los clientes seleccionados. Requiere «Ver clientes»; «Gestión completa de clientes» no lo incluye.',
+    },
   },
 
   Promotion: {

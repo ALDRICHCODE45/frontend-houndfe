@@ -165,3 +165,28 @@
     min-height: 44px;
   }
 }
+
+/* customers-bulk-actions: inside the bulk bar summary — «Seleccionar los N clientes del filtro» and
+ * the cap explanation of a disabled action. */
+.clients-visual .clients-bulk-link {
+  min-height: 2rem;
+  padding: 0 0.25rem;
+  border-radius: 6px;
+  color: var(--hf-active);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.clients-visual .clients-bulk-link:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+.clients-visual .clients-bulk-cap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.5rem;
+  color: var(--hf-muted);
+}

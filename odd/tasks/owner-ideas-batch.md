@@ -13,7 +13,7 @@
 - [x] T2 S4 Toggle chips in the shared filters component — worker B
 - [x] T3 S5 Page size selector + memory on the customer page pagers — worker C
 - [x] T4 S2 «Nueva venta» from the customer page (preselected customer) — worker D (map first; stop if backend needed)
-- [ ] T5 S3 (moves to a follow-up branch after this merge) Bulk actions: backend contract (batch statements PDF, CSV export of the filter) → implementation — parent ↔ backend, then worker
+- [x] T5 S3 (done on feat/customers-bulk-actions) Bulk actions: backend contract (batch statements PDF, CSV export of the filter) → implementation — parent ↔ backend, then worker
 - [ ] T6 Full suite, preview, owner check, merge — parent
 
 ## Log
