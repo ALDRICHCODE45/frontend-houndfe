@@ -13,3 +13,4 @@ API source of truth: odd/handoff/33-customers-bulk-actions.md (verbatim). Decisi
 
 ## Log
 - L1 Backend handoff 053429df copied (odd/handoff/33-customers-bulk-actions.md).
+- L2 Backend handoff 34 (1319f193): GET /sales/drafts rows now include customer + shippingAddress (odd/handoff/34-drafts-customer-summary.md); no FE change needed (row wins in mergeDraftListWithCache).
