@@ -9,7 +9,7 @@ API source of truth: odd/handoff/33-customers-bulk-actions.md (verbatim). Decisi
 
 ## Tasks
 - [x] T1 S1-S3 Selection + bulk bar + both downloads + permission gating — worker
-- [ ] T2 Full suite, preview, owner check, merge — parent
+- [x] T2 Full suite, preview, owner check, merge — parent
 
 ## Log
 - L1 Backend handoff 053429df copied (odd/handoff/33-customers-bulk-actions.md).
@@ -20,3 +20,4 @@ API source of truth: odd/handoff/33-customers-bulk-actions.md (verbatim). Decisi
 - [x] T1b L4 + L5 fixes (3 review advisories + 4 verifier lows) — worker
 - L6 T1b (worker mwzs6ul3-y-55d7): dialog INVALID_PERIOD → picker again with inline error; timeout/TOO_LARGE/EMPTY → «Volver» (picker or table); filter-mode 404 retries the same selection once and never shortens excludeIds; 429 countdown survives closing the dialog, bar actions disabled with the countdown, start() refuses while waiting; bulk filter uses the debounced search the listing applies (`debouncedGlobalFilter` exposed by useServerTable, `appliedSearch`); no spurious limit toast on «Quitar selección»; cancelling a CSV closes the dialog; LISTING_* test renamed (no refetch, by design). RED 19 → GREEN 72; customers 831, DataTable 324, related 1178; lint, type-check clean. Gating untouched.
 - L7 Full suite 1177/1177 files green (8efd2410); build OK; preview :4173. Waiting for owner check.
+- L8 Owner (2026-11-28): «Bien.. me gusta, si funciona, todo lo probe y funciona, hay que hacer merge» — merged to local main. Mobile UI complaint handled on a new branch (odd/tasks/mobile-tables.md).
