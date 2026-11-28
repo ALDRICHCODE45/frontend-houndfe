@@ -203,6 +203,11 @@ const props = withDefaults(
     /** Noun after the bulk bar count, e.g. `{ one: 'seleccionada', other: 'seleccionadas' }`. */
     selectedLabel?: { one: string; other: string }
     /**
+     * Count of a selection kept by the screen beyond the page marks (ids across pages, «todos los del
+     * filtro»). The bulk bar shows it, and hides with 0. Default `undefined` → the page marks count.
+     */
+    selectionCount?: number
+    /**
      * Optional whole-row click contract. When set, a click on a body row (outside
      * interactive children, with no modifier, on the primary button and with no
      * text selected) calls it with the row's data, and rows get `hf-clickable-row`.
@@ -263,6 +268,7 @@ const props = withDefaults(
     activeFilterCount: 0,
     bulkActions: () => [],
     selectedLabel: undefined,
+    selectionCount: undefined,
     displayMode: 'auto',
     mobileRender: 'table',
     mobileBreakpoint: 'md',
@@ -279,6 +285,8 @@ const emit = defineEmits<{
   'clear-filters': []
   /** The button of the shared empty state (`emptyState.actionLabel`) was clicked. */
   'empty-action': []
+  /** «Quitar selección» in the bulk bar (after the page marks are cleared). */
+  'clear-selection': []
 }>()
 
 // v-model bindings for table state
@@ -1031,8 +1039,15 @@ const TOTALS_SCOPE_TEXT: Record<TotalsScope, string> = {
   filter: 'Total del filtro',
   page: 'Esta página',
 }
+// A screen-kept selection larger than this page's marks (`selectionCount`) cannot be summed from
+// the rows here, so the row keeps the filter / page totals instead of a partial «Selección».
+const selectionOnPage = computed(
+  () =>
+    selectedRows.value.length > 0 &&
+    (props.selectionCount === undefined || props.selectionCount === selectedRows.value.length),
+)
 const totalsScope = computed<TotalsScope>(() =>
-  selectedRows.value.length > 0 ? 'selection' : props.totals ? 'filter' : 'page',
+  selectionOnPage.value ? 'selection' : props.totals ? 'filter' : 'page',
 )
 const totalsRows = computed<T[]>(() => (totalsScope.value === 'selection' ? selectedRows.value : props.data))
 const countTotal = computed(() => {
@@ -1119,6 +1134,8 @@ watch(resizingColumnId, (now, before) => {
 
 // Selected count and rows for the bulk bar
 const selectedCount = computed(() => Object.keys(rowSelection.value).length)
+/** What the bulk bar counts: the screen's own selection count when given, else the page marks. */
+const bulkCount = computed(() => props.selectionCount ?? selectedCount.value)
 // Cards mode renders no UTable: rows are keyed by their index on the page, as in the table.
 function selectedCardRows(): T[] {
   return props.data.filter((_, index) => rowSelection.value[index])
@@ -1159,13 +1176,13 @@ const showBulkBar = computed(
 const rootEl = useTemplateRef<HTMLElement>('root')
 const bulkAnchor = ref<{ left: number; width: number }>()
 function measureBulkAnchor() {
-  if (!showBulkBar.value || selectedCount.value === 0 || !rootEl.value) return
+  if (!showBulkBar.value || bulkCount.value === 0 || !rootEl.value) return
   const box = rootEl.value.getBoundingClientRect()
   if (bulkAnchor.value?.left !== box.left || bulkAnchor.value?.width !== box.width) {
     bulkAnchor.value = { left: box.left, width: box.width }
   }
 }
-watch(selectedCount, () => nextTick(measureBulkAnchor), { immediate: true })
+watch(bulkCount, () => nextTick(measureBulkAnchor), { immediate: true })
 useResizeObserver(rootEl, measureBulkAnchor)
 useEventListener(window, 'resize', measureBulkAnchor, { passive: true })
 useEventListener(window, 'scroll', measureBulkAnchor, { passive: true, capture: true })
@@ -1207,6 +1224,7 @@ function onTableClick(event: MouseEvent) {
 
 function handleClearSelection() {
   rowSelection.value = {}
+  emit('clear-selection')
 }
 
 defineExpose({
@@ -1712,7 +1730,7 @@ defineExpose({
     <!-- Bulk Actions -->
     <DataTableBulkActions
       v-if="showBulkBar"
-      :selected-count="selectedCount"
+      :selected-count="bulkCount"
       :total-count="props.totalCount"
       :actions="props.bulkActions"
       :selected-rows="selectedRows"
@@ -1721,7 +1739,7 @@ defineExpose({
       @clear-selection="handleClearSelection"
     >
       <template v-if="slots['bulk-summary']" #summary>
-        <slot name="bulk-summary" :count="selectedCount" :rows="selectedRows" />
+        <slot name="bulk-summary" :count="bulkCount" :rows="selectedRows" />
       </template>
     </DataTableBulkActions>
   </div>

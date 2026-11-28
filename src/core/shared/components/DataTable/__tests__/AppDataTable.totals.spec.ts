@@ -222,6 +222,22 @@ describe('AppDataTable totals row', () => {
     expect(footCell(wrapper, 'totalCents').text()).toContain('$100.50')
   })
 
+  // customers-bulk-actions T1: a selection kept by the screen beyond this page cannot be summed here.
+  it('keeps the filter totals when selectionCount is larger than the page marks', async () => {
+    const wrapper = mountTable({
+      totals: { name: 120, totalCents: 500 },
+      totalCount: 120,
+      enableRowSelection: true,
+      rowSelection: { 0: true },
+      selectionCount: 119,
+    })
+    await nextTick()
+    expect(wrapper.get('[data-testid="table-totals-scope"]').text()).toBe('Total del filtro')
+
+    await wrapper.setProps({ selectionCount: 1 })
+    expect(wrapper.get('[data-testid="table-totals-scope"]').text()).toBe('Selección')
+  })
+
   it('renders a custom total text and passes the rows in scope', () => {
     const custom = columns.map(column =>
       column.accessorKey === 'status'

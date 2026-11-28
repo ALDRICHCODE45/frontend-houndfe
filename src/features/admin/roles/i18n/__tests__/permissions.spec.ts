@@ -250,7 +250,7 @@ const BACKEND_PERMISSION_REGISTRY: Record<string, readonly string[]> = {
   Role: ['create', 'read', 'update', 'delete', 'manage'],
   Tenant: ['create', 'read', 'update', 'delete'],
   Promotion: ['create', 'read', 'update', 'delete', 'manage'],
-  Customer: ['create', 'read', 'update', 'delete', 'manage'],
+  Customer: ['create', 'read', 'update', 'delete', 'manage', 'export'],
   Sale: ['create', 'read', 'update', 'delete', 'manage'],
   SatKey: ['read'],
   ReceiptEvidence: ['read', 'update', 'manage'],
@@ -572,5 +572,16 @@ describe('permissions i18n — chatbot request subjects (ODD chatbot-requests-in
     expect(getPermissionLabel('ReceiptEvidence', 'read')).toBe('Ver comprobantes de pago')
     expect(getPermissionLabel('ReceiptEvidence', 'update')).toBe('Revisar comprobantes de pago')
     expect(getPermissionLabel('ReceiptEvidence', 'manage')).toBe('Gestión completa de comprobantes')
+  })
+})
+
+// customers-bulk-actions T1 (S2): the NEW export:Customer permission (backend registry) must read
+// as Spanish when an admin assigns it, and say that manage:Customer does not include it.
+describe('permissions i18n — export:Customer (customers-bulk-actions)', () => {
+  it('labels export:Customer as «Exportar clientes» with a Spanish description', () => {
+    expect(getPermissionLabel('Customer', 'export')).toBe('Exportar clientes')
+    const description = getPermissionDescription('Customer', 'export')
+    expect(description).toContain('CSV')
+    expect(description).toContain('Gestión completa de clientes')
   })
 })

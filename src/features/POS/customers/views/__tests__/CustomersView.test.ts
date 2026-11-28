@@ -714,7 +714,9 @@ describe('CustomersView — column layout (premium tables T9)', () => {
   it('names every column for the «Columnas» panel, never with its id', () => {
     const table = mount(CustomersView).getComponent({ name: 'AppDataTable' })
     const labels = (table.props('columns') as Parameters<typeof columnLabel>[0][]).map(columnLabel)
+    // customers-bulk-actions: the locked selection column comes first when a bulk action exists.
     expect(labels).toEqual([
+      'Selección',
       'Cliente',
       'Deuda',
       'Vencido desde',

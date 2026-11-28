@@ -112,6 +112,11 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
       </div>`,
   },
 }))
+// customers-bulk-actions: the stub table renders every column slot with a plain row; the real
+// selection mark needs a TanStack row, so it is stubbed here.
+vi.mock('@/core/shared/components/DataTable/SelectColumn.vue', () => ({
+  default: { name: 'SelectColumn', props: ['table', 'row', 'mode', 'label', 'headerLabel'], template: '<span />' },
+}))
 vi.mock('@/core/shared/components/DataTable/DataTableViews.vue', () => ({
   default: { name: 'DataTableViews', props: ['views', 'counts', 'controls', 'tabIdPrefix', 'portalClass'], template: '<div data-testid="views" />' },
 }))
